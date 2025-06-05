@@ -1,9 +1,8 @@
-
-mod brain;
 mod boxes;
-mod manifest;
-mod history;
+mod brain;
 mod distro;
+mod history;
+mod manifest;
 
 use brain::OmniBrain;
 use manifest::OmniManifest;

@@ -32,6 +32,19 @@ impl OmniBrain {
     }
 
     pub fn install_from_manifest(&self, manifest: OmniManifest) {
+        println!("📦 Project: {}", manifest.project);
+        if let Some(desc) = &manifest.description {
+            println!("🔎 {}", desc);
+        }
+        if let Some(meta) = &manifest.meta {
+            if let Some(author) = &meta.created_by {
+                println!("👤 Created by: {}", author);
+            }
+            if let Some(date) = &meta.created_on {
+                println!("📅 Created on: {}", date);
+            }
+        }
+
         let fallback = manifest
             .meta
             .as_ref()
@@ -39,6 +52,11 @@ impl OmniBrain {
             .unwrap_or(false);
 
         for app in manifest.apps {
+            if let Some(ver) = &app.version {
+                println!("➡️  {} {}", app.name, ver);
+            } else {
+                println!("➡️  {}", app.name);
+            }
             let handled = match app.box_type.as_str() {
                 "apt" if distro::command_exists("apt") => {
                     apt::install_with_apt(&app.name);
