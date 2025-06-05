@@ -1,13 +1,24 @@
-
-mod brain;
 mod boxes;
-mod manifest;
-mod history;
+mod brain;
 mod distro;
+mod gui;
+mod history;
+mod manifest;
 
 use brain::OmniBrain;
 use manifest::OmniManifest;
 use std::env;
+
+fn print_help() {
+    println!("Omni - Universal Linux Installer");
+    println!("Usage:");
+    println!("  omni install <package>");
+    println!("  omni install --from <manifest>");
+    println!("  omni undo");
+    println!("  omni snapshot");
+    println!("  omni revert");
+    println!("  omni gui");
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,6 +42,11 @@ fn main() {
         Some("undo") => brain.undo_last(),
         Some("snapshot") => brain.snapshot(),
         Some("revert") => brain.revert(),
-        _ => eprintln!("❌ Unknown or missing command."),
+        Some("gui") => gui::launch_gui(),
+        Some("help") | Some("--help") | Some("-h") | None => print_help(),
+        _ => {
+            eprintln!("❌ Unknown command.");
+            print_help();
+        }
     }
 }
