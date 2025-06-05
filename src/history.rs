@@ -1,7 +1,8 @@
 
 use serde::{Deserialize, Serialize};
-use std::fs::{self, OpenOptions};
-use std::io::{BufReader, Write};
+use std::fs::OpenOptions;
+use std::io::BufReader;
+use crate::boxes::{apt, dnf, flatpak, pacman};
 
 const HISTORY_FILE: &str = ".omni_history.json";
 
@@ -48,6 +49,13 @@ pub fn undo_last_install() {
     let mut history = load_history();
     if let Some(last) = history.pop() {
         println!("🧹 Undoing '{}' via '{}'", last.package, last.box_type);
+        match last.box_type.as_str() {
+            "apt" => apt::uninstall_with_apt(&last.package),
+            "pacman" => pacman::uninstall_with_pacman(&last.package),
+            "dnf" => dnf::uninstall_with_dnf(&last.package),
+            "flatpak" => flatpak::uninstall_with_flatpak(&last.package),
+            other => eprintln!("❌ Unknown box type: {}", other),
+        }
         let file = OpenOptions::new()
             .write(true)
             .truncate(true)

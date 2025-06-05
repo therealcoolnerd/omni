@@ -14,3 +14,18 @@ pub fn install_with_pacman(package: &str) {
         Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
     }
 }
+
+pub fn uninstall_with_pacman(package: &str) {
+    println!("🗑 Removing '{}' via pacman", package);
+    match Command::new("sudo")
+        .arg("pacman")
+        .arg("-R")
+        .arg("--noconfirm")
+        .arg(package)
+        .status()
+    {
+        Ok(status) if status.success() => println!("✅ Pacman removed '{}'", package),
+        Ok(_) => eprintln!("❌ Pacman failed to remove '{}'", package),
+        Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
+    }
+}
