@@ -1,4 +1,3 @@
-
 use std::fs;
 
 pub fn detect_distro() -> String {
@@ -12,4 +11,13 @@ pub fn detect_distro() -> String {
     } else {
         "unknown".to_string()
     }
+}
+
+pub fn command_exists(cmd: &str) -> bool {
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {} > /dev/null 2>&1", cmd))
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }

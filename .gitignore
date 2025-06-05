@@ -1,0 +1,8 @@
+# Ignore build output
+/target
+
+# Ignore history file
+.omni_history.json
+
+# Generated lock file
+Cargo.lock
