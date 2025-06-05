@@ -1,0 +1,14 @@
+[package]
+name = "omni"
+version = "0.1.0"
+edition = "2021"
+authors = ["therealcoolnerd"]
+license = "AGPL-3.0-or-later"
+description = "Universal Linux Installer Engine"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+
