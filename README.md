@@ -21,3 +21,7 @@ git clone https://github.com/yourname/omni.git
 cd omni
 cargo build
 ./target/debug/omni install --from omni.manifest.yaml
+```
+
+## 📜 License
+GNU AGPLv3
