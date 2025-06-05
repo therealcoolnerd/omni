@@ -1,3 +1,4 @@
 pub mod apt;
-pub mod pacman;
+pub mod dnf;
 pub mod flatpak;
+pub mod pacman;

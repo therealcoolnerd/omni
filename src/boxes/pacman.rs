@@ -1,16 +1,31 @@
-
 use std::process::Command;
 
 pub fn install_with_pacman(package: &str) {
     println!("🔧 Installing '{}' via pacman", package);
-    let status = Command::new("sudo")
+    match Command::new("sudo")
         .arg("pacman")
         .arg("-S")
         .arg("--noconfirm")
         .arg(package)
         .status()
-        .expect("Pacman failed");
-    if status.success() {
-        println!("✅ Pacman installed '{}'", package);
+    {
+        Ok(status) if status.success() => println!("✅ Pacman installed '{}'", package),
+        Ok(_) => eprintln!("❌ Pacman failed to install '{}'", package),
+        Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
+    }
+}
+
+pub fn uninstall_with_pacman(package: &str) {
+    println!("🗑 Removing '{}' via pacman", package);
+    match Command::new("sudo")
+        .arg("pacman")
+        .arg("-R")
+        .arg("--noconfirm")
+        .arg(package)
+        .status()
+    {
+        Ok(status) if status.success() => println!("✅ Pacman removed '{}'", package),
+        Ok(_) => eprintln!("❌ Pacman failed to remove '{}'", package),
+        Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
     }
 }
