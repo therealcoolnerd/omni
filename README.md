@@ -17,7 +17,7 @@ With modular **Omni Boxes**, a secure **Omni Brain**, and the high-speed **Omni 
 
 ## 🚀 Getting Started
 ```bash
-git clone https://github.com/yourname/omni.git
+git clone https://github.com/therealcoolnerd/omni.git
 cd omni
 cargo build
 ./target/debug/omni install --from omni.manifest.yaml
