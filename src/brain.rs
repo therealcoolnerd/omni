@@ -2,6 +2,7 @@
 use crate::boxes::{apt, flatpak, pacman};
 use crate::manifest::OmniManifest;
 use crate::history;
+use crate::distro;
 
 pub struct OmniBrain;
 
@@ -10,8 +11,19 @@ impl OmniBrain {
 
     pub fn install(&self, app: &str) {
         println!("🔥 Installing '{}'", app);
-        apt::install_with_apt(app);
-        history::save_install(app, "apt");
+        match distro::detect_distro().as_str() {
+            "apt" => {
+                apt::install_with_apt(app);
+                history::save_install(app, "apt");
+            }
+            "pacman" => {
+                pacman::install_with_pacman(app);
+                history::save_install(app, "pacman");
+            }
+            other => {
+                eprintln!("❌ Unsupported distro: {}", other);
+            }
+        }
     }
 
     pub fn install_from_manifest(&self, manifest: OmniManifest) {
