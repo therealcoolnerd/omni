@@ -1,8 +1,7 @@
-
+use crate::boxes::{apt, dnf, flatpak, pacman};
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::BufReader;
-use crate::boxes::{apt, dnf, flatpak, pacman};
 
 const HISTORY_FILE: &str = ".omni_history.json";
 
