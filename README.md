@@ -14,6 +14,7 @@ With modular **Omni Boxes**, a secure **Omni Brain**, and the high-speed **Omni 
 - 📦 Omni Boxes — plug-and-play backend modules for each format or distro
 - 🧾 Omni Manifest — define installs in YAML, JSON, or TOML for projects
 - 🖥️ Optional GUI — Omni Flame, a sleek cross-platform frontend (`omni gui`)
+The GUI lets you install packages directly or select a manifest file with a file picker.
 
 ## 🚀 Getting Started
 ```bash
