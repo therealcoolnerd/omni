@@ -13,8 +13,9 @@ With modular **Omni Boxes**, a secure **Omni Brain**, and the high-speed **Omni 
 - 🧠 Omni Brain — smart logic for resolving dependencies, packages, and rollbacks
 - 📦 Omni Boxes — plug-and-play backend modules for each format or distro
 - 🧾 Omni Manifest — define installs in YAML, JSON, or TOML for projects
-- 🖥️ Optional GUI — Omni Flame, a sleek cross-platform frontend (`omni gui`)
-The GUI lets you install packages directly or select a manifest file with a file picker.
+- 🖥️ Optional GUI — Omni Flame, a sleek cross-platform frontend (coming soon)
+- 🖥️ Optional GUI — Omni Flame, a sleek cross-platform frontend (`omni gui`),
+  letting you install packages directly or select a manifest with a file picker.
 
 ## 🚀 Getting Started
 ```bash
@@ -26,6 +27,10 @@ cargo build
 ./target/debug/omni gui
 # View command help
 ./target/debug/omni help
+
+# If you use Nix, run this first to get all dependencies
+# and an editor with rust-analyzer preinstalled
+nix develop
 ```
 
 ## 📜 License
