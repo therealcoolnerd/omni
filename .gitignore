@@ -6,3 +6,5 @@
 
 # Generated lock file
 Cargo.lock
+# Release artifacts
+release/

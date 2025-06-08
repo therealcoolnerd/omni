@@ -18,20 +18,27 @@ With modular **Omni Boxes**, a secure **Omni Brain**, and the high-speed **Omni 
   letting you install packages directly or select a manifest with a file picker.
 
 ## 🚀 Getting Started
-```bash
-git clone https://github.com/therealcoolnerd/omni.git
-cd omni
-cargo build
-./target/debug/omni install --from omni.manifest.yaml
-# Launch the GUI
-./target/debug/omni gui
-# View command help
-./target/debug/omni help
 
-# If you use Nix, run this first to get all dependencies
-# and an editor with rust-analyzer preinstalled
-nix develop
-```
+You can either grab a prebuilt binary or build Omni yourself.
+
+- **Download:** Visit the [GitHub Releases](https://github.com/therealcoolnerd/omni/releases)
+  page and download `omni-linux.gz`. Extract it with `gzip -d omni-linux.gz`
+  and run `./omni`.
+- **Build:**
+  ```bash
+  git clone https://github.com/therealcoolnerd/omni.git
+  cd omni
+  cargo build
+  ./target/debug/omni install --from omni.manifest.yaml
+  # Launch the GUI
+  ./target/debug/omni gui
+  # View command help
+  ./target/debug/omni help
+
+  # If you use Nix, run this first to get all dependencies
+  # and an editor with rust-analyzer preinstalled
+  nix develop
+  ```
 
 ## 📜 License
 GNU AGPLv3
