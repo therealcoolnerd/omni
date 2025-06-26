@@ -1,0 +1,371 @@
+use sqlx::{SqlitePool, Row};
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
+use std::path::PathBuf;
+use anyhow::Result;
+use crate::config::OmniConfig;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstallRecord {
+    pub id: String,
+    pub package_name: String,
+    pub box_type: String,
+    pub version: Option<String>,
+    pub source_url: Option<String>,
+    pub install_path: Option<String>,
+    pub installed_at: DateTime<Utc>,
+    pub status: InstallStatus,
+    pub metadata: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum InstallStatus {
+    Success,
+    Failed,
+    Removed,
+    Updated,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Snapshot {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub packages: Vec<InstallRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PackageCache {
+    pub package_name: String,
+    pub box_type: String,
+    pub version: String,
+    pub description: Option<String>,
+    pub dependencies: Vec<String>,
+    pub cached_at: DateTime<Utc>,
+}
+
+pub struct Database {
+    pool: SqlitePool,
+}
+
+impl Database {
+    pub async fn new() -> Result<Self> {
+        let data_dir = OmniConfig::data_dir()?;
+        std::fs::create_dir_all(&data_dir)?;
+        
+        let database_url = format!("sqlite:{}/omni.db", data_dir.display());
+        let pool = SqlitePool::connect(&database_url).await?;
+        
+        let db = Database { pool };
+        db.migrate().await?;
+        
+        Ok(db)
+    }
+    
+    async fn migrate(&self) -> Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS install_records (
+                id TEXT PRIMARY KEY,
+                package_name TEXT NOT NULL,
+                box_type TEXT NOT NULL,
+                version TEXT,
+                source_url TEXT,
+                install_path TEXT,
+                installed_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                metadata TEXT
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS snapshots (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_at TEXT NOT NULL
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS snapshot_packages (
+                snapshot_id TEXT NOT NULL,
+                install_record_id TEXT NOT NULL,
+                FOREIGN KEY (snapshot_id) REFERENCES snapshots (id),
+                FOREIGN KEY (install_record_id) REFERENCES install_records (id)
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS package_cache (
+                package_name TEXT NOT NULL,
+                box_type TEXT NOT NULL,
+                version TEXT NOT NULL,
+                description TEXT,
+                dependencies TEXT,
+                cached_at TEXT NOT NULL,
+                PRIMARY KEY (package_name, box_type)
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+    
+    pub async fn record_install(&self, record: &InstallRecord) -> Result<()> {
+        let status_str = match record.status {
+            InstallStatus::Success => "success",
+            InstallStatus::Failed => "failed",
+            InstallStatus::Removed => "removed",
+            InstallStatus::Updated => "updated",
+        };
+        
+        sqlx::query(
+            r#"
+            INSERT INTO install_records 
+            (id, package_name, box_type, version, source_url, install_path, installed_at, status, metadata)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            "#,
+        )
+        .bind(&record.id)
+        .bind(&record.package_name)
+        .bind(&record.box_type)
+        .bind(&record.version)
+        .bind(&record.source_url)
+        .bind(&record.install_path)
+        .bind(record.installed_at.to_rfc3339())
+        .bind(status_str)
+        .bind(&record.metadata)
+        .execute(&self.pool)
+        .await?;
+        
+        Ok(())
+    }
+    
+    pub async fn get_install_history(&self, limit: Option<i64>) -> Result<Vec<InstallRecord>> {
+        let limit = limit.unwrap_or(100);
+        
+        let rows = sqlx::query(
+            "SELECT * FROM install_records ORDER BY installed_at DESC LIMIT ?1"
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        
+        let mut records = Vec::new();
+        for row in rows {
+            let status = match row.get::<String, _>("status").as_str() {
+                "success" => InstallStatus::Success,
+                "failed" => InstallStatus::Failed,
+                "removed" => InstallStatus::Removed,
+                "updated" => InstallStatus::Updated,
+                _ => InstallStatus::Failed,
+            };
+            
+            let installed_at: String = row.get("installed_at");
+            let installed_at = DateTime::parse_from_rfc3339(&installed_at)?
+                .with_timezone(&Utc);
+            
+            records.push(InstallRecord {
+                id: row.get("id"),
+                package_name: row.get("package_name"),
+                box_type: row.get("box_type"),
+                version: row.get("version"),
+                source_url: row.get("source_url"),
+                install_path: row.get("install_path"),
+                installed_at,
+                status,
+                metadata: row.get("metadata"),
+            });
+        }
+        
+        Ok(records)
+    }
+    
+    pub async fn get_installed_packages(&self) -> Result<Vec<InstallRecord>> {
+        let rows = sqlx::query(
+            "SELECT * FROM install_records WHERE status = 'success' ORDER BY installed_at DESC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        
+        let mut records = Vec::new();
+        for row in rows {
+            let installed_at: String = row.get("installed_at");
+            let installed_at = DateTime::parse_from_rfc3339(&installed_at)?
+                .with_timezone(&Utc);
+            
+            records.push(InstallRecord {
+                id: row.get("id"),
+                package_name: row.get("package_name"),
+                box_type: row.get("box_type"),
+                version: row.get("version"),
+                source_url: row.get("source_url"),
+                install_path: row.get("install_path"),
+                installed_at,
+                status: InstallStatus::Success,
+                metadata: row.get("metadata"),
+            });
+        }
+        
+        Ok(records)
+    }
+    
+    pub async fn create_snapshot(&self, name: &str, description: Option<&str>) -> Result<String> {
+        let snapshot_id = Uuid::new_v4().to_string();
+        let created_at = Utc::now();
+        
+        let installed_packages = self.get_installed_packages().await?;
+        
+        sqlx::query(
+            "INSERT INTO snapshots (id, name, description, created_at) VALUES (?1, ?2, ?3, ?4)"
+        )
+        .bind(&snapshot_id)
+        .bind(name)
+        .bind(description)
+        .bind(created_at.to_rfc3339())
+        .execute(&self.pool)
+        .await?;
+        
+        for package in &installed_packages {
+            sqlx::query(
+                "INSERT INTO snapshot_packages (snapshot_id, install_record_id) VALUES (?1, ?2)"
+            )
+            .bind(&snapshot_id)
+            .bind(&package.id)
+            .execute(&self.pool)
+            .await?;
+        }
+        
+        Ok(snapshot_id)
+    }
+    
+    pub async fn list_snapshots(&self) -> Result<Vec<Snapshot>> {
+        let rows = sqlx::query("SELECT * FROM snapshots ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
+        
+        let mut snapshots = Vec::new();
+        
+        for row in rows {
+            let snapshot_id: String = row.get("id");
+            let created_at: String = row.get("created_at");
+            let created_at = DateTime::parse_from_rfc3339(&created_at)?
+                .with_timezone(&Utc);
+            
+            let packages = self.get_snapshot_packages(&snapshot_id).await?;
+            
+            snapshots.push(Snapshot {
+                id: snapshot_id,
+                name: row.get("name"),
+                description: row.get("description"),
+                created_at,
+                packages,
+            });
+        }
+        
+        Ok(snapshots)
+    }
+    
+    async fn get_snapshot_packages(&self, snapshot_id: &str) -> Result<Vec<InstallRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT ir.* FROM install_records ir
+            JOIN snapshot_packages sp ON ir.id = sp.install_record_id
+            WHERE sp.snapshot_id = ?1
+            "#
+        )
+        .bind(snapshot_id)
+        .fetch_all(&self.pool)
+        .await?;
+        
+        let mut records = Vec::new();
+        for row in rows {
+            let installed_at: String = row.get("installed_at");
+            let installed_at = DateTime::parse_from_rfc3339(&installed_at)?
+                .with_timezone(&Utc);
+            
+            records.push(InstallRecord {
+                id: row.get("id"),
+                package_name: row.get("package_name"),
+                box_type: row.get("box_type"),
+                version: row.get("version"),
+                source_url: row.get("source_url"),
+                install_path: row.get("install_path"),
+                installed_at,
+                status: InstallStatus::Success,
+                metadata: row.get("metadata"),
+            });
+        }
+        
+        Ok(records)
+    }
+    
+    pub async fn cache_package_info(&self, cache_entry: &PackageCache) -> Result<()> {
+        let dependencies_json = serde_json::to_string(&cache_entry.dependencies)?;
+        
+        sqlx::query(
+            r#"
+            INSERT OR REPLACE INTO package_cache 
+            (package_name, box_type, version, description, dependencies, cached_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "#,
+        )
+        .bind(&cache_entry.package_name)
+        .bind(&cache_entry.box_type)
+        .bind(&cache_entry.version)
+        .bind(&cache_entry.description)
+        .bind(&dependencies_json)
+        .bind(cache_entry.cached_at.to_rfc3339())
+        .execute(&self.pool)
+        .await?;
+        
+        Ok(())
+    }
+    
+    pub async fn get_cached_package_info(&self, package_name: &str, box_type: &str) -> Result<Option<PackageCache>> {
+        let row = sqlx::query(
+            "SELECT * FROM package_cache WHERE package_name = ?1 AND box_type = ?2"
+        )
+        .bind(package_name)
+        .bind(box_type)
+        .fetch_optional(&self.pool)
+        .await?;
+        
+        if let Some(row) = row {
+            let cached_at: String = row.get("cached_at");
+            let cached_at = DateTime::parse_from_rfc3339(&cached_at)?
+                .with_timezone(&Utc);
+            
+            let dependencies_json: String = row.get("dependencies");
+            let dependencies: Vec<String> = serde_json::from_str(&dependencies_json)?;
+            
+            Ok(Some(PackageCache {
+                package_name: row.get("package_name"),
+                box_type: row.get("box_type"),
+                version: row.get("version"),
+                description: row.get("description"),
+                dependencies,
+                cached_at,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
