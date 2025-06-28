@@ -1,7 +1,8 @@
 use std::process::Command;
+use tracing::{info, error};
 
 pub fn install_with_dnf(package: &str) {
-    println!("🔧 Installing '{}' via dnf", package);
+    info!("Installing '{}' via dnf", package);
     match Command::new("sudo")
         .arg("dnf")
         .arg("install")
@@ -9,14 +10,14 @@ pub fn install_with_dnf(package: &str) {
         .arg(package)
         .status()
     {
-        Ok(status) if status.success() => println!("✅ DNF installed '{}'", package),
-        Ok(_) => eprintln!("❌ DNF failed to install '{}'", package),
-        Err(e) => eprintln!("❌ Failed to execute dnf: {}", e),
+        Ok(status) if status.success() => info!("DNF successfully installed '{}'", package),
+        Ok(_) => error!("DNF failed to install '{}'", package),
+        Err(e) => error!("Failed to execute dnf: {}", e),
     }
 }
 
 pub fn uninstall_with_dnf(package: &str) {
-    println!("🗑 Removing '{}' via dnf", package);
+    info!("Removing '{}' via dnf", package);
     match Command::new("sudo")
         .arg("dnf")
         .arg("remove")
@@ -24,8 +25,8 @@ pub fn uninstall_with_dnf(package: &str) {
         .arg(package)
         .status()
     {
-        Ok(status) if status.success() => println!("✅ DNF removed '{}'", package),
-        Ok(_) => eprintln!("❌ DNF failed to remove '{}'", package),
-        Err(e) => eprintln!("❌ Failed to execute dnf: {}", e),
+        Ok(status) if status.success() => info!("DNF successfully removed '{}'", package),
+        Ok(_) => error!("DNF failed to remove '{}'", package),
+        Err(e) => error!("Failed to execute dnf: {}", e),
     }
 }

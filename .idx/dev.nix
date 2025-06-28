@@ -6,6 +6,15 @@
 
   # Use https://search.nixos.org/packages to find packages
   packages = [
+    pkgs.rustc
+    pkgs.cargo
+    pkgs.rust-analyzer
+    pkgs.clippy
+    pkgs.rustfmt
+    pkgs.gcc
+    pkgs.pkg-config
+    pkgs.openssl
+    pkgs.sqlite
     # pkgs.go
     # pkgs.python311
     # pkgs.python311Packages.pip

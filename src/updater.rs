@@ -202,9 +202,9 @@ impl UpdateManager {
         info!("Updating package: {} via {}", candidate.package_name, candidate.box_type);
         
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap());
+        if let Ok(style) = ProgressStyle::default_spinner().template("{spinner:.green} {msg}") {
+            pb.set_style(style);
+        }
         pb.set_message(format!("Updating {}...", candidate.package_name));
         pb.enable_steady_tick(std::time::Duration::from_millis(100));
         
@@ -330,10 +330,10 @@ impl UpdateManager {
         info!("Updating {} packages", candidates.len());
         
         let pb = ProgressBar::new(candidates.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
+        if let Ok(style) = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}") {
+            pb.set_style(style.progress_chars("#>-"));
+        }
         
         for (i, candidate) in candidates.iter().enumerate() {
             pb.set_message(format!("Updating {}", candidate.package_name));

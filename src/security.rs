@@ -219,7 +219,19 @@ impl SecurityVerifier {
     async fn download_signature(&self, url: &str) -> Result<NamedTempFile> {
         info!("Downloading signature from: {}", url);
         
-        let response = reqwest::get(url).await?;
+        let client = reqwest::Client::builder()
+            .user_agent("omni-package-manager/0.2.0")
+            .timeout(std::time::Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::limited(3))
+            .build()?;
+        
+        let response = client
+            .get(url)
+            .header("Accept", "application/pgp-signature, application/octet-stream")
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache")
+            .send()
+            .await?;
         if !response.status().is_success() {
             return Err(anyhow::anyhow!("Failed to download signature: HTTP {}", response.status()));
         }
@@ -279,8 +291,24 @@ impl SecurityVerifier {
     }
     
     async fn url_exists(&self, url: &str) -> bool {
-        match reqwest::Client::new().head(url).send().await {
-            Ok(response) => response.status().is_success(),
+        let client = reqwest::Client::builder()
+            .user_agent("omni-package-manager/0.2.0")
+            .timeout(std::time::Duration::from_secs(10))
+            .redirect(reqwest::redirect::Policy::limited(2))
+            .build();
+            
+        match client {
+            Ok(client) => {
+                match client
+                    .head(url)
+                    .header("Cache-Control", "no-cache")
+                    .send()
+                    .await 
+                {
+                    Ok(response) => response.status().is_success(),
+                    Err(_) => false,
+                }
+            },
             Err(_) => false,
         }
     }
