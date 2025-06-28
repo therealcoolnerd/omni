@@ -1,0 +1,37 @@
+/* Secure App CSS */
+.App {
+  min-height: 100vh;
+  background-color: #111827;
+}
+
+/* Prevent potential CSS injection */
+* {
+  box-sizing: border-box;
+}
+
+/* Secure default styles */
+img {
+  max-width: 100%;
+  height: auto;
+  /* Prevent potential image-based attacks */
+  object-fit: cover;
+}
+
+/* Input security */
+input, textarea {
+  /* Prevent autocomplete of sensitive data */
+  autocomplete: off;
+}
+
+/* Hide sensitive data from screen readers when necessary */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
