@@ -1,7 +1,16 @@
 {
   "name": "omni-web-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "description": "Secure web interface for Omni Universal Package Manager",
+  "author": "therealcoolnerd",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/therealcoolnerd/omni",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/therealcoolnerd/omni.git"
+  },
+  "keywords": ["package-manager", "security", "cross-platform", "react", "xss-protection"],
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -12,7 +21,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "security-test": "npm test -- --testPathPattern=security",
+    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx"
   },
   "eslintConfig": {
     "extends": [

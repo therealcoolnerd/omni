@@ -353,21 +353,29 @@ See [LICENSE](LICENSE) file for details.
 
 ---
 
+## 👨‍💻 **Author**
+
+**Omni** is created and maintained by **[therealcoolnerd](https://github.com/therealcoolnerd)** 
+
+*Making package management universal, secure, and fun!* 🚀
+
 ## 🙏 **Acknowledgments**
 
 - **Cross-Platform Communities** for making universal compatibility possible
 - **Package Manager Teams** for the foundation we build upon  
 - **Rust Community** for the amazing ecosystem
-- **Contributors** who help make Omni truly universal
+- **Open Source Community** for continuous inspiration and feedback
 
 ---
 
 <div align="center">
 
-**Built with ❤️ for the global development community**
+**Built with ❤️ and lots of ☕ by therealcoolnerd**
 
 [⭐ Star this repo](https://github.com/therealcoolnerd/omni) • [🐛 Report Bug](https://github.com/therealcoolnerd/omni/issues) • [💡 Request Feature](https://github.com/therealcoolnerd/omni/issues) • [💬 Discussions](https://github.com/therealcoolnerd/omni/discussions)
 
 **"Finally, one package manager for everything, everywhere."** 🌍
+
+*Follow [@therealcoolnerd](https://github.com/therealcoolnerd) for more awesome projects!*
 
 </div>
