@@ -269,7 +269,7 @@ impl RetryHandler {
         }
         
         error!("Operation failed after {} attempts", self.config.max_attempts);
-        Err(last_error.unwrap())
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown error occurred during retry attempts")))
     }
     
     fn calculate_delay(&self, attempt: usize) -> Duration {
@@ -347,17 +347,27 @@ impl CircuitBreaker {
     }
     
     fn is_open(&self) -> bool {
-        let state = *self.state.lock().unwrap();
+        let state = match self.state.lock() {
+            Ok(state) => *state,
+            Err(_) => {
+                warn!("Circuit breaker state mutex poisoned, assuming open");
+                return true;
+            }
+        };
         
         match state {
             CircuitState::Closed => false,
             CircuitState::Open => {
                 // Check if we should transition to half-open
-                if let Some(last_failure) = *self.last_failure_time.lock().unwrap() {
-                    if last_failure.elapsed() >= self.recovery_timeout {
-                        *self.state.lock().unwrap() = CircuitState::HalfOpen;
-                        info!("Circuit breaker transitioning to half-open");
-                        return false;
+                if let Ok(last_failure_time) = self.last_failure_time.lock() {
+                    if let Some(last_failure) = *last_failure_time {
+                        if last_failure.elapsed() >= self.recovery_timeout {
+                            if let Ok(mut state_guard) = self.state.lock() {
+                                *state_guard = CircuitState::HalfOpen;
+                                info!("Circuit breaker transitioning to half-open");
+                                return false;
+                            }
+                        }
                     }
                 }
                 true
@@ -367,29 +377,36 @@ impl CircuitBreaker {
     }
     
     fn on_success(&self) {
-        let mut state = self.state.lock().unwrap();
-        *self.failure_count.lock().unwrap() = 0;
+        if let Ok(mut failure_count) = self.failure_count.lock() {
+            *failure_count = 0;
+        }
         
-        match *state {
-            CircuitState::HalfOpen => {
-                *state = CircuitState::Closed;
-                info!("Circuit breaker closed after successful recovery");
+        if let Ok(mut state) = self.state.lock() {
+            match *state {
+                CircuitState::HalfOpen => {
+                    *state = CircuitState::Closed;
+                    info!("Circuit breaker closed after successful recovery");
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
     
     fn on_failure(&self) {
-        let mut failure_count = self.failure_count.lock().unwrap();
-        *failure_count += 1;
-        
-        *self.last_failure_time.lock().unwrap() = Some(std::time::Instant::now());
-        
-        if *failure_count >= self.failure_threshold {
-            let mut state = self.state.lock().unwrap();
-            if *state != CircuitState::Open {
-                *state = CircuitState::Open;
-                warn!("Circuit breaker opened due to {} failures", failure_count);
+        if let Ok(mut failure_count) = self.failure_count.lock() {
+            *failure_count += 1;
+            
+            if let Ok(mut last_failure_time) = self.last_failure_time.lock() {
+                *last_failure_time = Some(std::time::Instant::now());
+            }
+            
+            if *failure_count >= self.failure_threshold {
+                if let Ok(mut state) = self.state.lock() {
+                    if *state != CircuitState::Open {
+                        *state = CircuitState::Open;
+                        warn!("Circuit breaker opened due to {} failures", *failure_count);
+                    }
+                }
             }
         }
     }

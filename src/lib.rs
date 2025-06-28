@@ -15,6 +15,17 @@ pub mod updater;
 pub mod interactive;
 pub mod logging;
 pub mod boxes;
+pub mod rate_limiter;
+
+// New secure and improved modules
+pub mod secure_executor;
+pub mod transaction;
+pub mod advanced_resolver;
+pub mod error_handling;
+pub mod input_validation;
+pub mod privilege_manager;
+pub mod sandboxing;
+pub mod secure_brain;
 
 // Re-export commonly used types for easier testing
 pub use brain::OmniBrain;
@@ -25,3 +36,12 @@ pub use security::SecurityManager;
 pub use database::Database;
 pub use snapshot::SnapshotManager;
 pub use resolver::DependencyResolver;
+
+// Re-export new secure components
+pub use secure_executor::{SecureExecutor, ExecutionConfig, ExecutionResult};
+pub use transaction::{TransactionManager, Transaction, TransactionType, TransactionResult};
+pub use advanced_resolver::{AdvancedDependencyResolver, ResolutionPlan, ResolutionStrategy};
+pub use error_handling::{OmniError, RetryHandler, RecoveryManager};
+pub use input_validation::InputValidator;
+pub use privilege_manager::PrivilegeManager;
+pub use secure_brain::{SecureOmniBrain, SystemStatus};

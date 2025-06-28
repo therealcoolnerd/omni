@@ -17,9 +17,11 @@ mod input_validation;
 mod privilege_manager;
 mod sandboxing;
 mod error_handling;
+mod rate_limiter;
 
 use clap::{Parser, Subcommand};
 use anyhow::Result;
+use tracing::{info, warn, error};
 use config::OmniConfig;
 use search::SearchEngine;
 use snapshot::SnapshotManager;
@@ -233,7 +235,7 @@ async fn main() -> Result<()> {
     match handle_command(cli, config).await {
         Ok(_) => {},
         Err(e) => {
-            eprintln!("❌ Error: {}", e);
+            error!("Application error: {}", e);
             std::process::exit(1);
         }
     }

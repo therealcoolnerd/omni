@@ -19,6 +19,8 @@ impl PrivilegeManager {
     
     /// Check if we're currently running as root
     pub fn is_root() -> bool {
+        // SAFETY: getuid() is always safe to call and has no side effects
+        // It only reads the current process's user ID from the kernel
         unsafe { libc::getuid() == 0 }
     }
     
@@ -36,6 +38,8 @@ impl PrivilegeManager {
     
     /// Store current credentials before escalation
     pub fn store_credentials(&mut self) {
+        // SAFETY: getuid() and getgid() are always safe to call
+        // They only read process credentials from the kernel without side effects
         unsafe {
             self.original_uid = Some(libc::getuid());
             self.original_gid = Some(libc::getgid());
@@ -86,6 +90,10 @@ impl PrivilegeManager {
         info!("Dropping privileges to uid={}, gid={}", target_uid, target_gid);
         
         // Drop group privileges first
+        // SAFETY: These system calls are the standard POSIX way to drop privileges
+        // - setgid/setuid are designed for privilege management and are safe when used correctly
+        // - setgroups is safe with a null pointer and count of 0 (clears supplementary groups)
+        // - Error handling ensures we fail safely if privilege dropping fails
         unsafe {
             if libc::setgid(target_gid) != 0 {
                 return Err(anyhow!("Failed to drop group privileges"));
@@ -103,6 +111,9 @@ impl PrivilegeManager {
         }
         
         // Verify privileges were dropped
+        // SAFETY: These are read-only system calls to verify privilege state
+        // - getuid/geteuid/getgid/getegid only read current process credentials
+        // - No side effects, always safe to call
         unsafe {
             if libc::getuid() != target_uid || libc::geteuid() != target_uid {
                 return Err(anyhow!("Failed to verify user privilege drop"));
@@ -192,6 +203,9 @@ impl PrivilegeManager {
         
         // Verify umask is restrictive
         #[cfg(unix)]
+        // SAFETY: umask() is safe to call - it only modifies file creation permissions
+        // We temporarily set a restrictive umask to read the current value, then restore it
+        // This is a standard pattern for checking umask without permanently changing it
         unsafe {
             let umask = libc::umask(0o077); // Set restrictive umask
             libc::umask(umask); // Restore original

@@ -1,7 +1,8 @@
 use std::process::Command;
+use tracing::{info, error};
 
 pub fn install_with_pacman(package: &str) {
-    println!("🔧 Installing '{}' via pacman", package);
+    info!("Installing '{}' via pacman", package);
     match Command::new("sudo")
         .arg("pacman")
         .arg("-S")
@@ -9,14 +10,14 @@ pub fn install_with_pacman(package: &str) {
         .arg(package)
         .status()
     {
-        Ok(status) if status.success() => println!("✅ Pacman installed '{}'", package),
-        Ok(_) => eprintln!("❌ Pacman failed to install '{}'", package),
-        Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
+        Ok(status) if status.success() => info!("Pacman successfully installed '{}'", package),
+        Ok(_) => error!("Pacman failed to install '{}'", package),
+        Err(e) => error!("Failed to execute pacman: {}", e),
     }
 }
 
 pub fn uninstall_with_pacman(package: &str) {
-    println!("🗑 Removing '{}' via pacman", package);
+    info!("Removing '{}' via pacman", package);
     match Command::new("sudo")
         .arg("pacman")
         .arg("-R")
@@ -24,8 +25,8 @@ pub fn uninstall_with_pacman(package: &str) {
         .arg(package)
         .status()
     {
-        Ok(status) if status.success() => println!("✅ Pacman removed '{}'", package),
-        Ok(_) => eprintln!("❌ Pacman failed to remove '{}'", package),
-        Err(e) => eprintln!("❌ Failed to execute pacman: {}", e),
+        Ok(status) if status.success() => info!("Pacman successfully removed '{}'", package),
+        Ok(_) => error!("Pacman failed to remove '{}'", package),
+        Err(e) => error!("Failed to execute pacman: {}", e),
     }
 }

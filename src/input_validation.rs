@@ -124,20 +124,9 @@ impl InputValidator {
     /// Validate command arguments to prevent injection
     pub fn validate_command_args(args: &[String]) -> Result<()> {
         for arg in args {
-            if arg.len() > 1024 {
-                return Err(anyhow!("Command argument too long"));
-            }
-            
-            // Check for dangerous characters
-            if arg.contains('\0') || arg.contains('\n') || arg.contains('\r') {
-                return Err(anyhow!("Command argument contains dangerous characters"));
-            }
-            
-            // Prevent command injection
-            let dangerous_chars = ['&', '|', ';', '`', '$', '(', ')', '{', '}'];
-            if dangerous_chars.iter().any(|&c| arg.contains(c)) {
-                return Err(anyhow!("Command argument contains shell metacharacters"));
-            }
+            // Use the enhanced shell-safe validation for each argument
+            Self::validate_shell_safe(arg)
+                .map_err(|e| anyhow!("Command argument validation failed: {}", e))?;
         }
         
         Ok(())
@@ -156,6 +145,44 @@ impl InputValidator {
         
         if !valid_box_types.contains(&box_type) {
             return Err(anyhow!("Invalid box type: {}", box_type));
+        }
+        
+        Ok(())
+    }
+    
+    /// Validate input to prevent shell injection attacks
+    pub fn validate_shell_safe(input: &str) -> Result<()> {
+        if input.is_empty() {
+            return Err(anyhow!("Input cannot be empty"));
+        }
+        
+        if input.len() > 1024 {
+            return Err(anyhow!("Input too long (max 1024 characters)"));
+        }
+        
+        // Prevent all shell metacharacters that could be used for injection
+        let dangerous_chars = ['&', '|', ';', '`', '$', '(', ')', '{', '}', '<', '>', '\'', '"', 
+                              '\\', '\n', '\r', '\t', '\0', '!', '?', '*', '[', ']', '~', '#'];
+        
+        for &ch in &dangerous_chars {
+            if input.contains(ch) {
+                return Err(anyhow!("Input contains dangerous shell metacharacter: '{}'", ch));
+            }
+        }
+        
+        // Check for common injection patterns
+        let dangerous_patterns = [
+            "&&", "||", ";;", "$(", "${", "`", "..", "/etc/", "/bin/", "/usr/bin/",
+            "passwd", "shadow", "/dev/", "/proc/", "/sys/", "rm -rf", "dd if=",
+            "curl", "wget", "nc ", "netcat", "telnet", "ssh ", "ftp ", 
+            "python", "perl", "ruby", "php", "bash", "sh ", "zsh", "csh"
+        ];
+        
+        let input_lower = input.to_lowercase();
+        for pattern in &dangerous_patterns {
+            if input_lower.contains(pattern) {
+                return Err(anyhow!("Input contains potentially dangerous pattern: '{}'", pattern));
+            }
         }
         
         Ok(())
@@ -260,5 +287,37 @@ mod tests {
         assert!(InputValidator::validate_box_type("").is_err());
         assert!(InputValidator::validate_box_type("invalid").is_err());
         assert!(InputValidator::validate_box_type("custom_manager").is_err());
+    }
+
+    #[test]
+    fn test_shell_safe_validation() {
+        // Valid inputs
+        assert!(InputValidator::validate_shell_safe("firefox").is_ok());
+        assert!(InputValidator::validate_shell_safe("package-name").is_ok());
+        assert!(InputValidator::validate_shell_safe("package.name").is_ok());
+        assert!(InputValidator::validate_shell_safe("123").is_ok());
+        
+        // Invalid inputs - shell metacharacters
+        assert!(InputValidator::validate_shell_safe("test;rm -rf /").is_err());
+        assert!(InputValidator::validate_shell_safe("test && malicious").is_err());
+        assert!(InputValidator::validate_shell_safe("test`whoami`").is_err());
+        assert!(InputValidator::validate_shell_safe("test$(id)").is_err());
+        assert!(InputValidator::validate_shell_safe("test|grep").is_err());
+        assert!(InputValidator::validate_shell_safe("test'injection'").is_err());
+        assert!(InputValidator::validate_shell_safe("test\"injection\"").is_err());
+        assert!(InputValidator::validate_shell_safe("test<input").is_err());
+        assert!(InputValidator::validate_shell_safe("test>output").is_err());
+        
+        // Invalid inputs - dangerous patterns
+        assert!(InputValidator::validate_shell_safe("/etc/passwd").is_err());
+        assert!(InputValidator::validate_shell_safe("rm -rf test").is_err());
+        assert!(InputValidator::validate_shell_safe("wget malicious.com").is_err());
+        assert!(InputValidator::validate_shell_safe("curl evil.com").is_err());
+        assert!(InputValidator::validate_shell_safe("python exploit.py").is_err());
+        assert!(InputValidator::validate_shell_safe("../../../etc/passwd").is_err());
+        
+        // Edge cases
+        assert!(InputValidator::validate_shell_safe("").is_err());
+        assert!(InputValidator::validate_shell_safe(&"a".repeat(1025)).is_err());
     }
 }
