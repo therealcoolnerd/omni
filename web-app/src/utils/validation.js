@@ -101,3 +101,45 @@ export const sanitizeUserContent = (content) => {
     ALLOWED_ATTR: []
   });
 };
+
+/**
+ * Validates if a website URL is safe
+ * @param {string} url - The website URL to validate
+ * @returns {boolean} - Whether the URL is valid and safe
+ */
+export const isValidWebsite = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  
+  try {
+    const parsed = new URL(url);
+    // Only allow HTTP/HTTPS protocols
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    
+    // Block suspicious domains
+    const suspiciousDomains = [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      '::1'
+    ];
+    
+    const hostname = parsed.hostname.toLowerCase();
+    if (suspiciousDomains.includes(hostname)) return false;
+    
+    // Block private IP ranges
+    if (hostname.match(/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/)) return false;
+    
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Gets a safe website URL or returns empty string
+ * @param {string} websiteUrl - The website URL to validate
+ * @returns {string} - Safe website URL or empty string
+ */
+export const getSafeWebsiteUrl = (websiteUrl) => {
+  return isValidWebsite(websiteUrl) ? websiteUrl : '';
+};

@@ -55,12 +55,14 @@ npm test src/tests/security.test.js
 web-app/
 ├── src/
 │   ├── pages/
-│   │   └── TimelinePage.jsx     # Main timeline with secure implementation
+│   │   ├── TimelinePage.jsx     # Main timeline with secure implementation
+│   │   └── ProfilePage.jsx      # User profile with XSS protection
 │   ├── utils/
 │   │   └── validation.js        # Security validation utilities
 │   ├── tests/
-│   │   └── security.test.js     # Comprehensive security tests
-│   ├── App.jsx                  # Main app component
+│   │   ├── security.test.js     # Timeline security tests
+│   │   └── profilePage.security.test.js  # Profile page security tests
+│   ├── App.jsx                  # Main app component with routing
 │   └── index.js                 # Entry point
 ├── public/
 │   └── index.html              # HTML with security headers
@@ -100,11 +102,25 @@ The application includes comprehensive security tests covering:
 
 ## 📋 CodeQL Alert Resolution
 
-This implementation specifically addresses the CodeQL alert:
+This implementation specifically addresses multiple CodeQL alerts:
+
+### Alert 1: TimelinePage.jsx:162
 - **Rule ID**: `js/xss-through-dom`
 - **Issue**: DOM text reinterpreted as HTML without escaping
 - **Fix**: Comprehensive input validation and sanitization
 - **Line 162**: Now uses `getSafeAvatarUrl()` and `getSafeDisplayName()`
+
+### Alert 2: ProfilePage.jsx:37  
+- **Rule ID**: `js/xss-through-dom`
+- **Issue**: Avatar and display name used without escaping
+- **Fix**: Same validation utilities applied to profile page
+- **Line 37**: Now uses secure avatar and display name rendering
+
+### Additional Security Measures
+- Website URL validation with private IP blocking
+- Bio content sanitization without dangerouslySetInnerHTML
+- Form input validation and length limiting
+- Comprehensive error handling and fallbacks
 
 ## 🔄 Deployment Security
 
