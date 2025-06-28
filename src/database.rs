@@ -46,6 +46,21 @@ pub struct PackageCache {
     pub cached_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CacheStats {
+    pub total_entries: usize,
+    pub expired_entries: usize,
+    pub total_hits: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DatabaseHealth {
+    pub total_install_records: usize,
+    pub total_snapshots: usize,
+    pub cache_stats: CacheStats,
+    pub integrity_ok: bool,
+}
+
 pub struct Database {
     pool: SqlitePool,
 }
@@ -56,7 +71,29 @@ impl Database {
         std::fs::create_dir_all(&data_dir)?;
         
         let database_url = format!("sqlite:{}/omni.db", data_dir.display());
-        let pool = SqlitePool::connect(&database_url).await?;
+        
+        // Configure connection pool for optimal performance
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(10)
+            .min_connections(1)
+            .max_lifetime(Some(std::time::Duration::from_secs(3600))) // 1 hour
+            .idle_timeout(Some(std::time::Duration::from_secs(600)))  // 10 minutes
+            .test_before_acquire(true)
+            .connect(&database_url)
+            .await?;
+        
+        let db = Database { pool };
+        db.migrate().await?;
+        
+        Ok(db)
+    }
+    
+    /// Create an in-memory database for testing
+    pub async fn new_in_memory() -> Result<Self> {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await?;
         
         let db = Database { pool };
         db.migrate().await?;
@@ -65,6 +102,7 @@ impl Database {
     }
     
     async fn migrate(&self) -> Result<()> {
+        // Create tables with optimized schema
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS install_records (
@@ -118,6 +156,8 @@ impl Database {
                 description TEXT,
                 dependencies TEXT,
                 cached_at TEXT NOT NULL,
+                expires_at TEXT,
+                hits INTEGER DEFAULT 0,
                 PRIMARY KEY (package_name, box_type)
             );
             "#,
@@ -125,6 +165,82 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        // Create performance indexes
+        self.create_indexes().await?;
+        
+        // Optimize database settings
+        self.optimize_database().await?;
+
+        Ok(())
+    }
+    
+    async fn create_indexes(&self) -> Result<()> {
+        // Index for install_records queries
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_install_records_package_name ON install_records(package_name)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_install_records_box_type ON install_records(box_type)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_install_records_status ON install_records(status)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_install_records_installed_at ON install_records(installed_at)")
+            .execute(&self.pool).await?;
+        
+        // Composite index for common queries
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_install_records_package_box ON install_records(package_name, box_type)")
+            .execute(&self.pool).await?;
+        
+        // Index for snapshot queries
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON snapshots(created_at)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_snapshots_name ON snapshots(name)")
+            .execute(&self.pool).await?;
+        
+        // Index for snapshot_packages
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_snapshot_packages_snapshot_id ON snapshot_packages(snapshot_id)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_snapshot_packages_record_id ON snapshot_packages(install_record_id)")
+            .execute(&self.pool).await?;
+        
+        // Index for package_cache queries
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_package_cache_cached_at ON package_cache(cached_at)")
+            .execute(&self.pool).await?;
+        
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_package_cache_expires_at ON package_cache(expires_at)")
+            .execute(&self.pool).await?;
+        
+        Ok(())
+    }
+    
+    async fn optimize_database(&self) -> Result<()> {
+        // Enable WAL mode for better concurrency
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&self.pool).await?;
+        
+        // Set synchronous to NORMAL for better performance
+        sqlx::query("PRAGMA synchronous = NORMAL")
+            .execute(&self.pool).await?;
+        
+        // Increase cache size (10MB)
+        sqlx::query("PRAGMA cache_size = -10000")
+            .execute(&self.pool).await?;
+        
+        // Enable memory-mapped I/O (256MB)
+        sqlx::query("PRAGMA mmap_size = 268435456")
+            .execute(&self.pool).await?;
+        
+        // Optimize temp store
+        sqlx::query("PRAGMA temp_store = MEMORY")
+            .execute(&self.pool).await?;
+        
+        // Set busy timeout (30 seconds)
+        sqlx::query("PRAGMA busy_timeout = 30000")
+            .execute(&self.pool).await?;
+        
         Ok(())
     }
     
@@ -320,11 +436,14 @@ impl Database {
     pub async fn cache_package_info(&self, cache_entry: &PackageCache) -> Result<()> {
         let dependencies_json = serde_json::to_string(&cache_entry.dependencies)?;
         
+        // Calculate expiration time (default 24 hours)
+        let expires_at = Utc::now() + chrono::Duration::hours(24);
+        
         sqlx::query(
             r#"
             INSERT OR REPLACE INTO package_cache 
-            (package_name, box_type, version, description, dependencies, cached_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            (package_name, box_type, version, description, dependencies, cached_at, expires_at, hits)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE((SELECT hits FROM package_cache WHERE package_name = ?1 AND box_type = ?2), 0))
             "#,
         )
         .bind(&cache_entry.package_name)
@@ -333,6 +452,7 @@ impl Database {
         .bind(&cache_entry.description)
         .bind(&dependencies_json)
         .bind(cache_entry.cached_at.to_rfc3339())
+        .bind(expires_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
         
@@ -340,8 +460,13 @@ impl Database {
     }
     
     pub async fn get_cached_package_info(&self, package_name: &str, box_type: &str) -> Result<Option<PackageCache>> {
+        // First check if cache entry exists and is not expired
         let row = sqlx::query(
-            "SELECT * FROM package_cache WHERE package_name = ?1 AND box_type = ?2"
+            r#"
+            SELECT * FROM package_cache 
+            WHERE package_name = ?1 AND box_type = ?2
+            AND (expires_at IS NULL OR expires_at > datetime('now'))
+            "#
         )
         .bind(package_name)
         .bind(box_type)
@@ -349,6 +474,13 @@ impl Database {
         .await?;
         
         if let Some(row) = row {
+            // Increment hit counter
+            sqlx::query("UPDATE package_cache SET hits = hits + 1 WHERE package_name = ?1 AND box_type = ?2")
+                .bind(package_name)
+                .bind(box_type)
+                .execute(&self.pool)
+                .await?;
+            
             let cached_at: String = row.get("cached_at");
             let cached_at = DateTime::parse_from_rfc3339(&cached_at)?
                 .with_timezone(&Utc);
@@ -367,5 +499,81 @@ impl Database {
         } else {
             Ok(None)
         }
+    }
+    
+    /// Clean expired cache entries
+    pub async fn clean_expired_cache(&self) -> Result<usize> {
+        let result = sqlx::query("DELETE FROM package_cache WHERE expires_at < datetime('now')")
+            .execute(&self.pool)
+            .await?;
+        
+        Ok(result.rows_affected() as usize)
+    }
+    
+    /// Get cache statistics
+    pub async fn get_cache_stats(&self) -> Result<CacheStats> {
+        let total_entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM package_cache")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        let expired_entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM package_cache WHERE expires_at < datetime('now')")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        let total_hits: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(hits), 0) FROM package_cache")
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or(0);
+        
+        Ok(CacheStats {
+            total_entries: total_entries as usize,
+            expired_entries: expired_entries as usize,
+            total_hits: total_hits as usize,
+        })
+    }
+    
+    /// Optimize database by running maintenance tasks
+    pub async fn maintenance(&self) -> Result<()> {
+        // Clean expired cache entries
+        let cleaned = self.clean_expired_cache().await?;
+        if cleaned > 0 {
+            tracing::info!("Cleaned {} expired cache entries", cleaned);
+        }
+        
+        // Analyze tables for query optimizer
+        sqlx::query("ANALYZE").execute(&self.pool).await?;
+        
+        // Vacuum if needed (only if significant deletions occurred)
+        if cleaned > 100 {
+            sqlx::query("VACUUM").execute(&self.pool).await?;
+            tracing::info!("Database vacuum completed");
+        }
+        
+        Ok(())
+    }
+    
+    /// Get database health information
+    pub async fn health_check(&self) -> Result<DatabaseHealth> {
+        let cache_stats = self.get_cache_stats().await?;
+        
+        let total_records: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM install_records")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        let total_snapshots: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM snapshots")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        // Check database integrity
+        let integrity_check: String = sqlx::query_scalar("PRAGMA integrity_check")
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(DatabaseHealth {
+            total_install_records: total_records as usize,
+            total_snapshots: total_snapshots as usize,
+            cache_stats,
+            integrity_ok: integrity_check == "ok",
+        })
     }
 }

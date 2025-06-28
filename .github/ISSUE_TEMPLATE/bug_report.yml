@@ -1,0 +1,130 @@
+name: Bug Report
+description: File a bug report to help us improve Omni
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 🐛
+        
+        Before submitting, please:
+        - Check if a similar issue already exists
+        - Try reproducing with the latest version
+        - Use mock mode (`--mock`) to test safely
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm you have done the following
+      options:
+        - label: I have searched existing issues
+          required: true
+        - label: I am using the latest version of Omni
+          required: true
+        - label: I have tested with `--mock` mode when possible
+          required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Omni Version
+      description: What version of Omni are you running?
+      placeholder: "e.g., 0.2.0 (run `omni --version`)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Ubuntu/Debian
+        - Fedora/RHEL/CentOS
+        - Arch Linux
+        - openSUSE
+        - Other Linux (specify in description)
+        - Windows
+        - macOS
+    validations:
+      required: true
+
+  - type: dropdown
+    id: package_manager
+    attributes:
+      label: Package Manager
+      description: Which package manager were you using when the bug occurred?
+      options:
+        - apt (Debian/Ubuntu)
+        - dnf (Fedora/RHEL)
+        - pacman (Arch Linux)
+        - snap
+        - flatpak
+        - AppImage
+        - Multiple/Universal
+        - Not applicable
+    validations:
+      required: false
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe what happened and what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Run command '...'
+        2. See error '...'
+        3. Expected '...' but got '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: command_output
+    attributes:
+      label: Command Output
+      description: Please paste the full command output (use mock mode if dealing with sensitive packages)
+      render: shell
+      placeholder: |
+        $ omni --mock install example-package
+        Error: ...
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Any relevant log files or error messages
+      render: shell
+      placeholder: |
+        Include any relevant logs here...
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here
+      placeholder: |
+        - System specifications
+        - Network configuration
+        - Other relevant details
+
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security Consideration
+      description: Does this bug have security implications?
+      options:
+        - label: This bug could have security implications (will be handled privately)
+          required: false

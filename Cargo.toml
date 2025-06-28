@@ -1,10 +1,10 @@
 [package]
 name = "omni"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["therealcoolnerd"]
 license = "AGPL-3.0-or-later"
-description = "Universal Linux Installer Engine"
+description = "Universal Cross-Platform Package Manager - Unify Linux, Windows, and macOS package management"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -34,4 +34,21 @@ thiserror = "1.0"
 dirs = "5.0"
 semver = "1.0"
 tracing-appender = "0.2"
+regex = "1.10"
+url = "2.5"
+libc = "0.2"
+rand = "0.8"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.0"
+tokio-test = "0.4"
+
+[[bench]]
+name = "performance"
+harness = false
+
+[lib]
+name = "omni"
+path = "src/lib.rs"
 

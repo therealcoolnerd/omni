@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Omni ${{ github.ref }}
+        body: |
+          ## What's Changed
+          
+          * See the [changelog](CHANGELOG.md) for detailed changes
+          * Download the appropriate binary for your platform below
+          
+          ## Installation
+          
+          ### Linux (Ubuntu/Debian)
+          ```bash
+          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-linux-x86_64.tar.gz
+          tar -xzf omni-linux-x86_64.tar.gz
+          sudo mv omni /usr/local/bin/
+          ```
+          
+          ### Windows
+          ```powershell
+          # Download omni-windows-x86_64.zip and extract
+          # Add to PATH or run directly
+          ```
+          
+          ### macOS
+          ```bash
+          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-macos-x86_64.tar.gz
+          tar -xzf omni-macos-x86_64.tar.gz
+          sudo mv omni /usr/local/bin/
+          ```
+        draft: false
+        prerelease: false
+
+  build-release:
+    name: Build Release
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+            archive: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x86_64
+            archive: zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: macos-x86_64
+            archive: tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macos-aarch64
+            archive: tar.gz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          pkg-config \
+          libssl-dev \
+          libsqlite3-dev \
+          libgtk-3-dev
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install sqlite openssl pkg-config
+
+    - name: Build release
+      run: cargo build --release --target ${{ matrix.target }} --all-features
+
+    - name: Create archive (Unix)
+      if: matrix.archive == 'tar.gz'
+      run: |
+        cd target/${{ matrix.target }}/release
+        tar -czf ../../../omni-${{ matrix.name }}.tar.gz omni
+        cd ../../..
+
+    - name: Create archive (Windows)
+      if: matrix.archive == 'zip'
+      run: |
+        cd target/${{ matrix.target }}/release
+        7z a ../../../omni-${{ matrix.name }}.zip omni.exe
+        cd ../../..
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./omni-${{ matrix.name }}.${{ matrix.archive }}
+        asset_name: omni-${{ matrix.name }}.${{ matrix.archive }}
+        asset_content_type: application/octet-stream
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          pkg-config \
+          libssl-dev \
+          libsqlite3-dev
+          
+    - name: Publish to crates.io
+      run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: build-release
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Update Homebrew formula
+      uses: mislav/bump-homebrew-formula-action@v3
+      with:
+        formula-name: omni
+        homebrew-tap: therealcoolnerd/homebrew-tap
+        base-branch: main
+        download-url: https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-macos-x86_64.tar.gz
+      env:
+        COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}

@@ -1,4 +1,4 @@
-markdown# Contributing to Omni
+# Contributing to Omni
 
 Welcome to the revolution! 🔥 Omni is changing how Linux package management works, and we need brilliant minds like yours to help build the future.
 
@@ -34,8 +34,11 @@ git clone https://github.com/therealcoolnerd/omni.git
 cd omni
 cargo build
 cargo test
-Testing Your Changes
-bash# Unit tests
+```
+
+### Testing Your Changes
+```bash
+# Unit tests
 cargo test
 
 # Integration tests with mock mode
@@ -44,66 +47,67 @@ cargo test
 
 # Performance benchmarks
 cargo bench
-📋 Contribution Areas
-🐛 Bug Fixes
+```
 
-Error handling improvements
-Edge case resolution
-Performance optimizations
-Security vulnerability patches
+## 📋 Contribution Areas
 
-📦 New Package Manager Support
+### 🐛 Bug Fixes
+- Error handling improvements
+- Edge case resolution
+- Performance optimizations
+- Security vulnerability patches
+
+### 📦 New Package Manager Support
 We're always looking to support more package managers:
+- zypper (openSUSE)
+- emerge (Gentoo)
+- xbps (Void Linux)
+- nix (NixOS)
 
-zypper (openSUSE)
-emerge (Gentoo)
-xbps (Void Linux)
-nix (NixOS)
+### 🔒 Security Enhancements
+- Additional verification methods
+- Trust policy improvements
+- Audit trail enhancements
+- Privilege escalation prevention
 
-🔒 Security Enhancements
+### 🌐 Internationalization
+- Multi-language support
+- Localized error messages
+- Cultural adaptation for different regions
 
-Additional verification methods
-Trust policy improvements
-Audit trail enhancements
-Privilege escalation prevention
+### 📚 Documentation
+- User guides and tutorials
+- API documentation
+- Architecture explanations
+- Troubleshooting guides
 
-🌐 Internationalization
+### 🧪 Testing & Quality
+- Test coverage expansion
+- Continuous integration improvements
+- Performance benchmarking
+- Static analysis integration
 
-Multi-language support
-Localized error messages
-Cultural adaptation for different regions
+## 📝 Code Style Guidelines
 
-📚 Documentation
+### Rust Style
+- Use `cargo fmt` before committing
+- Run `cargo clippy` and fix all warnings
+- Follow Rust naming conventions
+- Document public APIs with rustdoc
 
-User guides and tutorials
-API documentation
-Architecture explanations
-Troubleshooting guides
-
-🧪 Testing & Quality
-
-Test coverage expansion
-Continuous integration improvements
-Performance benchmarking
-Static analysis integration
-
-📝 Code Style Guidelines
-Rust Style
-
-Use cargo fmt before committing
-Run cargo clippy and fix all warnings
-Follow Rust naming conventions
-Document public APIs with rustdoc
-
-Git Commit Messages
+### Git Commit Messages
 Follow conventional commit format:
+```
 type(scope): description
 
 feat(boxes): add zypper support for openSUSE
 fix(security): resolve GPG verification edge case
 docs(readme): update installation instructions
 test(integration): add mock mode test coverage
-Code Organization
+```
+
+### Code Organization
+```
 src/
 ├── main.rs           # CLI interface
 ├── brain.rs          # Core installation logic
@@ -118,71 +122,73 @@ src/
     ├── dnf.rs
     ├── pacman.rs
     └── ...
-🔍 Pull Request Process
-Before Submitting
+```
 
- All tests pass locally
- Code follows style guidelines
- Changes are documented
- Security implications considered
- Performance impact assessed
+## 🔍 Pull Request Process
 
-PR Description Template
+### Before Submitting
+- [ ] All tests pass locally
+- [ ] Code follows style guidelines
+- [ ] Changes are documented
+- [ ] Security implications considered
+- [ ] Performance impact assessed
+
+### PR Description Template
 Use our PR template (automatically loaded) and include:
+- Clear description of changes
+- Motivation and context
+- Testing performed
+- Screenshots/demos for UI changes
+- Breaking changes noted
 
-Clear description of changes
-Motivation and context
-Testing performed
-Screenshots/demos for UI changes
-Breaking changes noted
+### Review Process
+1. Automated checks must pass (CI/CD, tests, linting)
+2. Security review for changes affecting privileges or verification
+3. Architecture review for changes affecting core systems
+4. Performance review for changes affecting critical paths
+5. Final approval from maintainers
 
-Review Process
+## 🚨 Security Contributions
 
-Automated checks must pass (CI/CD, tests, linting)
-Security review for changes affecting privileges or verification
-Architecture review for changes affecting core systems
-Performance review for changes affecting critical paths
-Final approval from maintainers
-
-🚨 Security Contributions
 Security is critical for Omni. If you find security issues:
-For Public Security Improvements:
 
-Open a regular issue/PR with security label
-Include test cases demonstrating the improvement
-Document security implications clearly
+### For Public Security Improvements:
+- Open a regular issue/PR with security label
+- Include test cases demonstrating the improvement
+- Document security implications clearly
 
-For Vulnerability Reports:
+### For Vulnerability Reports:
+- **DO NOT** open public issues for security vulnerabilities
+- Email security details privately to: security@omni-project.org
+- Include proof of concept if possible
+- Allow 90 days for response before public disclosure
 
-DO NOT open public issues for security vulnerabilities
-Email security details privately to: security@omni-project.org
-Include proof of concept if possible
-Allow 90 days for response before public disclosure
+## 🌟 Recognition
 
-🌟 Recognition
 Contributors who make significant impacts will be:
+- Listed in CONTRIBUTORS.md
+- Mentioned in release notes
+- Invited to maintainer discussions
+- Recognized in project documentation
 
-Listed in CONTRIBUTORS.md
-Mentioned in release notes
-Invited to maintainer discussions
-Recognized in project documentation
+## 📞 Getting Help
 
-📞 Getting Help
-Community Channels
+### Community Channels
+- **GitHub Discussions**: General questions and feature requests
+- **GitHub Issues**: Bug reports and specific problems
+- **Matrix Chat**: Real-time community discussions
+- **Discord**: Voice chat for complex debugging sessions
 
-GitHub Discussions: General questions and feature requests
-GitHub Issues: Bug reports and specific problems
-Matrix Chat: Real-time community discussions
-Discord: Voice chat for complex debugging sessions
+### Maintainer Contact
+- **Lead Developer**: Josef Douglas Charles McClammey (@therealcoolnerd)
+- **Technical Questions**: technical@omni-project.org
+- **General Inquiries**: hello@omni-project.org
 
-Maintainer Contact
+## 🎉 Thank You!
 
-Lead Developer: Josef Douglas Charles McClammey (@therealcoolnerd)
-Technical Questions: technical@omni-project.org
-General Inquiries: hello@omni-project.org
-
-🎉 Thank You!
 Every contribution, no matter how small, helps build the future of Linux package management. You're not just writing code—you're part of a revolution that's making Linux more accessible and powerful for everyone.
+
 Let's build something amazing together! 🚀
 
+---
 Built with ❤️ for the Linux community
