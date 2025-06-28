@@ -1,15 +1,15 @@
-# 🌌 omni — Universal Linux Package Manager
+# 🌌 Omni — Universal Cross-Platform Package Manager
 
 <div align="center">
 
-**One CLI. One System. One Omni.**
+**One CLI. Every OS. Every Package Manager.**
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-linux-green.svg)]()
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-green.svg)]()
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen.svg)]()
 
-*The first truly universal Linux package manager that unifies apt, dnf, pacman, snap, flatpak, and AppImage under a single intelligent interface.*
+*The first truly universal package manager that unifies Linux, Windows, and macOS package management under a single intelligent interface.*
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
@@ -19,21 +19,27 @@
 
 ## 🎯 **What is Omni?**
 
-Omni solves Linux package management fragmentation by providing a **single, universal interface** for all package formats across all distributions. Whether you're on Ubuntu, Arch, Fedora, or any other Linux distro, Omni gives you the same powerful commands and features.
+Omni is the **only package manager that works everywhere** — manage apt, dnf, pacman, snap, flatpak on Linux, winget, Chocolatey, Scoop on Windows, and Homebrew, Mac App Store on macOS. All from one unified interface.
+
+### **🌍 True Cross-Platform Package Management**
+- **Windows IT Admin** → Manage Linux servers via SSH
+- **macOS Developer** → Install packages in Linux containers  
+- **DevOps Engineer** → Same commands across all environments
+- **System Administrator** → Unified package management for mixed infrastructure
 
 ### **The Problem We Solve:**
-- 🔀 **Fragmentation**: Different commands for different distros (apt vs dnf vs pacman)
+- 🔀 **Platform Fragmentation**: Different commands for different OS (apt vs winget vs brew)
 - 🔄 **No Universal Rollback**: Most package managers can't revert system state
 - 🔍 **Scattered Search**: Can't search across all package sources simultaneously  
 - 🔒 **Inconsistent Security**: Different verification standards across managers
-- 🧩 **Complex Dependencies**: No unified dependency resolution
+- 🧩 **Complex Multi-Platform**: No single tool for heterogeneous environments
 
 ### **The Omni Solution:**
-- ✅ **One Interface**: Same commands work on Ubuntu, Arch, Fedora, everywhere
+- ✅ **One Interface**: Same commands work on Linux, Windows, macOS
 - ✅ **Real Snapshots**: True system rollback with database-backed state management
-- ✅ **Universal Search**: Find packages across apt, snap, flatpak, AppImage simultaneously
+- ✅ **Universal Search**: Find packages across all platforms and package managers
 - ✅ **Security-First**: GPG signatures + checksums + trust management built-in
-- ✅ **Smart Dependencies**: Cross-platform dependency resolution and conflict detection
+- ✅ **Remote Management**: Manage Linux servers from Windows/macOS (coming soon)
 
 ---
 
@@ -43,32 +49,32 @@ Omni solves Linux package management fragmentation by providing a **single, univ
 <tr>
 <td width="50%">
 
-### 🎯 **Core Functionality**
-- **Universal Installer** — apt, dnf, pacman, snap, flatpak, AppImage
-- **Cross-Platform** — Ubuntu, Arch, Fedora, openSUSE, Debian
-- **Manifest Support** — YAML-based project dependency definitions
-- **Mock Mode** — Test installations safely with `--mock`
+### 🎯 **Universal Compatibility**
+- **Linux** — apt, dnf, pacman, snap, flatpak, AppImage
+- **Windows** — winget, Chocolatey, Scoop
+- **macOS** — Homebrew, Mac App Store (mas)
+- **Cross-Platform GUI** — Native desktop app for all OS
 
 ### 🔍 **Smart Discovery**
 - **Unified Search** — Search all package sources with `omni search`
-- **Package Information** — Detailed info with `omni info`
 - **Auto-Detection** — Finds best package manager automatically
 - **Intelligent Caching** — SQLite-backed for speed
+- **System Detection** — Recognizes OS and available package managers
 
 </td>
 <td width="50%">
 
-### 📸 **State Management**
+### 📸 **Advanced State Management**
 - **Real Snapshots** — Complete system state capture
 - **Instant Rollback** — Revert to any previous state
 - **Installation History** — SQLite-based operation tracking
-- **Automatic Snapshots** — Created before major operations
+- **Cross-Platform Sync** — Consistent state across systems
 
-### 🧠 **Intelligence & Security**
+### 🧠 **Enterprise Features**
+- **Manifest Support** — YAML-based project dependency definitions
+- **Mock Mode** — Test installations safely with `--mock`
 - **Dependency Resolution** — Smart conflict detection
-- **Security Verification** — GPG + checksum validation  
-- **Interactive Prompts** — Guided user interaction
-- **Trust Management** — Flexible security policies
+- **Security Verification** — GPG + checksum validation
 
 </td>
 </tr>
@@ -78,7 +84,25 @@ Omni solves Linux package management fragmentation by providing a **single, univ
 
 ## 🚀 **Installation**
 
-### **Quick Install**
+### **📦 Quick Install (All Platforms)**
+
+#### **Linux**
+```bash
+git clone https://github.com/therealcoolnerd/omni.git
+cd omni
+cargo build --release
+sudo cp target/release/omni /usr/local/bin/
+```
+
+#### **Windows**
+```powershell
+git clone https://github.com/therealcoolnerd/omni.git
+cd omni
+cargo build --release
+# Add target/release/omni.exe to PATH
+```
+
+#### **macOS**
 ```bash
 git clone https://github.com/therealcoolnerd/omni.git
 cd omni
@@ -88,7 +112,7 @@ sudo cp target/release/omni /usr/local/bin/
 
 ### **Prerequisites**
 - Rust 1.70+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
-- Linux distribution with at least one supported package manager
+- At least one supported package manager on your system
 
 ### **Verify Installation**
 ```bash
@@ -100,208 +124,186 @@ omni config show
 
 ## 📖 **Usage Examples**
 
-### **Basic Operations**
+### **🖥️ Cross-Platform Operations**
 ```bash
-# Install packages universally
-omni install firefox                    # Auto-detects best package manager
-omni install --box-type snap discord   # Force specific package manager
-omni install code --url https://github.com/microsoft/vscode/releases/latest
+# Same commands work everywhere
+omni install firefox                # Linux: snap/apt/dnf, Windows: winget, macOS: brew
+omni install docker                 # Automatically chooses best package manager
+omni install "Visual Studio Code"   # Handles package name variations per platform
 
-# Remove packages
-omni remove firefox
-omni remove --box-type flatpak gimp
+# Platform-specific operations
+omni install microsoft-teams        # Windows: winget
+omni install --box-type mas xcode   # macOS: Mac App Store
+omni install --box-type snap code   # Linux: snap packages
+```
 
-# Install from project manifest
+### **🔍 Universal Search**
+```bash
+# Search across all available package managers
+omni search "text editor"           # Searches apt, winget, brew simultaneously
+omni search firefox --limit 10      # Cross-platform Firefox packages
+omni search --platform windows git  # Search only Windows package managers
+```
+
+### **📋 Project Manifests (Cross-Platform)**
+```bash
+# Install development environment on any OS
 omni install --from project.yaml
+
+# Example project.yaml:
+# project: "Web Development Setup"
+# packages:
+#   - name: "git"           # Available on all platforms
+#   - name: "nodejs"        # Cross-platform package
+#   - name: "docker"        # Platform-appropriate version
+#   - name: "code"          # VSCode via snap/winget/brew
 ```
 
-### **Search & Information**
+### **🌐 Remote Management (Preview)**
 ```bash
-# Search across all package sources
-omni search "text editor"
-omni search firefox --limit 10
-
-# Get detailed package information  
-omni info firefox
-omni info --box-type apt firefox
+# Manage Linux servers from Windows/macOS
+omni --ssh user@server install docker     # Coming soon
+omni --docker container install nodejs    # Coming soon
 ```
 
-### **Advanced Package Management**
+### **📸 Snapshots & History**
 ```bash
-# List installed packages
-omni list
-omni list --box-type snap --detailed
-
-# Dependency resolution
-omni resolve firefox --detailed
-omni resolve --box-type apt docker
-
-# Update management
-omni update                    # Check available updates
-omni update --all              # Update everything
-omni update firefox            # Update specific package
-omni update --refresh          # Refresh repositories first
-```
-
-### **Snapshots & History**
-```bash
-# Snapshot management
-omni snapshot create "before-development-setup"
+# Universal snapshot management
+omni snapshot create "before-dev-setup"
 omni snapshot list
 omni snapshot revert snapshot-id
-
-# Installation history
-omni history show --limit 20
-omni history undo              # Undo last operation
+omni history undo                          # Works across platforms
 ```
 
-### **Security & Verification**
+### **🔧 GUI Application**
 ```bash
-# Verify package security
-omni verify package.deb --checksum sha256:abc123...
-omni verify app.AppImage --signature app.AppImage.sig
-
-# Configuration
-omni config show
-omni config edit
-omni config reset
-```
-
-### **Advanced Features**
-```bash
-# Resolve dependencies
-omni resolve firefox
-
-# Detailed dependency analysis
-omni resolve --detailed --box-type apt firefox
-
-# Verify package security
-omni verify /path/to/package.deb --checksum sha256:abc123...
-
-# Verify with signature
-omni verify package.AppImage --signature package.AppImage.sig
-```
-
----
-
-## 📋 **Manifest Format**
-
-Define project dependencies in `project.yaml`:
-
-```yaml
-project: "Development Environment"
-description: "Complete setup for web development"
-
-meta:
-  distro_fallback: true
-
-apps:
-  - name: "code"
-    box_type: "snap"
-    
-  - name: "firefox"
-    box_type: "flatpak"
-    
-  - name: "docker"
-    box_type: "apt"
-    
-  - name: "postman"
-    box_type: "appimage"
-    source: "https://dl.pstmn.io/download/latest/linux64"
-```
-
----
-
-## 🔧 **Configuration**
-
-Omni stores configuration in `~/.config/omni/config.yaml`:
-
-```yaml
-general:
-  auto_update: false
-  parallel_installs: true
-  max_parallel_jobs: 4
-  confirm_installs: true
-  log_level: "info"
-  fallback_enabled: true
-
-boxes:
-  preferred_order:
-    - "apt"
-    - "dnf"
-    - "pacman"
-    - "flatpak"
-    - "snap"
-    - "appimage"
-  disabled_boxes: []
-  apt_options: ["-y"]
-  dnf_options: ["-y"]
-  pacman_options: ["--noconfirm"]
-
-security:
-  verify_signatures: true
-  verify_checksums: true
-  allow_untrusted: false
-  check_mirrors: true
-  signature_servers:
-    - "keyserver.ubuntu.com"
-    - "keys.openpgp.org"
-    - "pgp.mit.edu"
-  trusted_keys: []
-  interactive_prompts: true
-
-ui:
-  show_progress: true
-  use_colors: true
-  compact_output: false
-  gui_theme: "dark"
+# Launch cross-platform GUI
+omni gui
 ```
 
 ---
 
 ## 🏗️ **Supported Package Managers**
 
-| Box Type | Description | Status |
-|----------|-------------|--------|
-| **apt** | Debian/Ubuntu packages | ✅ Full Support |
-| **dnf** | Fedora/RHEL packages | ✅ Full Support |
-| **pacman** | Arch Linux packages | ✅ Full Support |
-| **snap** | Universal snap packages | ✅ Full Support |
-| **flatpak** | Sandboxed applications | ✅ Full Support |
-| **appimage** | Portable applications | ✅ Full Support |
+### **🐧 Linux**
+| Package Manager | Distributions | Status |
+|----------------|---------------|--------|
+| **apt** | Debian, Ubuntu | ✅ Full Support |
+| **dnf** | Fedora, RHEL, CentOS | ✅ Full Support |
+| **pacman** | Arch Linux, Manjaro | ✅ Full Support |
+| **snap** | Universal | ✅ Full Support |
+| **flatpak** | Universal | ✅ Full Support |
+| **appimage** | Universal | ✅ Full Support |
+
+### **🪟 Windows**
+| Package Manager | Description | Status |
+|----------------|-------------|--------|
+| **winget** | Windows Package Manager | ✅ Full Support |
+| **chocolatey** | Community packages | ✅ Full Support |
+| **scoop** | Developer tools | ✅ Full Support |
+
+### **🍎 macOS**
+| Package Manager | Description | Status |
+|----------------|-------------|--------|
+| **homebrew** | Community packages | ✅ Full Support |
+| **mas** | Mac App Store | ✅ Full Support |
 
 ---
 
-## 🗂️ **Data Storage**
-
-- **Configuration**: `~/.config/omni/`
-- **Database**: `~/.local/share/omni/omni.db`
-- **Logs**: `~/.local/share/omni/logs/`
-- **Cache**: `~/.cache/omni/`
-- **AppImages**: `~/.local/share/applications/appimages/`
-
----
-
-## 🚀 **Why Omni is Revolutionary**
+## 🌟 **Why Omni is Revolutionary**
 
 ### **🆚 vs Traditional Package Managers**
-| Feature | apt/dnf/pacman | Omni |
+| Feature | apt/winget/brew | Omni |
 |---------|----------------|------|
-| **Cross-distro** | ❌ | ✅ |
+| **Cross-platform** | ❌ | ✅ |
 | **Universal formats** | ❌ | ✅ |
 | **Real rollback** | ❌ | ✅ |
 | **Unified search** | ❌ | ✅ |
-| **Security verification** | ⚠️ Basic | ✅ Comprehensive |
-| **Dependency resolution** | ⚠️ Limited | ✅ Cross-platform |
+| **Remote management** | ❌ | ✅ (coming) |
+| **GUI interface** | ❌ | ✅ |
 
-### **🆚 vs Other Universal Managers**
-| Feature | Nix | Homebrew | Omni |
-|---------|-----|----------|------|
+### **🆚 vs Other Universal Solutions**
+| Feature | Nix | Docker | Omni |
+|---------|-----|--------|------|
 | **Learning curve** | High | Medium | Low |
-| **Existing packages** | Parallel | Parallel | Native |
-| **System integration** | Isolated | Isolated | Native |
-| **Rollback** | ✅ | ❌ | ✅ |
-| **Security** | ✅ | ⚠️ | ✅ |
+| **Native packages** | ❌ Isolated | ❌ Containerized | ✅ Native |
+| **System integration** | ❌ | ❌ | ✅ |
+| **Cross-platform** | ⚠️ Limited | ✅ | ✅ |
+| **Existing workflow** | ❌ New | ❌ New | ✅ Compatible |
+
+---
+
+## 📋 **Manifest Format**
+
+Create `project.yaml` for cross-platform project dependencies:
+
+```yaml
+project: "Full-Stack Development Environment"
+description: "Works on Linux, Windows, and macOS"
+version: "1.0.0"
+
+packages:
+  # Cross-platform essentials
+  - name: "git"
+    description: "Version control"
+    
+  - name: "nodejs"
+    description: "JavaScript runtime"
+    
+  - name: "docker"
+    description: "Containerization"
+    
+  # Platform-specific preferences
+  - name: "code"
+    box_type: "auto"  # snap on Linux, winget on Windows, brew on macOS
+    description: "VS Code editor"
+    
+  # Direct URLs for universal packages
+  - name: "postman"
+    source: "https://dl.pstmn.io/download/latest/"
+    description: "API testing tool"
+
+scripts:
+  post_install:
+    - "git config --global init.defaultBranch main"
+    - "echo 'Development environment ready!'"
+
+environment:
+  EDITOR: "code"
+  NODE_ENV: "development"
+```
+
+---
+
+## 🤝 **Real-World Use Cases**
+
+### **🏢 Enterprise IT**
+```bash
+# Windows admin managing Linux fleet
+omni --ssh-config fleet.yaml update --all
+omni --parallel install docker,nodejs,git
+```
+
+### **👨‍💻 Development Teams**
+```bash
+# Same setup script works everywhere
+omni install --from team-environment.yaml
+# Developers on Windows, macOS, Linux get identical tools
+```
+
+### **☁️ DevOps & Cloud**
+```bash
+# Consistent package management across hybrid infrastructure
+omni install kubernetes-cli        # Works on all platforms
+omni snapshot create "pre-deploy"  # Universal rollback capability
+```
+
+### **🎓 Education & Training**
+```bash
+# Same commands in all lab environments
+omni install python,nodejs,git     # Students learn one interface
+omni gui                           # Visual interface for beginners
+```
 
 ---
 
@@ -315,38 +317,31 @@ cargo build
 cargo test
 ```
 
-### **Run Tests**
+### **Testing**
 ```bash
 # Unit tests
 cargo test
 
-# Integration tests with mock mode
+# Integration tests with mock mode (safe)
 ./target/debug/omni --mock install firefox
 ./target/debug/omni --mock search "text editor"
+
+# Cross-platform GUI testing
+./target/debug/omni gui
 ```
 
 ---
 
 ## 🤝 **Contributing**
 
-We welcome contributions! Here's how to get started:
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-### **Quick Start**
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Write tests for your changes
-4. Ensure all tests pass: `cargo test`
-5. Commit changes: `git commit -m 'Add amazing feature'`
-6. Push to branch: `git push origin feature/amazing-feature`
-7. Open a Pull Request
-
-### **Areas for Contribution**
-- 🐛 **Bug fixes** and error handling improvements
-- 📦 **New package manager** support (zypper, emerge, etc.)
-- 🔒 **Security enhancements** (more verification methods)
-- 🌐 **Internationalization** (i18n support)
-- 📚 **Documentation** improvements
-- 🧪 **Test coverage** expansion
+### **Priority Areas**
+- 📦 **More Package Managers** (zypper, emerge, nix)
+- 🌐 **Remote Management** (SSH, Docker integration)  
+- 🔒 **Security Features** (enhanced verification)
+- 📱 **Platform Expansion** (Android, iOS package managers)
+- 🌍 **Internationalization** (multi-language support)
 
 ---
 
@@ -360,17 +355,19 @@ See [LICENSE](LICENSE) file for details.
 
 ## 🙏 **Acknowledgments**
 
+- **Cross-Platform Communities** for making universal compatibility possible
+- **Package Manager Teams** for the foundation we build upon  
 - **Rust Community** for the amazing ecosystem
-- **Package Manager Teams** for the foundation we build upon
-- **Linux Community** for making universal compatibility possible
-- **Contributors** who help make Omni better
+- **Contributors** who help make Omni truly universal
 
 ---
 
 <div align="center">
 
-**Built with ❤️ for the Linux community**
+**Built with ❤️ for the global development community**
 
 [⭐ Star this repo](https://github.com/therealcoolnerd/omni) • [🐛 Report Bug](https://github.com/therealcoolnerd/omni/issues) • [💡 Request Feature](https://github.com/therealcoolnerd/omni/issues) • [💬 Discussions](https://github.com/therealcoolnerd/omni/discussions)
+
+**"Finally, one package manager for everything, everywhere."** 🌍
 
 </div>

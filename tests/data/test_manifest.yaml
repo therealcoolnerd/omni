@@ -1,0 +1,35 @@
+name: "Test Development Environment"
+description: "Test manifest for development and testing"
+version: "1.0.0"
+
+packages:
+  - name: "git"
+    source: "apt"
+    description: "Version control system"
+    
+  - name: "vim"
+    source: "apt" 
+    description: "Text editor"
+    
+  - name: "curl"
+    source: "apt"
+    description: "HTTP client"
+    
+  - name: "firefox"
+    source: "snap"
+    channel: "stable"
+    description: "Web browser"
+    
+  - name: "code"
+    source: "snap"
+    channel: "stable"
+    description: "VS Code editor"
+
+scripts:
+  post_install:
+    - "git config --global init.defaultBranch main"
+    - "echo 'Development environment setup complete'"
+
+environment:
+  EDITOR: "vim"
+  BROWSER: "firefox"

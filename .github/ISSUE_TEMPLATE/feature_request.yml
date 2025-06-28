@@ -1,0 +1,131 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Omni
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! 🚀
+        
+        We love ideas that make Linux package management better.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm you have done the following
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: This feature aligns with Omni's goals of universal package management
+          required: true
+
+  - type: dropdown
+    id: feature_type
+    attributes:
+      label: Feature Category
+      description: What type of feature is this?
+      options:
+        - New Package Manager Support
+        - CLI Enhancement
+        - GUI Enhancement
+        - Security Feature
+        - Performance Improvement
+        - Developer Experience
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: |
+        Describe the pain point or limitation this feature would address.
+        Include real-world scenarios where this would be helpful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution
+      placeholder: |
+        Describe how you envision this feature working.
+        Include specific details about:
+        - User interface/commands
+        - Expected behavior
+        - Integration with existing features
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternatives have you considered?
+      placeholder: |
+        Describe any alternative solutions or workarounds you've considered.
+        Why would the proposed solution be better?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority Level
+      description: How important is this feature to you?
+      options:
+        - Low - Nice to have
+        - Medium - Would improve my workflow
+        - High - Essential for my use case
+        - Critical - Blocking my adoption of Omni
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases where this feature would be valuable
+      placeholder: |
+        1. As a [type of user], I want to [action] so that [benefit]
+        2. When [scenario], this feature would help by [specific benefit]
+        3. In [environment/context], this would enable [workflow improvement]
+
+  - type: textarea
+    id: implementation_ideas
+    attributes:
+      label: Implementation Ideas
+      description: Do you have ideas about how this could be implemented?
+      placeholder: |
+        If you have technical insights or implementation suggestions, please share them.
+        This is optional but helpful for discussion.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution Interest
+      description: Would you be interested in contributing to this feature?
+      options:
+        - label: I would be interested in implementing this feature
+          required: false
+        - label: I would be willing to test this feature
+          required: false
+        - label: I would help with documentation for this feature
+          required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        - Links to related projects or tools
+        - Screenshots or mockups
+        - Research or benchmarks
+        - Community discussions

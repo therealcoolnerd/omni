@@ -3,7 +3,10 @@ use crate::distro;
 use crate::database::{Database, InstallRecord, InstallStatus};
 use crate::snapshot::SnapshotManager;
 use crate::manifest::OmniManifest;
-use anyhow::Result;
+use crate::input_validation::InputValidator;
+use crate::privilege_manager::PrivilegeManager;
+use crate::sandboxing::Sandbox;
+use anyhow::{Result, anyhow};
 use uuid::Uuid;
 use chrono::Utc;
 use tracing::{info, warn, error};
@@ -13,22 +16,31 @@ pub struct OmniBrain {
     mock_mode: bool,
     db: Option<Database>,
     snapshot_manager: Option<SnapshotManager>,
+    privilege_manager: PrivilegeManager,
 }
 
 impl OmniBrain {
     pub fn new() -> Self {
+        let mut privilege_manager = PrivilegeManager::new();
+        privilege_manager.store_credentials();
+        
         OmniBrain { 
             mock_mode: false,
             db: None,
             snapshot_manager: None,
+            privilege_manager,
         }
     }
 
     pub fn new_with_mock(mock_mode: bool) -> Self {
+        let mut privilege_manager = PrivilegeManager::new();
+        privilege_manager.store_credentials();
+        
         OmniBrain { 
             mock_mode,
             db: None,
             snapshot_manager: None,
+            privilege_manager,
         }
     }
     
@@ -43,6 +55,12 @@ impl OmniBrain {
     }
 
     pub async fn install(&mut self, app: &str, box_type: Option<&str>) -> Result<()> {
+        // Validate inputs first
+        InputValidator::validate_package_name(app)?;
+        if let Some(bt) = box_type {
+            InputValidator::validate_box_type(bt)?;
+        }
+        
         if self.mock_mode {
             println!("🎭 [MOCK] Installing '{}'", app);
             println!("✅ [MOCK] Successfully installed {} (simulated)", app);
@@ -121,31 +139,133 @@ impl OmniBrain {
     }
     
     async fn install_with_specific_box(&self, app: &str, box_type: &str) -> Result<(String, String)> {
+        // Use secure installation method
+        self.install_securely(app, box_type).await
+    }
+    
+    async fn install_securely(&self, app: &str, box_type: &str) -> Result<(String, String)> {
+        info!("Starting secure installation of {} via {}", app, box_type);
+        
+        // Create sandbox for the operation
+        let mut sandbox = Sandbox::new()?;
+        sandbox.set_network_access(true); // Package managers need network access
+        
+        // Validate the operation is safe
+        PrivilegeManager::validate_minimal_privileges()?;
+        
         match box_type {
             "apt" if distro::command_exists("apt") => {
-                apt::install_with_apt(app);
-                Ok((box_type.to_string(), "unknown".to_string()))
+                // Check if we need sudo
+                if !PrivilegeManager::is_root() && !PrivilegeManager::can_sudo() {
+                    return Err(anyhow!("sudo access required for apt installation"));
+                }
+                
+                // Execute apt in sandbox with proper privilege management
+                let args = vec!["install", "-y", app];
+                if PrivilegeManager::is_root() {
+                    sandbox.execute("apt", &args)?;
+                } else {
+                    self.privilege_manager.execute_with_sudo("apt", &args)?;
+                }
+                
+                Ok((box_type.to_string(), self.get_package_version(app, box_type).await?))
             }
             "dnf" if distro::command_exists("dnf") => {
-                dnf::install_with_dnf(app);
-                Ok((box_type.to_string(), "unknown".to_string()))
+                if !PrivilegeManager::is_root() && !PrivilegeManager::can_sudo() {
+                    return Err(anyhow!("sudo access required for dnf installation"));
+                }
+                
+                let args = vec!["install", "-y", app];
+                if PrivilegeManager::is_root() {
+                    sandbox.execute("dnf", &args)?;
+                } else {
+                    self.privilege_manager.execute_with_sudo("dnf", &args)?;
+                }
+                
+                Ok((box_type.to_string(), self.get_package_version(app, box_type).await?))
             }
             "pacman" if distro::command_exists("pacman") => {
-                pacman::install_with_pacman(app);
-                Ok((box_type.to_string(), "unknown".to_string()))
+                if !PrivilegeManager::is_root() && !PrivilegeManager::can_sudo() {
+                    return Err(anyhow!("sudo access required for pacman installation"));
+                }
+                
+                let args = vec!["-S", "--noconfirm", app];
+                if PrivilegeManager::is_root() {
+                    sandbox.execute("pacman", &args)?;
+                } else {
+                    self.privilege_manager.execute_with_sudo("pacman", &args)?;
+                }
+                
+                Ok((box_type.to_string(), self.get_package_version(app, box_type).await?))
             }
             "snap" if distro::command_exists("snap") => {
-                snap::install_with_snap(app)?;
-                Ok((box_type.to_string(), "unknown".to_string()))
+                let args = vec!["install", app];
+                if PrivilegeManager::is_root() {
+                    sandbox.execute("snap", &args)?;
+                } else {
+                    self.privilege_manager.execute_with_sudo("snap", &args)?;
+                }
+                
+                Ok((box_type.to_string(), self.get_package_version(app, box_type).await?))
             }
             "flatpak" if distro::command_exists("flatpak") => {
-                flatpak::install_with_flatpak(app);
-                Ok((box_type.to_string(), "unknown".to_string()))
+                let args = vec!["install", "-y", app];
+                sandbox.execute("flatpak", &args)?;
+                
+                Ok((box_type.to_string(), self.get_package_version(app, box_type).await?))
             }
             _ => {
-                Err(anyhow::anyhow!("Box type '{}' not available or not supported", box_type))
+                Err(anyhow!("Box type '{}' not available or not supported", box_type))
             }
         }
+    }
+    
+    async fn get_package_version(&self, app: &str, box_type: &str) -> Result<String> {
+        // Try to get the actual installed version
+        match box_type {
+            "apt" => {
+                let output = std::process::Command::new("dpkg-query")
+                    .args(&["-W", "-f=${Version}", app])
+                    .output();
+                    
+                if let Ok(output) = output {
+                    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !version.is_empty() {
+                        return Ok(version);
+                    }
+                }
+            }
+            "dnf" => {
+                let output = std::process::Command::new("rpm")
+                    .args(&["-q", "--qf", "%{VERSION}", app])
+                    .output();
+                    
+                if let Ok(output) = output {
+                    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !version.is_empty() {
+                        return Ok(version);
+                    }
+                }
+            }
+            "snap" => {
+                let output = std::process::Command::new("snap")
+                    .args(&["list", app])
+                    .output();
+                    
+                if let Ok(output) = output {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    if let Some(line) = stdout.lines().nth(1) {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() > 1 {
+                            return Ok(parts[1].to_string());
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        
+        Ok("unknown".to_string())
     }
     
     async fn install_with_auto_detection(&self, app: &str) -> Result<(String, String)> {

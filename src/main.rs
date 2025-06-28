@@ -13,6 +13,10 @@ mod updater;
 mod resolver;
 mod security;
 mod interactive;
+mod input_validation;
+mod privilege_manager;
+mod sandboxing;
+mod error_handling;
 
 use clap::{Parser, Subcommand};
 use anyhow::Result;
@@ -25,7 +29,7 @@ use manifest::OmniManifest;
 
 #[derive(Parser)]
 #[command(name = "omni")]
-#[command(about = "Universal Linux Installer Engine")]
+#[command(about = "Universal Cross-Platform Package Manager - Linux, Windows, macOS")]
 #[command(version = "0.2.0")]
 struct Cli {
     #[command(subcommand)]

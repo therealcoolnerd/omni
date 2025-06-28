@@ -1,0 +1,164 @@
+name: Package Manager Support
+description: Request support for a new package manager
+title: "[Package Manager]: Add support for "
+labels: ["enhancement", "package-manager", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new package manager! 📦
+        
+        Adding package manager support helps make Omni truly universal.
+
+  - type: input
+    id: package_manager_name
+    attributes:
+      label: Package Manager Name
+      description: What is the name of the package manager?
+      placeholder: "e.g., zypper, emerge, nix, brew"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Primary Operating System
+      description: What OS is this package manager primarily used on?
+      options:
+        - Linux (multiple distributions)
+        - Specific Linux distribution
+        - Windows
+        - macOS
+        - BSD
+        - Cross-platform
+    validations:
+      required: true
+
+  - type: input
+    id: distributions
+    attributes:
+      label: Distributions/Platforms
+      description: Which specific distributions or platforms use this package manager?
+      placeholder: "e.g., openSUSE, Gentoo, NixOS, all macOS"
+
+  - type: textarea
+    id: basic_commands
+    attributes:
+      label: Basic Commands
+      description: What are the basic commands for this package manager?
+      placeholder: |
+        Install: zypper install <package>
+        Remove: zypper remove <package>
+        Update: zypper update
+        Search: zypper search <term>
+        List installed: zypper list-installed
+    validations:
+      required: true
+
+  - type: textarea
+    id: package_sources
+    attributes:
+      label: Package Sources
+      description: Where does this package manager get packages from?
+      placeholder: |
+        - Official repositories
+        - Third-party repositories
+        - Build from source
+        - Package format (rpm, deb, etc.)
+
+  - type: textarea
+    id: special_features
+    attributes:
+      label: Special Features
+      description: What special features or capabilities does this package manager have?
+      placeholder: |
+        - Sandboxing/isolation
+        - Rollback capabilities
+        - Dependency resolution approach
+        - Configuration management
+        - Multi-version support
+
+  - type: textarea
+    id: installation_detection
+    attributes:
+      label: Installation Detection
+      description: How can Omni detect if this package manager is available?
+      placeholder: |
+        - Command to check: which zypper
+        - Configuration files: /etc/zypp/
+        - Package manager executable location
+        - Version command: zypper --version
+
+  - type: textarea
+    id: privilege_requirements
+    attributes:
+      label: Privilege Requirements
+      description: What privileges are needed for different operations?
+      placeholder: |
+        - Install packages: sudo required
+        - Search packages: no sudo needed
+        - Update repositories: sudo required
+        - User-specific operations: no sudo needed
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Implementation Complexity
+      description: How complex do you think implementing this would be?
+      options:
+        - Simple - Similar to existing package managers
+        - Medium - Some unique features to handle
+        - Complex - Significantly different approach
+        - Very Complex - Requires major architectural changes
+    validations:
+      required: true
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation and Resources
+      description: Links to documentation and resources for this package manager
+      placeholder: |
+        - Official documentation: https://...
+        - API/command reference: https://...
+        - Source code: https://...
+        - Community resources: https://...
+
+  - type: textarea
+    id: testing_environment
+    attributes:
+      label: Testing Environment
+      description: How can this package manager be tested?
+      placeholder: |
+        - Docker images available
+        - Virtual machine setup
+        - Live distributions
+        - Installation instructions
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution Interest
+      description: Would you be interested in helping implement this?
+      options:
+        - label: I would be interested in implementing this package manager support
+          required: false
+        - label: I can provide testing environment access
+          required: false
+        - label: I can help with documentation and command reference
+          required: false
+        - label: I have expertise with this package manager
+          required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        - Use cases where this would be valuable
+        - Estimated user base
+        - Integration challenges
+        - Related package managers
