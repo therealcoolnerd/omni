@@ -6,6 +6,7 @@ use crate::manifest::OmniManifest;
 use crate::input_validation::InputValidator;
 use crate::privilege_manager::PrivilegeManager;
 use crate::sandboxing::Sandbox;
+use crate::history;
 use anyhow::{Result, anyhow};
 use uuid::Uuid;
 use chrono::Utc;
