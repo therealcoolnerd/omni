@@ -69,7 +69,7 @@ const TimelinePost = ({ user, post }) => {
         <img
           src={safeAvatar}
           alt={safeDisplayName}
-          className="w-12 h-12 rounded-full border-2 border-nukie-gold/30"
+          className="w-12 h-12 rounded-full border-2 border-omni-green/30"
           onError={(e) => {
             // Fallback if image fails to load
             e.target.src = '/default-avatar.png';

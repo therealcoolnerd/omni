@@ -29,7 +29,7 @@ function App() {
             onClick={() => setCurrentPage('timeline')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               currentPage === 'timeline'
-                ? 'bg-nukie-gold text-black'
+                ? 'bg-omni-blue text-white'
                 : 'bg-gray-700 text-white hover:bg-gray-600'
             }`}
           >
@@ -39,7 +39,7 @@ function App() {
             onClick={() => setCurrentPage('profile')}
             className={`px-4 py-2 rounded-lg transition-colors ${
               currentPage === 'profile'
-                ? 'bg-nukie-gold text-black'
+                ? 'bg-omni-blue text-white'
                 : 'bg-gray-700 text-white hover:bg-gray-600'
             }`}
           >

@@ -115,7 +115,7 @@ const TimelinePage = () => {
             <img
               src={safeAvatar}
               alt={safeDisplayName}
-              className="w-12 h-12 rounded-full border-2 border-nukie-gold/30"
+              className="w-12 h-12 rounded-full border-2 border-omni-green/30"
               onError={(e) => {
                 // Fallback if image fails to load
                 e.target.src = '/default-avatar.png';
@@ -138,7 +138,7 @@ const TimelinePage = () => {
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 placeholder="What's on your mind?"
-                className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-nukie-gold/50 focus:outline-none resize-none"
+                className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-omni-green/50 focus:outline-none resize-none"
                 rows={3}
                 maxLength={280}
                 required
@@ -150,7 +150,7 @@ const TimelinePage = () => {
                 <button
                   type="submit"
                   disabled={!newPost.trim()}
-                  className="px-6 py-2 bg-nukie-gold text-black font-medium rounded-lg hover:bg-nukie-gold/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-6 py-2 bg-omni-green text-black font-medium rounded-lg hover:bg-omni-green/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Post
                 </button>

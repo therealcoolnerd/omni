@@ -172,7 +172,7 @@ const ProfilePage = ({ userId }) => {
             <img
               src={safeAvatar}
               alt={safeDisplayName}
-              className="w-32 h-32 rounded-full border-4 border-nukie-gold/50"
+              className="w-32 h-32 rounded-full border-4 border-omni-purple/50"
               onError={(e) => {
                 // Secure fallback if image fails to load
                 e.target.src = '/default-avatar.png';
@@ -183,7 +183,7 @@ const ProfilePage = ({ userId }) => {
               }}
             />
             {isEditing && (
-              <button className="absolute bottom-2 right-2 bg-nukie-gold text-black p-2 rounded-full hover:bg-nukie-gold/90 transition-colors">
+              <button className="absolute bottom-2 right-2 bg-omni-purple text-black p-2 rounded-full hover:bg-omni-purple/90 transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
@@ -201,7 +201,7 @@ const ProfilePage = ({ userId }) => {
                     type="text"
                     value={editForm.displayName || ''}
                     onChange={(e) => handleInputChange('displayName', e.target.value)}
-                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-nukie-gold/50 focus:outline-none"
+                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-omni-purple/50 focus:outline-none"
                     maxLength={50}
                     required
                   />
@@ -212,7 +212,7 @@ const ProfilePage = ({ userId }) => {
                     type="url"
                     value={editForm.avatar || ''}
                     onChange={(e) => handleInputChange('avatar', e.target.value)}
-                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-nukie-gold/50 focus:outline-none"
+                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-omni-purple/50 focus:outline-none"
                     placeholder="https://example.com/avatar.jpg"
                   />
                   <p className="text-xs text-gray-400 mt-1">Only trusted domains are allowed</p>
@@ -222,7 +222,7 @@ const ProfilePage = ({ userId }) => {
                   <textarea
                     value={editForm.bio || ''}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
-                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-nukie-gold/50 focus:outline-none"
+                    className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-omni-purple/50 focus:outline-none"
                     rows={3}
                     maxLength={200}
                     placeholder="Tell us about yourself..."
@@ -235,7 +235,7 @@ const ProfilePage = ({ userId }) => {
                       type="text"
                       value={editForm.location || ''}
                       onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-nukie-gold/50 focus:outline-none"
+                      className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-omni-purple/50 focus:outline-none"
                       maxLength={100}
                       placeholder="City, Country"
                     />
@@ -246,7 +246,7 @@ const ProfilePage = ({ userId }) => {
                       type="url"
                       value={editForm.website || ''}
                       onChange={(e) => handleInputChange('website', e.target.value)}
-                      className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-nukie-gold/50 focus:outline-none"
+                      className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-omni-purple/50 focus:outline-none"
                       placeholder="https://your-website.com"
                     />
                   </div>
@@ -254,7 +254,7 @@ const ProfilePage = ({ userId }) => {
                 <div className="flex gap-3">
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-nukie-gold text-black font-medium rounded-lg hover:bg-nukie-gold/90 transition-colors"
+                    className="px-6 py-2 bg-omni-purple text-black font-medium rounded-lg hover:bg-omni-purple/90 transition-colors"
                   >
                     Save Changes
                   </button>
@@ -309,7 +309,7 @@ const ProfilePage = ({ userId }) => {
                         href={safeWebsite} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-nukie-gold hover:underline"
+                        className="text-omni-purple hover:underline"
                       >
                         {safeWebsite.replace(/^https?:\/\//, '')}
                       </a>
