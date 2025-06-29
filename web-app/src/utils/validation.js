@@ -62,7 +62,7 @@ export const getSafeAvatarUrl = (avatarUrl) => {
  * @returns {string} - Sanitized display name
  */
 export const getSafeDisplayName = (displayName) => {
-  if (!displayName || !isValidDisplayName(displayName)) {
+  if (!displayName || typeof displayName !== 'string') {
     return 'Anonymous User';
   }
   
@@ -72,7 +72,13 @@ export const getSafeDisplayName = (displayName) => {
     ALLOWED_ATTR: []   // No attributes allowed
   });
   
-  return sanitized.substring(0, 50); // Limit length
+  // If sanitization removed all content, use fallback
+  const result = sanitized.trim();
+  if (!result) {
+    return 'Anonymous User';
+  }
+  
+  return result.substring(0, 50); // Limit length
 };
 
 /**
@@ -83,9 +89,12 @@ export const getSafeDisplayName = (displayName) => {
 export const escapeHtml = (text) => {
   if (!text || typeof text !== 'string') return '';
   
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 };
 
 /**
@@ -115,16 +124,14 @@ export const isValidWebsite = (url) => {
     // Only allow HTTP/HTTPS protocols
     if (!['http:', 'https:'].includes(parsed.protocol)) return false;
     
-    // Block suspicious domains
-    const suspiciousDomains = [
-      'localhost',
-      '127.0.0.1',
-      '0.0.0.0',
-      '::1'
-    ];
-    
+    // Block suspicious domains and IPs
     const hostname = parsed.hostname.toLowerCase();
-    if (suspiciousDomains.includes(hostname)) return false;
+    
+    // Block localhost variants
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') return false;
+    
+    // Block IPv6 localhost
+    if (hostname === '[::1]' || hostname === '::1') return false;
     
     // Block private IP ranges
     if (hostname.match(/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/)) return false;
@@ -141,5 +148,20 @@ export const isValidWebsite = (url) => {
  * @returns {string} - Safe website URL or empty string
  */
 export const getSafeWebsiteUrl = (websiteUrl) => {
-  return isValidWebsite(websiteUrl) ? websiteUrl : '';
+  if (!websiteUrl || typeof websiteUrl !== 'string') return '';
+  
+  // Handle malformed URLs by trying to parse them
+  try {
+    // Try to construct a valid URL if it's malformed
+    let normalizedUrl = websiteUrl.trim();
+    
+    // Check for obviously malformed patterns
+    if (normalizedUrl.includes('://') && (normalizedUrl.endsWith('.') || normalizedUrl.includes('..'))) {
+      return '';
+    }
+    
+    return isValidWebsite(normalizedUrl) ? normalizedUrl : '';
+  } catch {
+    return '';
+  }
 };
