@@ -128,7 +128,7 @@ describe('XSS Prevention Security Tests', () => {
 
   describe('HTML Escaping', () => {
     test('should escape HTML entities', () => {
-      expect(escapeHtml('<script>alert("XSS")</script>')).toBe('&lt;script&gt;alert("XSS")&lt;/script&gt;');
+      expect(escapeHtml('<script>alert("XSS")</script>')).toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
       expect(escapeHtml('John & Jane')).toBe('John &amp; Jane');
       expect(escapeHtml('"quotes"')).toBe('&quot;quotes&quot;');
     });
