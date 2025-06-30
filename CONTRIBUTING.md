@@ -163,7 +163,7 @@ Security is critical for Omni. If you find security issues:
 
 ### For Vulnerability Reports:
 - **DO NOT** open public issues for security vulnerabilities
-- Email security details privately to: security@omni-project.org
+- Email security details privately to: arealcoolcompany@gmail.com
 - Include proof of concept if possible
 - Allow 90 days for response before public disclosure
 
@@ -184,9 +184,9 @@ Contributors who make significant impacts will be:
 - **Discord**: Voice chat for complex debugging sessions
 
 ### Maintainer Contact
-- **Lead Developer**: Josef Douglas Charles McClammey (@therealcoolnerd)
-- **Technical Questions**: technical@omni-project.org
-- **General Inquiries**: hello@omni-project.org
+- **Lead Developer**: @therealcoolnerd
+- **Email**: arealcoolcompany@gmail.com
+- **Twitter**: [@therealcoolnerd](https://twitter.com/therealcoolnerd)
 
 ## 🎉 Thank You!
 
