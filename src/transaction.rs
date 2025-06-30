@@ -1,12 +1,15 @@
-use crate::error_handling::{OmniError, RecoveryManager};
-use crate::database::{Database, InstallRecord, InstallStatus};
+use crate::error_handling::{RecoveryManager};
+use crate::database::{Database};
+use crate::distro::PackageManager;
 use crate::snapshot::SnapshotManager;
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::SystemTime;
+use std::fmt;
 use tracing::{info, warn, error};
 use uuid::Uuid;
+use sqlx::Row;
 
 /// Transaction types supported by the system
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -15,6 +18,17 @@ pub enum TransactionType {
     Remove,
     Update,
     ManifestInstall,
+}
+
+impl fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransactionType::Install => write!(f, "install"),
+            TransactionType::Remove => write!(f, "remove"),
+            TransactionType::Update => write!(f, "update"),
+            TransactionType::ManifestInstall => write!(f, "manifest-install"),
+        }
+    }
 }
 
 /// Individual operation within a transaction
@@ -74,6 +88,16 @@ pub enum TransactionStatus {
     RolledBack,
 }
 
+/// Result of executing a transaction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionResult {
+    pub transaction_id: String,
+    pub status: TransactionStatus,
+    pub successful_operations: usize,
+    pub failed_operations: usize,
+    pub errors: Vec<String>,
+}
+
 /// Transaction manager for atomic operations
 pub struct TransactionManager {
     db: Database,
@@ -88,12 +112,35 @@ impl TransactionManager {
         let snapshot_manager = SnapshotManager::new().await?;
         let recovery_manager = RecoveryManager::new();
         
-        Ok(Self {
+        let manager = Self {
             db,
             snapshot_manager,
             recovery_manager,
             current_transaction: None,
-        })
+        };
+        
+        // Clean up any old temporary transaction files
+        manager.cleanup_temp_files().await?;
+        
+        Ok(manager)
+    }
+    
+    /// Clean up old temporary transaction files from /tmp/
+    async fn cleanup_temp_files(&self) -> Result<()> {
+        use tokio::fs;
+        
+        if let Ok(mut dir) = fs::read_dir("/tmp").await {
+            while let Ok(Some(entry)) = dir.next_entry().await {
+                if let Some(file_name) = entry.file_name().to_str() {
+                    if file_name.starts_with("omni_transaction_") && file_name.ends_with(".json") {
+                        let _ = fs::remove_file(entry.path()).await;
+                        info!("Cleaned up old transaction file: {}", file_name);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
     }
     
     /// Begin a new transaction
@@ -143,13 +190,17 @@ impl TransactionManager {
         box_type: String,
         version_before: Option<String>,
     ) -> Result<String> {
-        let transaction = self.current_transaction.as_mut()
-            .ok_or_else(|| anyhow!("No active transaction"))?;
-        
-        if transaction.status != TransactionStatus::Planning {
-            return Err(anyhow!("Cannot add operations to non-planning transaction"));
+        // Check if we have an active transaction first
+        if let Some(ref transaction) = self.current_transaction {
+            if transaction.status != TransactionStatus::Planning {
+                return Err(anyhow!("Cannot add operations to non-planning transaction"));
+            }
+        } else {
+            return Err(anyhow!("No active transaction"));
         }
         
+        // Prepare rollback data before borrowing mutably
+        let rollback_data = self.prepare_rollback_data(&package_name, &box_type).await?;
         let operation_id = Uuid::new_v4().to_string();
         
         let operation = TransactionOperation {
@@ -161,90 +212,150 @@ impl TransactionManager {
             version_after: None,
             status: OperationStatus::Pending,
             error_message: None,
-            rollback_data: Some(self.prepare_rollback_data(&package_name, &box_type).await?),
+            rollback_data: Some(rollback_data),
         };
         
+        // Now we can safely borrow mutably
+        let transaction = self.current_transaction.as_mut().unwrap();
         transaction.operations.push(operation);
+        
+        let transaction_id = transaction.id.clone();
         self.save_transaction(transaction).await?;
         
-        info!("Added operation {} to transaction {}", operation_id, transaction.id);
+        info!("Added operation {} to transaction {}", operation_id, transaction_id);
         Ok(operation_id)
     }
     
     /// Execute all operations in the current transaction
     pub async fn commit_transaction(&mut self) -> Result<TransactionResult> {
-        let transaction = self.current_transaction.as_mut()
-            .ok_or_else(|| anyhow!("No active transaction"))?;
-        
-        if transaction.status != TransactionStatus::Planning {
-            return Err(anyhow!("Transaction not in planning state"));
+        // First check if we have a valid transaction
+        {
+            let transaction = self.current_transaction.as_ref()
+                .ok_or_else(|| anyhow!("No active transaction"))?;
+            
+            if transaction.status != TransactionStatus::Planning {
+                return Err(anyhow!("Transaction not in planning state"));
+            }
         }
         
-        info!("Committing transaction: {}", transaction.id);
-        transaction.status = TransactionStatus::InProgress;
-        self.save_transaction(transaction).await?;
+        // Update transaction status
+        let transaction_id = {
+            let transaction = self.current_transaction.as_mut().unwrap();
+            info!("Committing transaction: {}", transaction.id);
+            transaction.status = TransactionStatus::InProgress;
+            let id = transaction.id.clone();
+            self.save_transaction(transaction).await?;
+            id
+        };
         
         let mut successful_operations = 0;
         let mut failed_operations = 0;
         let mut errors = Vec::new();
         
-        // Execute operations in order
-        for operation in &mut transaction.operations {
-            operation.status = OperationStatus::InProgress;
-            self.save_transaction(transaction).await?;
+        // Execute operations one by one
+        let operations_count = self.current_transaction.as_ref().unwrap().operations.len();
+        for i in 0..operations_count {
+            // Update operation status
+            {
+                let transaction = self.current_transaction.as_mut().unwrap();
+                transaction.operations[i].status = OperationStatus::InProgress;
+                self.save_transaction(transaction).await?;
+            }
             
-            match self.execute_operation(operation).await {
+            // Execute the operation
+            let operation_result = {
+                let transaction = self.current_transaction.as_ref().unwrap();
+                let operation = &transaction.operations[i];
+                self.execute_operation(operation).await
+            };
+            
+            // Update operation with result
+            match operation_result {
                 Ok(version_after) => {
-                    operation.version_after = version_after;
-                    operation.status = OperationStatus::Completed;
+                    let transaction = self.current_transaction.as_mut().unwrap();
+                    transaction.operations[i].version_after = version_after;
+                    transaction.operations[i].status = OperationStatus::Completed;
                     successful_operations += 1;
-                    info!("✅ Operation {} completed successfully", operation.id);
+                    info!("✅ Operation {} completed successfully", transaction.operations[i].id);
+                    self.save_transaction(transaction).await?;
                 }
                 Err(e) => {
-                    operation.status = OperationStatus::Failed;
-                    operation.error_message = Some(e.to_string());
+                    let transaction = self.current_transaction.as_mut().unwrap();
+                    transaction.operations[i].status = OperationStatus::Failed;
+                    transaction.operations[i].error_message = Some(e.to_string());
                     failed_operations += 1;
                     errors.push(e.to_string());
-                    error!("❌ Operation {} failed: {}", operation.id, e);
+                    error!("❌ Operation {} failed: {}", transaction.operations[i].id, e);
+                    self.save_transaction(transaction).await?;
                     
-                    // Stop on first failure and rollback
+                    // Stop on first failure
                     break;
                 }
             }
-            
-            self.save_transaction(transaction).await?;
         }
         
         // Determine final transaction status
-        if failed_operations > 0 {
+        let result = if failed_operations > 0 {
             warn!("Transaction failed with {} errors. Starting rollback...", failed_operations);
-            transaction.status = TransactionStatus::Failed;
             
             // Attempt rollback
-            if let Err(rollback_error) = self.rollback_transaction().await {
+            let rollback_result = self.rollback_transaction().await;
+            
+            let final_status = if let Err(rollback_error) = rollback_result {
                 error!("Rollback failed: {}", rollback_error);
-                transaction.status = TransactionStatus::Failed; // Keep as failed
                 errors.push(format!("Rollback failed: {}", rollback_error));
+                TransactionStatus::Failed
             } else {
-                transaction.status = TransactionStatus::RolledBack;
+                TransactionStatus::RolledBack
+            };
+            
+            // Update transaction status
+            {
+                let transaction = self.current_transaction.as_mut().unwrap();
+                transaction.status = final_status.clone();
+                transaction.completed_at = Some(SystemTime::now());
+                self.save_transaction(transaction).await?;
             }
-        } else if successful_operations == transaction.operations.len() {
-            transaction.status = TransactionStatus::Completed;
-            info!("✅ Transaction completed successfully");
+            
+            let transaction_id = self.current_transaction.as_ref().unwrap().id.clone();
+            TransactionResult {
+                transaction_id,
+                status: final_status,
+                successful_operations,
+                failed_operations,
+                errors,
+            }
         } else {
-            transaction.status = TransactionStatus::PartiallyCompleted;
-            warn!("Transaction partially completed");
-        }
-        
-        transaction.completed_at = Some(SystemTime::now());
-        self.save_transaction(transaction).await?;
-        
-        let result = TransactionResult {
-            transaction_id: transaction.id.clone(),
-            status: transaction.status.clone(),
-            successful_operations,
-            failed_operations,
-            errors,
+            // Successful completion
+            let total_operations = self.current_transaction.as_ref().unwrap().operations.len();
+            let final_status = if successful_operations == total_operations {
+                TransactionStatus::Completed
+            } else {
+                TransactionStatus::PartiallyCompleted
+            };
+            
+            // Update transaction status
+            {
+                let transaction = self.current_transaction.as_mut().unwrap();
+                transaction.status = final_status.clone();
+                transaction.completed_at = Some(SystemTime::now());
+                self.save_transaction(transaction).await?;
+            }
+            
+            if final_status == TransactionStatus::Completed {
+                info!("✅ Transaction completed successfully");
+            } else {
+                warn!("Transaction partially completed");
+            }
+            
+            let transaction_id = self.current_transaction.as_ref().unwrap().id.clone();
+            TransactionResult {
+                transaction_id,
+                status: final_status,
+                successful_operations,
+                failed_operations,
+                errors,
+            }
         };
         
         // Clear current transaction
@@ -331,17 +442,117 @@ impl TransactionManager {
     }
     
     async fn execute_install_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
-        // This would use the secure box managers
-        info!("Executing install operation for {}", operation.package_name);
+        use crate::boxes::*;
         
-        // For now, return a placeholder - in real implementation this would
-        // call the appropriate secure box manager
-        Ok(Some("1.0.0".to_string()))
+        info!("Executing install operation for {} via {}", operation.package_name, operation.box_type);
+        
+        match operation.box_type.as_str() {
+            "apt" => {
+                let manager = apt::AptManager::new()?;
+                manager.install(&operation.package_name).await?;
+                Ok(Some("installed".to_string()))
+            }
+            "dnf" => {
+                let manager = dnf::DnfBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "pacman" => {
+                let manager = pacman::PacmanBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "zypper" => {
+                let manager = zypper::ZypperBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "emerge" => {
+                let manager = emerge::EmergeBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "nix" => {
+                let manager = nix::NixBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "winget" => {
+                let manager = winget::WingetBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "brew" => {
+                let manager = brew::BrewBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            "chocolatey" => {
+                let manager = chocolatey::ChocolateyBox::new()?;
+                manager.install(&operation.package_name)?;
+                Ok(Some("installed".to_string()))
+            }
+            _ => {
+                return Err(anyhow!("Unsupported box type: {}", operation.box_type));
+            }
+        }
     }
     
     async fn execute_remove_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
-        info!("Executing remove operation for {}", operation.package_name);
-        Ok(None)
+        use crate::boxes::*;
+        
+        info!("Executing remove operation for {} via {}", operation.package_name, operation.box_type);
+        
+        match operation.box_type.as_str() {
+            "apt" => {
+                let manager = apt::AptManager::new()?;
+                manager.remove(&operation.package_name).await?;
+                Ok(None)
+            }
+            "dnf" => {
+                let manager = dnf::DnfBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "pacman" => {
+                let manager = pacman::PacmanBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "zypper" => {
+                let manager = zypper::ZypperBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "emerge" => {
+                let manager = emerge::EmergeBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "nix" => {
+                let manager = nix::NixBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "winget" => {
+                let manager = winget::WingetBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "brew" => {
+                let manager = brew::BrewBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            "chocolatey" => {
+                let manager = chocolatey::ChocolateyBox::new()?;
+                manager.remove(&operation.package_name)?;
+                Ok(None)
+            }
+            _ => {
+                return Err(anyhow!("Unsupported box type: {}", operation.box_type));
+            }
+        }
     }
     
     async fn execute_update_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
@@ -425,29 +636,103 @@ impl TransactionManager {
     async fn save_transaction(&self, transaction: &Transaction) -> Result<()> {
         // Save transaction state to database for persistence
         let json_data = serde_json::to_string(transaction)?;
-        // In a real implementation, this would save to the database
-        tokio::fs::write(
-            format!("/tmp/omni_transaction_{}.json", transaction.id),
-            json_data
-        ).await?;
+        let status_str = match transaction.status {
+            TransactionStatus::Planning => "planning",
+            TransactionStatus::InProgress => "in_progress",
+            TransactionStatus::Completed => "completed",
+            TransactionStatus::PartiallyCompleted => "partially_completed",
+            TransactionStatus::Failed => "failed",
+            TransactionStatus::RolledBack => "rolled_back",
+        };
+        
+        let created_at = transaction.created_at
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs() as i64;
+        
+        let completed_at = transaction.completed_at
+            .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64);
+        
+        // Create transactions table if it doesn't exist
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS transactions (
+                id TEXT PRIMARY KEY,
+                transaction_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                completed_at INTEGER,
+                rollback_snapshot_id TEXT,
+                description TEXT NOT NULL,
+                operations_json TEXT NOT NULL
+            )
+            "#,
+        )
+        .execute(&self.db.pool)
+        .await?;
+        
+        let transaction_type_str = match transaction.transaction_type {
+            TransactionType::Install => "install",
+            TransactionType::Remove => "remove",
+            TransactionType::Update => "update",
+            TransactionType::ManifestInstall => "manifest_install",
+        };
+        
+        // Insert or update transaction
+        sqlx::query(
+            r#"
+            INSERT OR REPLACE INTO transactions 
+            (id, transaction_type, status, created_at, completed_at, rollback_snapshot_id, description, operations_json)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "#,
+        )
+        .bind(&transaction.id)
+        .bind(transaction_type_str)
+        .bind(status_str)
+        .bind(created_at)
+        .bind(completed_at)
+        .bind(&transaction.rollback_snapshot_id)
+        .bind(&transaction.description)
+        .bind(&json_data)
+        .execute(&self.db.pool)
+        .await?;
+        
         Ok(())
     }
     
     /// Get transaction history
     pub async fn get_transaction_history(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
-        // Load recent transactions from database
-        // For now, return empty list
-        Ok(vec![])
+        let limit = limit.unwrap_or(50) as i64;
+        
+        let rows = sqlx::query(
+            "SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?1"
+        )
+        .bind(limit)
+        .fetch_all(&self.db.pool)
+        .await?;
+        
+        let mut transactions = Vec::new();
+        
+        for row in rows {
+            let operations_json: String = row.get("operations_json");
+            let transaction: Transaction = serde_json::from_str(&operations_json)?;
+            transactions.push(transaction);
+        }
+        
+        Ok(transactions)
     }
     
     /// Get details of a specific transaction
     pub async fn get_transaction(&self, transaction_id: &str) -> Result<Option<Transaction>> {
-        // Load specific transaction from database
-        let file_path = format!("/tmp/omni_transaction_{}.json", transaction_id);
+        let row = sqlx::query(
+            "SELECT operations_json FROM transactions WHERE id = ?1"
+        )
+        .bind(transaction_id)
+        .fetch_optional(&self.db.pool)
+        .await?;
         
-        if tokio::fs::try_exists(&file_path).await.unwrap_or(false) {
-            let json_data = tokio::fs::read_to_string(file_path).await?;
-            let transaction: Transaction = serde_json::from_str(&json_data)?;
+        if let Some(row) = row {
+            let operations_json: String = row.get("operations_json");
+            let transaction: Transaction = serde_json::from_str(&operations_json)?;
             Ok(Some(transaction))
         } else {
             Ok(None)
@@ -455,15 +740,6 @@ impl TransactionManager {
     }
 }
 
-/// Result of a transaction execution
-#[derive(Debug, Clone)]
-pub struct TransactionResult {
-    pub transaction_id: String,
-    pub status: TransactionStatus,
-    pub successful_operations: usize,
-    pub failed_operations: usize,
-    pub errors: Vec<String>,
-}
 
 impl TransactionResult {
     pub fn is_successful(&self) -> bool {

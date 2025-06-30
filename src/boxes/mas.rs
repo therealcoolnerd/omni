@@ -5,8 +5,8 @@ use crate::distro::PackageManager;
 pub struct MasBox;
 
 impl MasBox {
-    pub fn new() -> Self {
-        MasBox
+    pub fn new() -> Result<Self> {
+        Ok(MasBox)
     }
     
     pub fn is_available() -> bool {

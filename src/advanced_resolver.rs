@@ -125,7 +125,7 @@ pub struct GraphEdge {
     pub from: String,
     pub to: String,
     pub dependency_type: DependencyType,
-    pub version_constraint: VersionReq,
+    pub version_constraint: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

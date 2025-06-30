@@ -2,7 +2,6 @@ use sqlx::{SqlitePool, Row};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use std::path::PathBuf;
 use anyhow::Result;
 use crate::config::OmniConfig;
 
@@ -62,7 +61,7 @@ pub struct DatabaseHealth {
 }
 
 pub struct Database {
-    pool: SqlitePool,
+    pub pool: SqlitePool,
 }
 
 impl Database {
@@ -397,6 +396,33 @@ impl Database {
         }
         
         Ok(snapshots)
+    }
+    
+    pub async fn delete_snapshot(&self, snapshot_id: &str) -> Result<()> {
+        // Start a transaction to ensure atomicity
+        let mut tx = self.pool.begin().await?;
+        
+        // Delete snapshot packages first (due to foreign key constraint)
+        sqlx::query("DELETE FROM snapshot_packages WHERE snapshot_id = ?1")
+            .bind(snapshot_id)
+            .execute(&mut *tx)
+            .await?;
+        
+        // Delete the snapshot
+        let result = sqlx::query("DELETE FROM snapshots WHERE id = ?1")
+            .bind(snapshot_id)
+            .execute(&mut *tx)
+            .await?;
+        
+        if result.rows_affected() == 0 {
+            tx.rollback().await?;
+            return Err(anyhow::anyhow!("Snapshot not found: {}", snapshot_id));
+        }
+        
+        // Commit the transaction
+        tx.commit().await?;
+        
+        Ok(())
     }
     
     async fn get_snapshot_packages(&self, snapshot_id: &str) -> Result<Vec<InstallRecord>> {

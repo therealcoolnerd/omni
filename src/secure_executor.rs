@@ -110,10 +110,14 @@ impl SecureExecutor {
         let start_time = std::time::Instant::now();
         let mut was_retried = false;
         
-        let result = self.retry_handler.execute(|| {
+        let result = self.retry_handler.execute(|| async {
             was_retried = true;
-            self.execute_with_safety_checks(command, &validated_args, &config)
-        }).await?;
+            self.execute_with_safety_checks(command, &validated_args, &config).await
+                .map_err(|e| crate::error_handling::OmniError::ValidationError {
+                    field: "command_execution".to_string(),
+                    message: e.to_string(),
+                })
+        }).await.map_err(|e| anyhow::anyhow!("{}", e))?;
         
         let duration = start_time.elapsed();
         

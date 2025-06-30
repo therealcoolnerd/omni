@@ -5,8 +5,8 @@ use crate::distro::PackageManager;
 pub struct ScoopBox;
 
 impl ScoopBox {
-    pub fn new() -> Self {
-        ScoopBox
+    pub fn new() -> Result<Self> {
+        Ok(ScoopBox)
     }
     
     pub fn is_available() -> bool {

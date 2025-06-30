@@ -1,100 +1,266 @@
-use std::process::Command;
+use crate::secure_executor::{SecureExecutor, ExecutionConfig};
+use crate::error_handling::OmniError;
+use crate::distro::PackageManager;
 use anyhow::Result;
-use tracing::{info, warn, error};
+use tracing::{info, error};
+use std::time::Duration;
 
-pub fn install_with_snap(app: &str) -> Result<()> {
-    info!("Installing {} with snap", app);
+pub struct SnapBox {
+    executor: SecureExecutor,
+}
+
+impl SnapBox {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            executor: SecureExecutor::new()?,
+        })
+    }
     
-    let output = Command::new("snap")
-        .arg("install")
-        .arg(app)
-        .output()?;
-
-    if output.status.success() {
-        info!("✅ Successfully installed {} via snap", app);
-        Ok(())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        error!("❌ Failed to install {} via snap: {}", app, error_msg);
-        Err(anyhow::anyhow!("Snap installation failed: {}", error_msg))
+    pub fn is_available() -> bool {
+        std::process::Command::new("snap")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
     }
 }
 
-pub fn search_snap(query: &str) -> Result<Vec<String>> {
-    info!("Searching snap for: {}", query);
+impl PackageManager for SnapBox {
+    fn install(&self, package: &str) -> Result<()> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Installing '{}' via snap", package);
+            
+            let config = ExecutionConfig {
+                requires_sudo: true, // Snap typically requires sudo for installation
+                timeout: Duration::from_secs(600),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &["install", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Snap successfully installed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Snap failed to install '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
     
-    let output = Command::new("snap")
-        .arg("find")
-        .arg(query)
-        .output()?;
-
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let packages: Vec<String> = stdout
-            .lines()
-            .skip(1) // Skip header line
-            .filter_map(|line| {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                parts.first().map(|s| s.to_string())
-            })
-            .collect();
-        
-        Ok(packages)
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        warn!("Failed to search snap: {}", error_msg);
-        Ok(vec![])
+    fn remove(&self, package: &str) -> Result<()> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Removing '{}' via snap", package);
+            
+            let config = ExecutionConfig {
+                requires_sudo: true,
+                timeout: Duration::from_secs(300),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &["remove", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Snap successfully removed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Snap failed to remove '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
+    
+    fn update(&self, package: Option<&str>) -> Result<()> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            let mut args = vec!["refresh"];
+            
+            if let Some(pkg) = package {
+                args.push(pkg);
+                info!("Updating '{}' via snap", pkg);
+            } else {
+                info!("Updating all packages via snap");
+            }
+            
+            let config = ExecutionConfig {
+                requires_sudo: true,
+                timeout: Duration::from_secs(1800), // 30 minutes for updates
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &args,
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Snap update completed successfully");
+                Ok(())
+            } else {
+                error!("❌ Snap update failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.unwrap_or("all").to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
+    
+    fn search(&self, query: &str) -> Result<Vec<String>> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Searching for '{}' via snap", query);
+            
+            let config = ExecutionConfig {
+                requires_sudo: false, // Search doesn't require sudo
+                timeout: Duration::from_secs(120),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &["find", query],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .skip(1) // Skip header line
+                    .filter_map(|line| {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        parts.first().map(|s| s.to_string())
+                    })
+                    .collect();
+                Ok(packages)
+            } else {
+                error!("❌ Snap search failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: query.to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
+    
+    fn list_installed(&self) -> Result<Vec<String>> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Listing installed packages via snap");
+            
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &["list"],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .skip(1) // Skip header line
+                    .filter_map(|line| {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        parts.first().map(|s| s.to_string())
+                    })
+                    .collect();
+                Ok(packages)
+            } else {
+                error!("❌ Snap list failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: "list".to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
+    
+    fn get_info(&self, package: &str) -> Result<String> {
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Getting info for '{}' via snap", package);
+            
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "snap",
+                &["info", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                Ok(result.stdout)
+            } else {
+                error!("❌ Snap info failed for '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "snap".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
+    }
+    
+    fn needs_privilege(&self) -> bool {
+        true // Snap requires sudo for install/remove operations
+    }
+    
+    fn get_name(&self) -> &'static str {
+        "snap"
+    }
+    
+    fn get_priority(&self) -> u8 {
+        60 // Medium priority for Ubuntu systems
     }
 }
 
-pub fn get_snap_info(app: &str) -> Result<String> {
-    info!("Getting info for snap package: {}", app);
-    
-    let output = Command::new("snap")
-        .arg("info")
-        .arg(app)
-        .output()?;
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        Err(anyhow::anyhow!("Failed to get snap info: {}", error_msg))
-    }
+// Backward compatibility functions
+pub fn install_with_snap(app: &str) -> anyhow::Result<()> {
+    let snap_box = SnapBox::new()?;
+    snap_box.install(app)
 }
 
-pub fn update_snap(app: &str) -> Result<()> {
-    info!("Updating snap package: {}", app);
-    
-    let output = Command::new("snap")
-        .arg("refresh")
-        .arg(app)
-        .output()?;
-
-    if output.status.success() {
-        info!("✅ Successfully updated {} via snap", app);
-        Ok(())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        error!("❌ Failed to update {} via snap: {}", app, error_msg);
-        Err(anyhow::anyhow!("Snap update failed: {}", error_msg))
-    }
+pub fn search_snap(query: &str) -> anyhow::Result<Vec<String>> {
+    let snap_box = SnapBox::new()?;
+    snap_box.search(query)
 }
 
-pub fn remove_snap(app: &str) -> Result<()> {
-    info!("Removing snap package: {}", app);
-    
-    let output = Command::new("snap")
-        .arg("remove")
-        .arg(app)
-        .output()?;
+pub fn get_snap_info(app: &str) -> anyhow::Result<String> {
+    let snap_box = SnapBox::new()?;
+    snap_box.get_info(app)
+}
 
-    if output.status.success() {
-        info!("✅ Successfully removed {} via snap", app);
-        Ok(())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        error!("❌ Failed to remove {} via snap: {}", app, error_msg);
-        Err(anyhow::anyhow!("Snap removal failed: {}", error_msg))
-    }
+pub fn remove_snap(app: &str) -> anyhow::Result<()> {
+    let snap_box = SnapBox::new()?;
+    snap_box.remove(app)
+}
+
+pub fn update_snap(app: &str) -> anyhow::Result<()> {
+    let snap_box = SnapBox::new()?;
+    snap_box.update(Some(app))
 }

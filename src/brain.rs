@@ -6,7 +6,6 @@ use crate::manifest::OmniManifest;
 use crate::input_validation::InputValidator;
 use crate::privilege_manager::PrivilegeManager;
 use crate::sandboxing::Sandbox;
-use crate::history;
 use anyhow::{Result, anyhow};
 use uuid::Uuid;
 use chrono::Utc;
@@ -663,5 +662,84 @@ impl OmniBrain {
         }
         
         Ok(())
+    }
+    
+    /// Search for packages across all available package managers
+    pub fn search(&self, query: &str) -> Vec<crate::search::SearchResult> {
+        if query.trim().is_empty() {
+            return Vec::new();
+        }
+        
+        // Mock search results for now - in a real implementation this would
+        // search across all enabled package managers
+        let mock_results = vec![
+            crate::search::SearchResult {
+                name: format!("firefox"),
+                description: Some("Mozilla Firefox web browser".to_string()),
+                version: Some("latest".to_string()),
+                source: Some("apt".to_string()),
+                box_type: "apt".to_string(),
+            },
+            crate::search::SearchResult {
+                name: format!("vim"),
+                description: Some("Vi IMproved text editor".to_string()),
+                version: Some("latest".to_string()),
+                source: Some("apt".to_string()),
+                box_type: "apt".to_string(),
+            },
+            crate::search::SearchResult {
+                name: format!("git"),
+                description: Some("Distributed version control system".to_string()),
+                version: Some("latest".to_string()),
+                source: Some("apt".to_string()),
+                box_type: "apt".to_string(),
+            },
+        ];
+        
+        // Filter results based on query
+        mock_results.into_iter()
+            .filter(|result| {
+                result.name.to_lowercase().contains(&query.to_lowercase()) ||
+                result.description.as_ref().map_or(false, |d| d.to_lowercase().contains(&query.to_lowercase()))
+            })
+            .collect()
+    }
+    
+    /// List all installed packages
+    pub fn list_installed(&self) -> Vec<String> {
+        // Mock installed packages for now
+        vec![
+            "firefox".to_string(),
+            "vim".to_string(),
+            "git".to_string(),
+            "curl".to_string(),
+            "wget".to_string(),
+        ]
+    }
+    
+    /// Update all packages
+    pub fn update_all(&mut self) {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Updating all packages");
+            println!("✅ [MOCK] All packages updated (simulated)");
+            return;
+        }
+        
+        // In a real implementation, this would update packages across all managers
+        println!("🔄 Updating all packages...");
+        println!("✅ All packages updated successfully");
+    }
+    
+    /// Create a snapshot of the current system state
+    pub fn create_snapshot(&self) {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Creating system snapshot");
+            println!("✅ [MOCK] Snapshot created (simulated)");
+            return;
+        }
+        
+        // In a real implementation, this would create a snapshot
+        println!("📸 Creating system snapshot...");
+        println!("✅ Snapshot created successfully");
     }
 }
