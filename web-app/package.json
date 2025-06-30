@@ -54,5 +54,10 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^14.4.3",
     "react-scripts": "^5.0.1"
+  },
+  "overrides": {
+    "nth-check": ">=2.0.1",
+    "postcss": ">=8.4.31",
+    "webpack-dev-server": ">=5.2.1"
   }
 }
