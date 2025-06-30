@@ -332,6 +332,41 @@ cargo test
 
 ---
 
+## 💖 **Sponsor this Project**
+
+**Love Omni? Help us build the future of universal package management!**
+
+<div align="center">
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ff69b4?logo=github&style=for-the-badge)](https://github.com/sponsors/therealcoolnerd)
+[![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/therealcoolnerd)
+[![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/therealcoolnerd)
+
+</div>
+
+### **Why Sponsor?**
+- 🚀 **Accelerate Development** — More features, faster releases
+- 🐛 **Priority Bug Fixes** — Sponsors get priority support  
+- 🌟 **New Features** — Fund specific features you need
+- 🏢 **Enterprise Support** — Custom integrations and consulting
+- 🌍 **Open Source Impact** — Keep Omni free for everyone
+
+### **Sponsorship Tiers**
+- ☕ **$5/month** — Coffee Supporter (Name in README)
+- 🍕 **$25/month** — Pizza Developer (Priority issue responses)
+- 🚀 **$100/month** — Rocket Booster (Feature requests, direct contact)
+- 🏢 **$500/month** — Enterprise Champion (Custom support, consulting)
+
+Your sponsorship directly funds:
+- Development time and infrastructure costs
+- Cross-platform testing environments  
+- Security audits and code reviews
+- Documentation and tutorial creation
+
+**[Become a Sponsor Today!](https://github.com/sponsors/therealcoolnerd)**
+
+---
+
 ## 🤝 **Contributing**
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
