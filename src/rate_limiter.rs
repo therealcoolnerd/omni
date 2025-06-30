@@ -56,6 +56,10 @@ impl RateLimiter {
         let rate_key = format!("{}:{}", key, operation);
         let now = Instant::now();
         
+        // Get max limits to avoid borrowing issues
+        let max_operations_per_hour = inner.max_operations_per_hour;
+        let max_operations_per_minute = inner.max_operations_per_minute;
+        
         // Get or create the operation history for this key
         let operations = inner.operations.entry(rate_key.clone()).or_insert_with(Vec::new);
         
@@ -63,7 +67,7 @@ impl RateLimiter {
         operations.retain(|&op_time| now.duration_since(op_time) < Duration::from_secs(3600));
         
         // Check hourly limit
-        if operations.len() >= inner.max_operations_per_hour {
+        if operations.len() >= max_operations_per_hour {
             warn!("Hourly rate limit exceeded for key: {}", rate_key);
             return Err(anyhow!("Rate limit exceeded: too many operations per hour"));
         }
@@ -73,7 +77,7 @@ impl RateLimiter {
             .filter(|&&op_time| now.duration_since(op_time) < Duration::from_secs(60))
             .count();
             
-        if recent_operations >= inner.max_operations_per_minute {
+        if recent_operations >= max_operations_per_minute {
             warn!("Per-minute rate limit exceeded for key: {}", rate_key);
             return Err(anyhow!("Rate limit exceeded: too many operations per minute"));
         }
@@ -81,8 +85,8 @@ impl RateLimiter {
         // Record this operation
         operations.push(now);
         info!("Rate limit check passed for {}: {}/{} per minute, {}/{} per hour", 
-              rate_key, recent_operations + 1, inner.max_operations_per_minute,
-              operations.len(), inner.max_operations_per_hour);
+              rate_key, recent_operations + 1, max_operations_per_minute,
+              operations.len(), max_operations_per_hour);
         
         Ok(())
     }

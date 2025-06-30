@@ -1,16 +1,23 @@
-use std::process::Command;
-use anyhow::{Result, anyhow};
+use crate::secure_executor::{SecureExecutor, ExecutionConfig};
+use crate::error_handling::OmniError;
+use anyhow::Result;
+use tracing::{info, error};
+use std::time::Duration;
 use crate::distro::PackageManager;
 
-pub struct BrewBox;
+pub struct BrewBox {
+    executor: SecureExecutor,
+}
 
 impl BrewBox {
-    pub fn new() -> Self {
-        BrewBox
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            executor: SecureExecutor::new()?,
+        })
     }
     
     pub fn is_available() -> bool {
-        Command::new("brew")
+        std::process::Command::new("brew")
             .arg("--version")
             .output()
             .map(|output| output.status.success())
@@ -20,111 +27,214 @@ impl BrewBox {
 
 impl PackageManager for BrewBox {
     fn install(&self, package: &str) -> Result<()> {
-        let output = Command::new("brew")
-            .args(&["install", package])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Installing '{}' via brew", package);
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew install failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(600),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &["install", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Brew successfully installed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Brew failed to install '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "brew".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn remove(&self, package: &str) -> Result<()> {
-        let output = Command::new("brew")
-            .args(&["uninstall", package])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Removing '{}' via brew", package);
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew uninstall failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(300),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &["uninstall", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Brew successfully removed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Brew failed to remove '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "brew".to_string(),
+                    reason: format!("Remove failed: {}", result.stderr),
+                }.into())
+            }
+        })
     }
     
     fn update(&self, package: Option<&str>) -> Result<()> {
-        // First update brew itself
-        let _ = Command::new("brew")
-            .args(&["update"])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            // First update brew itself
+            info!("Updating brew repositories");
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(300),
+                ..ExecutionConfig::default()
+            };
             
-        // Then upgrade packages
-        let mut args = vec!["upgrade"];
-        
-        if let Some(pkg) = package {
-            args.push(pkg);
-        }
-        
-        let output = Command::new("brew")
-            .args(&args)
-            .output()?;
+            let _ = self.executor.execute_package_command(
+                "brew",
+                &["update"],
+                config.clone()
+            ).await;
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew upgrade failed: {}", stderr))
-        }
+            // Then upgrade packages
+            let mut args = vec!["upgrade"];
+            
+            if let Some(pkg) = package {
+                args.push(pkg);
+                info!("Upgrading '{}' via brew", pkg);
+            } else {
+                info!("Upgrading all packages via brew");
+            }
+            
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(1200), // 20 minutes for updates
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &args,
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Brew update completed successfully");
+                Ok(())
+            } else {
+                error!("❌ Brew update failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.unwrap_or("all").to_string(),
+                    box_type: "brew".to_string(),
+                    reason: format!("Update failed: {}", result.stderr),
+                }.into())
+            }
+        })
     }
     
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        let output = Command::new("brew")
-            .args(&["search", query])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Searching for '{}' via brew", query);
             
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let packages: Vec<String> = stdout
-                .lines()
-                .filter_map(|line| {
-                    let trimmed = line.trim();
-                    if !trimmed.is_empty() && !trimmed.starts_with("==>") {
-                        Some(trimmed.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            Ok(packages)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew search failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &["search", query],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .filter_map(|line| {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() && !trimmed.starts_with("==>") {
+                            Some(trimmed.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                
+                info!("✅ Found {} packages matching '{}'", packages.len(), query);
+                Ok(packages)
+            } else {
+                error!("❌ Brew search failed: {}", result.stderr);
+                Ok(vec![]) // Return empty list instead of error for search
+            }
+        })
     }
     
     fn list_installed(&self) -> Result<Vec<String>> {
-        let output = Command::new("brew")
-            .args(&["list"])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Listing installed packages via brew");
             
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let packages: Vec<String> = stdout
-                .lines()
-                .map(|line| line.trim().to_string())
-                .filter(|line| !line.is_empty())
-                .collect();
-            Ok(packages)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew list failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &["list"],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .map(|line| line.trim().to_string())
+                    .filter(|line| !line.is_empty())
+                    .collect();
+                info!("✅ Found {} installed packages", packages.len());
+                Ok(packages)
+            } else {
+                error!("❌ Brew list failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: "list".to_string(),
+                    box_type: "brew".to_string(),
+                    reason: format!("List failed: {}", result.stderr),
+                }.into())
+            }
+        })
     }
     
     fn get_info(&self, package: &str) -> Result<String> {
-        let output = Command::new("brew")
-            .args(&["info", package])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Getting info for package '{}'", package);
             
-        if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).to_string())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("brew info failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "brew",
+                &["info", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                Ok(result.stdout)
+            } else {
+                Err(OmniError::PackageNotFound {
+                    package: package.to_string(),
+                }.into())
+            }
+        })
     }
     
     fn needs_privilege(&self) -> bool {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dialoguer::{
     Confirm, Input, Select, MultiSelect, FuzzySelect,
-    theme::ColorfulTheme, console::Term,
+    theme::ColorfulTheme,
 };
 use crate::resolver::{ResolutionPlan, ResolvedPackage};
 use crate::security::{VerificationResult, TrustLevel};
@@ -11,7 +11,6 @@ use std::fmt::Display;
 
 pub struct InteractivePrompts {
     theme: ColorfulTheme,
-    term: Term,
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +38,6 @@ impl InteractivePrompts {
     pub fn new() -> Self {
         Self {
             theme: ColorfulTheme::default(),
-            term: Term::stdout(),
         }
     }
     
@@ -53,7 +51,7 @@ impl InteractivePrompts {
         }
         
         println!("\n📦 Installation Plan:");
-        println!("─".repeat(50));
+        println!("{}", "─".repeat(50));
         
         // Show packages to be installed
         for (i, package) in plan.packages.iter().enumerate() {
@@ -101,7 +99,7 @@ impl InteractivePrompts {
                 .with_prompt("Conflicts detected. What would you like to do?")
                 .items(&options)
                 .default(0)
-                .interact_on(&self.term)?;
+                .interact()?;
             
             match selection {
                 0 => false,
@@ -109,7 +107,7 @@ impl InteractivePrompts {
                     Confirm::with_theme(&self.theme)
                         .with_prompt("⚠️  Are you sure you want to force installation despite conflicts?")
                         .default(false)
-                        .interact_on(&self.term)?
+                        .interact()?
                 }
                 2 => {
                     // This would trigger alternative search
@@ -125,7 +123,7 @@ impl InteractivePrompts {
             Confirm::with_theme(&self.theme)
                 .with_prompt("Do you want to proceed with the installation?")
                 .default(true)
-                .interact_on(&self.term)?
+                .interact()?
         };
         
         if !proceed {
@@ -158,7 +156,7 @@ impl InteractivePrompts {
             let selected_indices = MultiSelect::with_theme(&self.theme)
                 .with_prompt("Select optional dependencies to install")
                 .items(&optional_names)
-                .interact_on(&self.term)?;
+                .interact()?;
             
             for index in selected_indices {
                 selected_packages.push(optional_deps[index].name.clone());
@@ -177,7 +175,7 @@ impl InteractivePrompts {
             TrustLevel::Trusted | TrustLevel::Valid => Ok(true),
             TrustLevel::Unsigned => {
                 println!("\n🔒 Security Warning:");
-                println!("─".repeat(50));
+                println!("{}", "─".repeat(50));
                 println!("This package is not digitally signed.");
                 println!("Details: {}", verification.details);
                 
@@ -191,12 +189,12 @@ impl InteractivePrompts {
                 Confirm::with_theme(&self.theme)
                     .with_prompt("Do you want to continue with this unsigned package?")
                     .default(false)
-                    .interact_on(&self.term)
+                    .interact()
                     .map_err(|e| anyhow::anyhow!("Failed to get user confirmation: {}", e))
             }
             TrustLevel::Untrusted => {
                 println!("\n🚨 Security Alert:");
-                println!("─".repeat(50));
+                println!("{}", "─".repeat(50));
                 println!("This package failed security verification!");
                 println!("Details: {}", verification.details);
                 
@@ -213,13 +211,13 @@ impl InteractivePrompts {
                     .with_prompt("Package verification failed. What would you like to do?")
                     .items(&options)
                     .default(0)
-                    .interact_on(&self.term)?;
+                    .interact()?;
                 
                 if selection == 1 {
                     Confirm::with_theme(&self.theme)
                         .with_prompt("⚠️  Are you absolutely sure you want to install this untrusted package?")
                         .default(false)
-                        .interact_on(&self.term)
+                        .interact()
                         .map_err(|e| anyhow::anyhow!("Failed to get user confirmation: {}", e))
                 } else {
                     Ok(false)
@@ -235,7 +233,7 @@ impl InteractivePrompts {
         }
         
         println!("\n🔍 Search Results for '{}':", query);
-        println!("─".repeat(50));
+        println!("{}", "─".repeat(50));
         
         let items: Vec<String> = results
             .iter()
@@ -260,7 +258,7 @@ impl InteractivePrompts {
         let selection = Select::with_theme(&self.theme)
             .with_prompt("Select a package to install (or ESC to cancel)")
             .items(&items)
-            .interact_optional_on(&self.term)?;
+            .interact_opt()?;
         
         if let Some(index) = selection {
             Ok(Some(results[index].clone()))
@@ -283,7 +281,7 @@ impl InteractivePrompts {
         let selection = Select::with_theme(&self.theme)
             .with_prompt("Select package manager")
             .items(available)
-            .interact_optional_on(&self.term)?;
+            .interact_opt()?;
         
         if let Some(index) = selection {
             Ok(Some(available[index].clone()))
@@ -294,7 +292,7 @@ impl InteractivePrompts {
     
     pub fn resolve_conflict(&self, conflict: &str, alternatives: &[String]) -> Result<ConflictResolution> {
         println!("\n⚠️  Conflict Detected:");
-        println!("─".repeat(50));
+        println!("{}", "─".repeat(50));
         println!("{}", conflict);
         
         if alternatives.is_empty() {
@@ -308,7 +306,7 @@ impl InteractivePrompts {
                 .with_prompt("How would you like to resolve this conflict?")
                 .items(&options)
                 .default(0)
-                .interact_on(&self.term)?;
+                .interact()?;
             
             let action = match selection {
                 0 => ConflictAction::Abort,
@@ -324,7 +322,7 @@ impl InteractivePrompts {
         } else {
             println!("\nAvailable alternatives:");
             let mut options = alternatives.clone();
-            options.extend_from_slice(&[
+            options.extend(vec![
                 "Abort installation".to_string(),
                 "Force original (ignore conflict)".to_string(),
                 "Skip this package".to_string(),
@@ -334,7 +332,7 @@ impl InteractivePrompts {
                 .with_prompt("Select an alternative or action")
                 .items(&options)
                 .default(0)
-                .interact_on(&self.term)?;
+                .interact()?;
             
             if selection < alternatives.len() {
                 Ok(ConflictResolution {
@@ -362,15 +360,15 @@ impl InteractivePrompts {
         T: Clone + Display + std::str::FromStr,
         T::Err: Display,
     {
-        let mut input_builder = Input::with_theme(&self.theme);
-        input_builder.with_prompt(prompt);
+        let mut input_builder = Input::with_theme(&self.theme)
+            .with_prompt(prompt);
         
         if let Some(default_val) = default {
-            input_builder.default(default_val);
+            input_builder = input_builder.default(default_val);
         }
         
         input_builder
-            .interact_text_on(&self.term)
+            .interact_text()
             .map_err(|e| anyhow::anyhow!("Input error: {}", e))
     }
     
@@ -378,7 +376,7 @@ impl InteractivePrompts {
         Confirm::with_theme(&self.theme)
             .with_prompt(prompt)
             .default(default)
-            .interact_on(&self.term)
+            .interact()
             .map_err(|e| anyhow::anyhow!("Confirmation error: {}", e))
     }
     
@@ -390,7 +388,7 @@ impl InteractivePrompts {
         let selection = FuzzySelect::with_theme(&self.theme)
             .with_prompt(prompt)
             .items(packages)
-            .interact_optional_on(&self.term)?;
+            .interact_opt()?;
         
         if let Some(index) = selection {
             Ok(Some(packages[index].clone()))
@@ -405,13 +403,13 @@ impl InteractivePrompts {
         Confirm::with_theme(&self.theme)
             .with_prompt("Continue?")
             .default(true)
-            .interact_on(&self.term)
+            .interact()
             .map_err(|e| anyhow::anyhow!("Progress confirmation error: {}", e))
     }
     
     pub fn display_error_with_options(&self, error: &anyhow::Error, recoverable: bool) -> Result<bool> {
         println!("\n❌ Error occurred:");
-        println!("─".repeat(50));
+        println!("{}", "─".repeat(50));
         println!("{}", error);
         
         // Show error chain if available
@@ -432,7 +430,7 @@ impl InteractivePrompts {
                 .with_prompt("How would you like to proceed?")
                 .items(&options)
                 .default(0)
-                .interact_on(&self.term)?;
+                .interact()?;
             
             match selection {
                 0 => Ok(true),  // Retry
@@ -444,7 +442,7 @@ impl InteractivePrompts {
             let _ = Confirm::with_theme(&self.theme)
                 .with_prompt("Press Enter to exit")
                 .default(true)
-                .interact_on(&self.term);
+                .interact();
             
             Err(anyhow::anyhow!("Unrecoverable error"))
         }
@@ -466,7 +464,7 @@ impl InteractivePrompts {
         let selection = Select::with_theme(&self.theme)
             .with_prompt("Select a snapshot to revert to")
             .items(&items)
-            .interact_optional_on(&self.term)?;
+            .interact_opt()?;
         
         if let Some(index) = selection {
             Ok(Some(snapshots[index].0.clone()))

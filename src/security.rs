@@ -267,8 +267,8 @@ impl SecurityVerifier {
             ],
         };
         
-        for pattern in signature_patterns {
-            let sig_path = base_dir.join(&pattern);
+        for pattern in &signature_patterns {
+            let sig_path = base_dir.join(pattern);
             if sig_path.exists() {
                 info!("Found signature file: {:?}", sig_path);
                 return Ok(Some(sig_path.to_string_lossy().to_string()));

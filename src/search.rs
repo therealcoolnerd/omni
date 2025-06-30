@@ -1,4 +1,4 @@
-use crate::boxes::{snap, flatpak};
+use crate::boxes::snap;
 use crate::distro;
 use crate::database::{Database, PackageCache};
 use anyhow::Result;

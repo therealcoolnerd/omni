@@ -17,13 +17,16 @@
     pkgs.vulkan-loader
     pkgs.libxkbcommon
     pkgs.wayland
-    pkgs.xorg.libX11
+    pkgs.python3
     pkgs.xorg.libXcursor
     pkgs.xorg.libXi
     pkgs.xorg.libXrandr
+    pkgs.nodejs # Added Node.js
   ];
 
-  env = {};
+  env = {
+    # Environment variables for development
+  };
 
   idx = {
     # Useful editor extensions

@@ -1,6 +1,6 @@
 use crate::secure_executor::{SecureExecutor, ExecutionConfig};
 use crate::transaction::{TransactionManager, TransactionType, TransactionResult};
-use crate::advanced_resolver::{AdvancedDependencyResolver, ResolutionStrategy};
+// use crate::advanced_resolver::{AdvancedDependencyResolver, ResolutionStrategy};
 use crate::error_handling::{OmniError, RecoveryManager};
 use crate::input_validation::InputValidator;
 use crate::privilege_manager::PrivilegeManager;
@@ -24,7 +24,7 @@ pub struct SecureOmniBrain {
     db: Option<Database>,
     snapshot_manager: Option<SnapshotManager>,
     transaction_manager: Option<TransactionManager>,
-    dependency_resolver: Option<AdvancedDependencyResolver>,
+    // dependency_resolver: Option<AdvancedDependencyResolver>,
     security_verifier: SecurityVerifier,
     privilege_manager: PrivilegeManager,
     recovery_manager: RecoveryManager,
@@ -46,7 +46,7 @@ impl SecureOmniBrain {
             db: None,
             snapshot_manager: None,
             transaction_manager: None,
-            dependency_resolver: None,
+            // dependency_resolver: None,
             security_verifier,
             privilege_manager,
             recovery_manager,

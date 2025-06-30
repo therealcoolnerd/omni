@@ -1,16 +1,24 @@
-use std::process::Command;
+use crate::secure_executor::{SecureExecutor, ExecutionConfig};
+use crate::error_handling::OmniError;
 use anyhow::{Result, anyhow};
+use tracing::{info, error};
+use std::time::Duration;
 use crate::distro::PackageManager;
+use std::process::Command;
 
-pub struct ChocolateyBox;
+pub struct ChocolateyBox {
+    executor: SecureExecutor,
+}
 
 impl ChocolateyBox {
-    pub fn new() -> Self {
-        ChocolateyBox
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            executor: SecureExecutor::new()?,
+        })
     }
     
     pub fn is_available() -> bool {
-        Command::new("choco")
+        std::process::Command::new("choco")
             .arg("--version")
             .output()
             .map(|output| output.status.success())
@@ -20,122 +28,219 @@ impl ChocolateyBox {
 
 impl PackageManager for ChocolateyBox {
     fn install(&self, package: &str) -> Result<()> {
-        let output = Command::new("choco")
-            .args(&["install", package, "-y"])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Installing '{}' via chocolatey", package);
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey install failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: true, // Chocolatey requires admin
+                timeout: Duration::from_secs(600),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &["install", package, "-y"],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Chocolatey successfully installed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Chocolatey failed to install '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn remove(&self, package: &str) -> Result<()> {
-        let output = Command::new("choco")
-            .args(&["uninstall", package, "-y"])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Removing '{}' via chocolatey", package);
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey uninstall failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: true,
+                timeout: Duration::from_secs(600),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &["uninstall", package, "-y"],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Chocolatey successfully removed '{}'", package);
+                Ok(())
+            } else {
+                error!("❌ Chocolatey failed to remove '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn update(&self, package: Option<&str>) -> Result<()> {
-        let mut args = vec!["upgrade"];
-        
-        if let Some(pkg) = package {
-            args.push(pkg);
-        } else {
-            args.push("all");
-        }
-        args.push("-y");
-        
-        let output = Command::new("choco")
-            .args(&args)
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            let mut args = vec!["upgrade"];
             
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey upgrade failed: {}", stderr))
-        }
+            if let Some(pkg) = package {
+                args.push(pkg);
+                info!("Updating '{}' via chocolatey", pkg);
+            } else {
+                args.push("all");
+                info!("Updating all packages via chocolatey");
+            }
+            args.push("-y");
+            
+            let config = ExecutionConfig {
+                requires_sudo: true,
+                timeout: Duration::from_secs(1800), // 30 minutes for updates
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &args,
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                info!("✅ Chocolatey update completed successfully");
+                Ok(())
+            } else {
+                error!("❌ Chocolatey update failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.unwrap_or("all").to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        let output = Command::new("choco")
-            .args(&["search", query])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Searching for '{}' via chocolatey", query);
             
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let packages: Vec<String> = stdout
-                .lines()
-                .filter_map(|line| {
-                    if line.contains(" | ") && !line.starts_with("Chocolatey") {
-                        let parts: Vec<&str> = line.split(" | ").collect();
-                        if !parts.is_empty() {
-                            Some(parts[0].trim().to_string())
+            let config = ExecutionConfig {
+                requires_sudo: false, // Search doesn't require admin
+                timeout: Duration::from_secs(120),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &["search", query],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .filter_map(|line| {
+                        if line.contains(" | ") && !line.starts_with("Chocolatey") {
+                            let parts: Vec<&str> = line.split(" | ").collect();
+                            if !parts.is_empty() {
+                                Some(parts[0].trim().to_string())
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            Ok(packages)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey search failed: {}", stderr))
-        }
+                    })
+                    .collect();
+                Ok(packages)
+            } else {
+                error!("❌ Chocolatey search failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: query.to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn list_installed(&self) -> Result<Vec<String>> {
-        let output = Command::new("choco")
-            .args(&["list", "--local-only"])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Listing installed packages via chocolatey");
             
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let packages: Vec<String> = stdout
-                .lines()
-                .filter_map(|line| {
-                    if line.contains(" ") && !line.starts_with("Chocolatey") && !line.contains("packages installed") {
-                        let parts: Vec<&str> = line.split_whitespace().collect();
-                        if !parts.is_empty() {
-                            Some(parts[0].to_string())
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &["list", "--local-only"],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                let packages: Vec<String> = result.stdout
+                    .lines()
+                    .filter_map(|line| {
+                        if line.contains(" ") && !line.starts_with("Chocolatey") && !line.contains("packages installed") {
+                            let parts: Vec<&str> = line.split_whitespace().collect();
+                            if !parts.is_empty() {
+                                Some(parts[0].to_string())
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            Ok(packages)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey list failed: {}", stderr))
-        }
+                    })
+                    .collect();
+                Ok(packages)
+            } else {
+                error!("❌ Chocolatey list failed: {}", result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: "list".to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn get_info(&self, package: &str) -> Result<String> {
-        let output = Command::new("choco")
-            .args(&["info", package])
-            .output()?;
+        tokio::runtime::Runtime::new()?.block_on(async {
+            info!("Getting info for '{}' via chocolatey", package);
             
-        if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).to_string())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow!("chocolatey info failed: {}", stderr))
-        }
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(60),
+                ..ExecutionConfig::default()
+            };
+            
+            let result = self.executor.execute_package_command(
+                "choco",
+                &["info", package],
+                config
+            ).await?;
+            
+            if result.exit_code == 0 {
+                Ok(result.stdout)
+            } else {
+                error!("❌ Chocolatey info failed for '{}': {}", package, result.stderr);
+                Err(OmniError::InstallationFailed {
+                    package: package.to_string(),
+                    box_type: "chocolatey".to_string(),
+                    reason: result.stderr,
+                }.into())
+            }
+        })
     }
     
     fn needs_privilege(&self) -> bool {

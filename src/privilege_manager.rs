@@ -4,6 +4,7 @@ use std::os::unix::process::CommandExt;
 use tracing::{info, warn, error};
 
 /// Manages privilege escalation and dropping for secure operations
+#[derive(Debug)]
 pub struct PrivilegeManager {
     original_uid: Option<u32>,
     original_gid: Option<u32>,

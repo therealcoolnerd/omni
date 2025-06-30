@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/therealcoolnerd/omni/static/css/main.ceea7962.css",
+    "main.js": "/therealcoolnerd/omni/static/js/main.35d5db75.js",
+    "index.html": "/therealcoolnerd/omni/index.html",
+    "main.ceea7962.css.map": "/therealcoolnerd/omni/static/css/main.ceea7962.css.map",
+    "main.35d5db75.js.map": "/therealcoolnerd/omni/static/js/main.35d5db75.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ceea7962.css",
+    "static/js/main.35d5db75.js"
+  ]
+}

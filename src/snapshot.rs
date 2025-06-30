@@ -30,6 +30,24 @@ impl SnapshotManager {
         self.db.list_snapshots().await
     }
     
+    pub async fn delete_snapshot(&self, snapshot_id: &str) -> Result<()> {
+        info!("Deleting snapshot: {}", snapshot_id);
+        
+        // First check if snapshot exists
+        let snapshots = self.db.list_snapshots().await?;
+        let snapshot_exists = snapshots.iter().any(|s| s.id == snapshot_id);
+        
+        if !snapshot_exists {
+            return Err(anyhow::anyhow!("Snapshot not found: {}", snapshot_id));
+        }
+        
+        // Delete from database
+        self.db.delete_snapshot(snapshot_id).await?;
+        
+        info!("✅ Successfully deleted snapshot: {}", snapshot_id);
+        Ok(())
+    }
+    
     pub async fn revert_to_snapshot(&self, snapshot_id: &str) -> Result<()> {
         info!("Reverting to snapshot: {}", snapshot_id);
         

@@ -324,7 +324,7 @@ impl UpdateManager {
         
         if candidates.is_empty() {
             info!("✅ All packages are up to date");
-            return Ok();
+            return Ok(());
         }
         
         info!("Updating {} packages", candidates.len());

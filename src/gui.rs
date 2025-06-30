@@ -94,7 +94,7 @@ impl App for OmniGui {
             egui::Visuals::light()
         };
         
-        visuals.window_rounding = egui::Rounding::same(12.0);
+        // Window rounding not available in this egui version
         visuals.panel_fill = if self.dark_mode {
             egui::Color32::from_rgb(25, 25, 35)
         } else {
@@ -160,7 +160,7 @@ impl App for OmniGui {
                         // Enhanced theme toggle
                         let theme_btn = ui.add_sized([40.0, 32.0], 
                             egui::Button::new(if self.dark_mode { "☀" } else { "🌙" })
-                                .rounding(egui::Rounding::same(16.0)));
+                                .corner_radius(16.0));
                         
                         if theme_btn.clicked() {
                             self.dark_mode = !self.dark_mode;
@@ -421,7 +421,7 @@ impl OmniGui {
                     
                     let search_btn = ui.add_sized([80.0, 32.0], 
                         egui::Button::new("🔍 Search")
-                            .rounding(egui::Rounding::same(6.0)));
+                            .corner_radius(6.0));
                     if search_btn.clicked() && !self.package_input.is_empty() {
                         self.search_results = self.brain.search(&self.package_input);
                     }
@@ -429,9 +429,9 @@ impl OmniGui {
                     let install_btn = ui.add_sized([100.0, 32.0], 
                         egui::Button::new("📦 Quick Install")
                             .fill(egui::Color32::from_rgb(50, 150, 50))
-                            .rounding(egui::Rounding::same(6.0)));
+                            .corner_radius(6.0));
                     if install_btn.clicked() && !self.package_input.is_empty() {
-                        self.brain.install(&self.package_input);
+                        let _ = futures::executor::block_on(self.brain.install(&self.package_input, None));
                         self.status = format!("Installing {}", self.package_input);
                         self.installation_progress.insert(self.package_input.clone(), 0.0);
                     }
@@ -508,12 +508,12 @@ impl OmniGui {
                                     ui.vertical(|ui| {
                                         ui.horizontal(|ui| {
                                             // Package icon based on source
-                                            let icon = match result.source.as_str() {
-                                                "apt" => "📦",
-                                                "brew" => "🍺",
-                                                "chocolatey" => "🍫",
-                                                "npm" => "📦",
-                                                "pip" => "🐍",
+                                            let icon = match result.source.as_deref() {
+                                                Some("apt") => "📦",
+                                                Some("brew") => "🍺",
+                                                Some("chocolatey") => "🍫",
+                                                Some("npm") => "📦",
+                                                Some("pip") => "🐍",
                                                 _ => "📦",
                                             };
                                             
@@ -522,7 +522,7 @@ impl OmniGui {
                                                 ui.label(egui::RichText::new(&result.name)
                                                     .size(16.0)
                                                     .strong());
-                                                ui.label(egui::RichText::new(format!("via {}", result.source))
+                                                ui.label(egui::RichText::new(format!("via {}", result.source.as_deref().unwrap_or("unknown")))
                                                     .size(12.0)
                                                     .color(egui::Color32::from_rgb(100, 150, 255)));
                                             });
@@ -531,9 +531,9 @@ impl OmniGui {
                                                 let install_btn = ui.add_sized([80.0, 28.0], 
                                                     egui::Button::new("Install")
                                                         .fill(egui::Color32::from_rgb(50, 150, 50))
-                                                        .rounding(egui::Rounding::same(4.0)));
+                                                        .corner_radius(4.0));
                                                 if install_btn.clicked() {
-                                                    self.brain.install(&result.name);
+                                                    let _ = futures::executor::block_on(self.brain.install(&result.name, Some(&result.box_type)));
                                                     self.status = format!("Installing {}", result.name);
                                                     self.installation_progress.insert(result.name.clone(), 0.0);
                                                 }
@@ -619,7 +619,7 @@ impl OmniGui {
                 ui.horizontal(|ui| {
                     ui.label(package);
                     if ui.button("🗑️ Remove").clicked() {
-                        self.brain.remove(package);
+                        let _ = futures::executor::block_on(self.brain.remove(package, None));
                         self.status = format!("Removing {}", package);
                     }
                 });

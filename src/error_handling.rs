@@ -6,7 +6,7 @@ use tokio::time::sleep;
 use tracing::{error, warn, info};
 
 /// Comprehensive error types for Omni
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum OmniError {
     #[error("Package not found: {package}")]
     PackageNotFound { package: String },
@@ -229,6 +229,7 @@ impl RetryConfig {
 }
 
 /// Retry mechanism with exponential backoff
+#[derive(Debug)]
 pub struct RetryHandler {
     config: RetryConfig,
 }

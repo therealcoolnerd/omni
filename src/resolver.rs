@@ -1,4 +1,4 @@
-use crate::database::{Database, PackageCache};
+use crate::database::Database;
 use crate::distro;
 use crate::search::SearchEngine;
 use anyhow::Result;
@@ -164,7 +164,7 @@ impl DependencyResolver {
             }
         };
         
-        dependencies.unwrap_or_else(|_| vec![])
+        Ok(dependencies.unwrap_or_else(|_| vec![]))
     }
     
     async fn get_apt_dependencies(&self, package_name: &str) -> Result<Vec<Dependency>> {
@@ -438,7 +438,7 @@ impl DependencyResolver {
             _ => Ok("unknown".to_string()),
         };
         
-        version.unwrap_or_else(|_| "unknown".to_string())
+        Ok(version.unwrap_or_else(|_| "unknown".to_string()))
     }
     
     async fn get_apt_version(&self, package_name: &str) -> Result<String> {

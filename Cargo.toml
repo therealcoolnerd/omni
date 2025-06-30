@@ -20,7 +20,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 indicatif = "0.17"
-dialoguer = "0.11"
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
 sha2 = "0.10"
 hex = "0.4"
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
@@ -32,17 +32,23 @@ clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
 thiserror = "1.0"
 dirs = "5.0"
-semver = "1.0"
+semver = { version = "1.0", features = ["serde"] }
 tracing-appender = "0.2"
 regex = "1.10"
 url = "2.5"
 libc = "0.2"
 rand = "0.8"
+base64 = "0.22"
+russh = "0.44"
+russh-keys = "0.44"
+async-trait = "0.1"
+futures = "0.3"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3.0"
 tokio-test = "0.4"
+futures = "0.3"
 
 [[bench]]
 name = "performance"
