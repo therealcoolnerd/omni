@@ -1,3 +1,7 @@
+use crate::config::OmniConfig;
+use anyhow::Result;
+use std::fs;
+use std::path::PathBuf;
 use tracing::{Level, Subscriber};
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
@@ -5,19 +9,15 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
     EnvFilter, Registry,
 };
-use std::fs;
-use std::path::PathBuf;
-use anyhow::Result;
-use crate::config::OmniConfig;
 
 pub fn init_logging(config: &OmniConfig) -> Result<()> {
     let log_level = parse_log_level(&config.general.log_level);
     let log_dir = OmniConfig::data_dir()?.join("logs");
     fs::create_dir_all(&log_dir)?;
-    
+
     let log_file = log_dir.join("omni.log");
     let file_appender = tracing_appender::rolling::daily(&log_dir, "omni.log");
-    
+
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(format!("omni={}", log_level)));
 
@@ -50,7 +50,7 @@ pub fn init_logging(config: &OmniConfig) -> Result<()> {
 fn parse_log_level(level_str: &str) -> &'static str {
     match level_str.to_lowercase().as_str() {
         "trace" => "trace",
-        "debug" => "debug", 
+        "debug" => "debug",
         "info" => "info",
         "warn" | "warning" => "warn",
         "error" => "error",
@@ -61,11 +61,7 @@ fn parse_log_level(level_str: &str) -> &'static str {
 #[macro_export]
 macro_rules! log_operation {
     ($level:ident, $operation:expr, $package:expr, $message:expr) => {
-        tracing::$level!(
-            operation = $operation,
-            package = $package,
-            "{}", $message
-        );
+        tracing::$level!(operation = $operation, package = $package, "{}", $message);
     };
 }
 
@@ -77,7 +73,10 @@ macro_rules! log_install {
             package = $package,
             box_type = $box_type,
             status = $status,
-            "Package installation: {} via {} - {}", $package, $box_type, $status
+            "Package installation: {} via {} - {}",
+            $package,
+            $box_type,
+            $status
         );
     };
 }

@@ -4,25 +4,19 @@ use std::time::Duration;
 
 fn benchmark_brain_creation(c: &mut Criterion) {
     c.bench_function("brain_creation", |b| {
-        b.iter(|| {
-            black_box(brain::OmniBrain::new())
-        })
+        b.iter(|| black_box(brain::OmniBrain::new()))
     });
 }
 
 fn benchmark_config_loading(c: &mut Criterion) {
     c.bench_function("config_loading", |b| {
-        b.iter(|| {
-            black_box(config::OmniConfig::default())
-        })
+        b.iter(|| black_box(config::OmniConfig::default()))
     });
 }
 
 fn benchmark_search_engine(c: &mut Criterion) {
     c.bench_function("search_engine_creation", |b| {
-        b.iter(|| {
-            black_box(search::SearchEngine::new())
-        })
+        b.iter(|| black_box(search::SearchEngine::new()))
     });
 }
 
@@ -61,7 +55,7 @@ criterion_group!(
     config = Criterion::default()
         .measurement_time(Duration::from_secs(10))
         .sample_size(100);
-    targets = 
+    targets =
         benchmark_brain_creation,
         benchmark_config_loading,
         benchmark_search_engine,

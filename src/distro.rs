@@ -1,5 +1,5 @@
-use std::fs;
 use anyhow::Result;
+use std::fs;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OperatingSystem {
@@ -47,7 +47,7 @@ pub fn detect_os() -> OperatingSystem {
 
 pub fn detect_linux_distro() -> LinuxDistro {
     let contents = fs::read_to_string("/etc/os-release").unwrap_or_default();
-    
+
     if contents.contains("Ubuntu") {
         LinuxDistro::Ubuntu
     } else if contents.contains("Debian") {
@@ -84,33 +84,55 @@ pub fn detect_distro() -> String {
 
 pub fn get_available_package_managers() -> Vec<&'static str> {
     let mut managers = Vec::new();
-    
+
     match detect_os() {
         OperatingSystem::Linux(_) => {
             // Linux package managers
-            if command_exists("apt") { managers.push("apt"); }
-            if command_exists("dnf") { managers.push("dnf"); }
-            if command_exists("pacman") { managers.push("pacman"); }
-            if command_exists("zypper") { managers.push("zypper"); }
-            if command_exists("snap") { managers.push("snap"); }
-            if command_exists("flatpak") { managers.push("flatpak"); }
+            if command_exists("apt") {
+                managers.push("apt");
+            }
+            if command_exists("dnf") {
+                managers.push("dnf");
+            }
+            if command_exists("pacman") {
+                managers.push("pacman");
+            }
+            if command_exists("zypper") {
+                managers.push("zypper");
+            }
+            if command_exists("snap") {
+                managers.push("snap");
+            }
+            if command_exists("flatpak") {
+                managers.push("flatpak");
+            }
             // AppImage is always available on Linux
             managers.push("appimage");
-        },
+        }
         OperatingSystem::Windows => {
             // Windows package managers
-            if command_exists("winget") { managers.push("winget"); }
-            if command_exists("choco") { managers.push("chocolatey"); }
-            if command_exists("scoop") { managers.push("scoop"); }
-        },
+            if command_exists("winget") {
+                managers.push("winget");
+            }
+            if command_exists("choco") {
+                managers.push("chocolatey");
+            }
+            if command_exists("scoop") {
+                managers.push("scoop");
+            }
+        }
         OperatingSystem::MacOS => {
             // macOS package managers
-            if command_exists("brew") { managers.push("brew"); }
-            if command_exists("mas") { managers.push("mas"); }
-        },
-        OperatingSystem::Unknown => {},
+            if command_exists("brew") {
+                managers.push("brew");
+            }
+            if command_exists("mas") {
+                managers.push("mas");
+            }
+        }
+        OperatingSystem::Unknown => {}
     }
-    
+
     managers
 }
 
@@ -145,7 +167,7 @@ pub fn get_os_display_name() -> String {
                 LinuxDistro::Unknown => "Linux",
             };
             format!("{} Linux", distro_name)
-        },
+        }
         OperatingSystem::Windows => {
             // Try to get Windows version
             if let Ok(output) = std::process::Command::new("ver").output() {
@@ -155,25 +177,27 @@ pub fn get_os_display_name() -> String {
                 }
             }
             "Windows".to_string()
-        },
+        }
         OperatingSystem::MacOS => {
             // Try to get macOS version
             if let Ok(output) = std::process::Command::new("sw_vers")
                 .args(&["-productName"])
-                .output() 
+                .output()
             {
                 let product = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if let Ok(version_output) = std::process::Command::new("sw_vers")
                     .args(&["-productVersion"])
-                    .output() 
+                    .output()
                 {
-                    let version = String::from_utf8_lossy(&version_output.stdout).trim().to_string();
+                    let version = String::from_utf8_lossy(&version_output.stdout)
+                        .trim()
+                        .to_string();
                     return format!("{} {}", product, version);
                 }
                 return product;
             }
             "macOS".to_string()
-        },
+        }
         OperatingSystem::Unknown => "Unknown OS".to_string(),
     }
 }
@@ -187,10 +211,10 @@ mod tests {
         let os = detect_os();
         // Just ensure it doesn't panic and returns a valid OS
         match os {
-            OperatingSystem::Linux(_) | 
-            OperatingSystem::Windows | 
-            OperatingSystem::MacOS | 
-            OperatingSystem::Unknown => assert!(true),
+            OperatingSystem::Linux(_)
+            | OperatingSystem::Windows
+            | OperatingSystem::MacOS
+            | OperatingSystem::Unknown => assert!(true),
         }
     }
 

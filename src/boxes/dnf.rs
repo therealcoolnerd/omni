@@ -1,11 +1,11 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
+use crate::distro::PackageManager;
 use crate::error_handling::OmniError;
 use crate::runtime::RuntimeManager;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
-use tracing::{info, error};
-use std::time::Duration;
 use std::sync::Arc;
-use crate::distro::PackageManager;
+use std::time::Duration;
+use tracing::{error, info};
 
 /// Secure DNF package manager wrapper
 pub struct DnfBox {
@@ -18,7 +18,7 @@ impl DnfBox {
             executor: Arc::new(SecureExecutor::new()?),
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("dnf")
             .arg("--version")
@@ -32,22 +32,20 @@ impl PackageManager for DnfBox {
     fn install(&self, package: &str) -> Result<()> {
         let package = package.to_string();
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             info!("Installing '{}' via dnf", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = executor.execute_package_command(
-                "dnf",
-                &["install", "-y", &package],
-                config
-            ).await?;
-            
+
+            let result = executor
+                .execute_package_command("dnf", &["install", "-y", &package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ DNF successfully installed '{}'", package);
                 Ok(())
@@ -57,30 +55,29 @@ impl PackageManager for DnfBox {
                     package: package.clone(),
                     box_type: "dnf".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         let package = package.to_string();
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             info!("Removing '{}' via dnf", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(300),
                 ..ExecutionConfig::default()
             };
-            
-            let result = executor.execute_package_command(
-                "dnf",
-                &["remove", "-y", &package],
-                config
-            ).await?;
-            
+
+            let result = executor
+                .execute_package_command("dnf", &["remove", "-y", &package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ DNF successfully removed '{}'", package);
                 Ok(())
@@ -90,38 +87,37 @@ impl PackageManager for DnfBox {
                     package: package.clone(),
                     box_type: "dnf".to_string(),
                     reason: format!("Remove failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         let package_name = package.map(|s| s.to_string());
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             let mut args = vec!["upgrade".to_string(), "-y".to_string()];
-            
+
             if let Some(ref pkg) = package_name {
                 args.push(pkg.clone());
                 info!("Upgrading '{}' via dnf", pkg);
             } else {
                 info!("Upgrading all packages via dnf");
             }
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(1200), // 20 minutes for updates
                 ..ExecutionConfig::default()
             };
-            
+
             let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            let result = executor.execute_package_command(
-                "dnf",
-                &args_refs,
-                config
-            ).await?;
-            
+            let result = executor
+                .execute_package_command("dnf", &args_refs, config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ DNF update completed successfully");
                 Ok(())
@@ -131,35 +127,38 @@ impl PackageManager for DnfBox {
                     package: package_name.unwrap_or_else(|| "all".to_string()),
                     box_type: "dnf".to_string(),
                     reason: format!("Update failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         let query = query.to_string();
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             info!("Searching for '{}' via dnf", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = executor.execute_package_command(
-                "dnf",
-                &["search", &query],
-                config
-            ).await?;
-            
+
+            let result = executor
+                .execute_package_command("dnf", &["search", &query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .filter_map(|line| {
-                        if line.contains(".") && !line.starts_with("=") && !line.starts_with("Last metadata") {
+                        if line.contains(".")
+                            && !line.starts_with("=")
+                            && !line.starts_with("Last metadata")
+                        {
                             let parts: Vec<&str> = line.split_whitespace().collect();
                             if !parts.is_empty() {
                                 Some(parts[0].split('.').next().unwrap_or(parts[0]).to_string())
@@ -171,7 +170,7 @@ impl PackageManager for DnfBox {
                         }
                     })
                     .collect();
-                
+
                 info!("✅ Found {} packages matching '{}'", packages.len(), query);
                 Ok(packages)
             } else {
@@ -180,27 +179,26 @@ impl PackageManager for DnfBox {
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             info!("Listing installed packages via dnf");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = executor.execute_package_command(
-                "dnf",
-                &["list", "installed"],
-                config
-            ).await?;
-            
+
+            let result = executor
+                .execute_package_command("dnf", &["list", "installed"], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(1) // Skip header line
                     .filter_map(|line| {
@@ -220,48 +218,48 @@ impl PackageManager for DnfBox {
                     package: "list".to_string(),
                     box_type: "dnf".to_string(),
                     reason: format!("List failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         let package = package.to_string();
         let executor = Arc::clone(&self.executor);
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting info for package '{}'", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(30),
                 ..ExecutionConfig::default()
             };
-            
-            let result = executor.execute_package_command(
-                "dnf",
-                &["info", &package],
-                config
-            ).await?;
-            
+
+            let result = executor
+                .execute_package_command("dnf", &["info", &package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
                 Err(OmniError::PackageNotFound {
                     package: package.clone(),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         true
     }
-    
+
     fn get_name(&self) -> &'static str {
         "dnf"
     }
-    
+
     fn get_priority(&self) -> u8 {
         85 // High priority for Red Hat systems
     }

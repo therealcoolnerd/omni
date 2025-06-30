@@ -1,11 +1,11 @@
 use crate::database::{Database, PackageCache};
 use crate::error_handling::OmniError;
-use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque, BTreeMap};
-use std::cmp::Ordering;
-use tracing::{info, warn, error, debug};
+use anyhow::{anyhow, Result};
 use semver::{Version, VersionReq};
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use tracing::{debug, error, info, warn};
 
 /// Enhanced dependency with version constraints and conflict resolution
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,7 +63,8 @@ impl PartialOrd for ResolvedPackage {
 impl Ord for ResolvedPackage {
     fn cmp(&self, other: &Self) -> Ordering {
         // Sort by install order, then by name for deterministic ordering
-        self.install_order.cmp(&other.install_order)
+        self.install_order
+            .cmp(&other.install_order)
             .then_with(|| self.name.cmp(&other.name))
     }
 }
@@ -99,10 +100,10 @@ pub enum ConflictType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResolutionStrategy {
-    Conservative,  // Prefer existing versions
-    Latest,        // Always prefer latest versions
-    Minimal,       // Install minimum required packages
-    UserGuided,    // Let user choose conflicts
+    Conservative, // Prefer existing versions
+    Latest,       // Always prefer latest versions
+    Minimal,      // Install minimum required packages
+    UserGuided,   // Let user choose conflicts
 }
 
 /// Dependency graph for cycle detection and analysis
@@ -148,7 +149,7 @@ pub struct AdvancedDependencyResolver {
 impl AdvancedDependencyResolver {
     pub async fn new(strategy: ResolutionStrategy) -> Result<Self> {
         let db = Database::new().await?;
-        
+
         Ok(Self {
             db,
             strategy,
@@ -156,32 +157,43 @@ impl AdvancedDependencyResolver {
             package_cache: HashMap::new(),
         })
     }
-    
+
     /// Resolve dependencies with advanced conflict detection and resolution
     pub async fn resolve_dependencies(
         &mut self,
         package_names: &[String],
         constraints: HashMap<String, VersionReq>,
     ) -> Result<ResolutionPlan> {
-        info!("Starting advanced dependency resolution for {} packages", package_names.len());
-        
+        info!(
+            "Starting advanced dependency resolution for {} packages",
+            package_names.len()
+        );
+
         // Create initial dependency graph
         let mut graph = DependencyGraph {
             nodes: HashMap::new(),
             edges: Vec::new(),
         };
-        
+
         // Track resolution state
         let mut resolution_state = ResolutionState::new();
-        
+
         // Add root packages
         for package_name in package_names {
-            self.add_root_package(&mut graph, &mut resolution_state, package_name, &constraints).await?;
+            self.add_root_package(
+                &mut graph,
+                &mut resolution_state,
+                package_name,
+                &constraints,
+            )
+            .await?;
         }
-        
+
         // Perform iterative resolution with backtracking
-        let resolved_packages = self.resolve_with_backtracking(&mut graph, &mut resolution_state).await?;
-        
+        let resolved_packages = self
+            .resolve_with_backtracking(&mut graph, &mut resolution_state)
+            .await?;
+
         // Detect cycles
         let cycles = self.detect_cycles(&graph)?;
         if !cycles.is_empty() {
@@ -189,20 +201,19 @@ impl AdvancedDependencyResolver {
                 package: "multiple".to_string(),
                 box_type: "unknown".to_string(),
                 reason: format!("Circular dependencies detected: {:?}", cycles),
-            }.into());
+            }
+            .into());
         }
-        
+
         // Check for conflicts
         let conflicts = self.detect_conflicts(&resolved_packages)?;
-        
+
         // Calculate install order using topological sort
         let ordered_packages = self.topological_sort(&graph, &resolved_packages)?;
-        
+
         // Calculate total download size
-        let total_size = ordered_packages.iter()
-            .filter_map(|p| p.size)
-            .sum::<u64>();
-        
+        let total_size = ordered_packages.iter().filter_map(|p| p.size).sum::<u64>();
+
         let plan = ResolutionPlan {
             packages: ordered_packages,
             conflicts,
@@ -211,13 +222,16 @@ impl AdvancedDependencyResolver {
             dependency_graph: graph,
             resolution_strategy: self.strategy.clone(),
         };
-        
-        info!("Dependency resolution completed: {} packages, {} conflicts", 
-              plan.packages.len(), plan.conflicts.len());
-        
+
+        info!(
+            "Dependency resolution completed: {} packages, {} conflicts",
+            plan.packages.len(),
+            plan.conflicts.len()
+        );
+
         Ok(plan)
     }
-    
+
     async fn add_root_package(
         &mut self,
         graph: &mut DependencyGraph,
@@ -230,32 +244,33 @@ impl AdvancedDependencyResolver {
         if available_versions.is_empty() {
             return Err(OmniError::PackageNotFound {
                 package: package_name.to_string(),
-            }.into());
+            }
+            .into());
         }
-        
+
         // Select best version based on constraints and strategy
-        let selected_version = self.select_best_version(
-            &available_versions,
-            constraints.get(package_name),
-        )?;
-        
+        let selected_version =
+            self.select_best_version(&available_versions, constraints.get(package_name))?;
+
         // Add to graph as root node
-        graph.nodes.insert(package_name.to_string(), GraphNode {
-            package: package_name.to_string(),
-            version: selected_version.version.clone(),
-            depth: 0,
-            is_root: true,
-        });
-        
-        // Add to resolution state
-        state.selected_packages.insert(
+        graph.nodes.insert(
             package_name.to_string(),
-            selected_version.clone()
+            GraphNode {
+                package: package_name.to_string(),
+                version: selected_version.version.clone(),
+                depth: 0,
+                is_root: true,
+            },
         );
-        
+
+        // Add to resolution state
+        state
+            .selected_packages
+            .insert(package_name.to_string(), selected_version.clone());
+
         Ok(())
     }
-    
+
     async fn resolve_with_backtracking(
         &mut self,
         graph: &mut DependencyGraph,
@@ -263,40 +278,46 @@ impl AdvancedDependencyResolver {
     ) -> Result<Vec<ResolvedPackage>> {
         let mut stack = Vec::new();
         let mut processed = HashSet::new();
-        
+
         // Initialize stack with root packages
         for node in graph.nodes.values() {
             if node.is_root {
                 stack.push((node.package.clone(), 0));
             }
         }
-        
+
         while let Some((package_name, depth)) = stack.pop() {
             if processed.contains(&package_name) {
                 continue;
             }
-            
+
             if depth > self.max_depth {
                 return Err(OmniError::InstallationFailed {
                     package: package_name,
                     box_type: "unknown".to_string(),
                     reason: "Maximum dependency depth exceeded".to_string(),
-                }.into());
+                }
+                .into());
             }
-            
+
             processed.insert(package_name.clone());
-            
+
             // Get the selected package version
-            let package = state.selected_packages.get(&package_name)
+            let package = state
+                .selected_packages
+                .get(&package_name)
                 .ok_or_else(|| anyhow!("Package not in resolution state: {}", package_name))?;
-            
+
             // Process dependencies
             for dependency in &package.dependencies {
                 if dependency.optional && !state.include_optional {
                     continue;
                 }
-                
-                match self.resolve_dependency(graph, state, dependency, depth + 1).await {
+
+                match self
+                    .resolve_dependency(graph, state, dependency, depth + 1)
+                    .await
+                {
                     Ok(Some(dep_package)) => {
                         // Add edge to graph
                         graph.edges.push(GraphEdge {
@@ -309,7 +330,7 @@ impl AdvancedDependencyResolver {
                             },
                             version_constraint: dependency.version_req.clone(),
                         });
-                        
+
                         // Add to stack for further processing
                         stack.push((dependency.name.clone(), depth + 1));
                     }
@@ -319,7 +340,10 @@ impl AdvancedDependencyResolver {
                     }
                     Err(e) => {
                         // Try alternatives if available
-                        if let Some(resolved) = self.try_alternatives(graph, state, dependency, depth + 1).await? {
+                        if let Some(resolved) = self
+                            .try_alternatives(graph, state, dependency, depth + 1)
+                            .await?
+                        {
                             stack.push((resolved, depth + 1));
                         } else {
                             return Err(e);
@@ -328,10 +352,10 @@ impl AdvancedDependencyResolver {
                 }
             }
         }
-        
+
         Ok(state.selected_packages.values().cloned().collect())
     }
-    
+
     async fn resolve_dependency(
         &mut self,
         graph: &mut DependencyGraph,
@@ -346,48 +370,61 @@ impl AdvancedDependencyResolver {
                 return Ok(None); // Already satisfied
             } else {
                 // Version conflict - try to resolve
-                return self.resolve_version_conflict(state, dependency, existing).await;
+                return self
+                    .resolve_version_conflict(state, dependency, existing)
+                    .await;
             }
         }
-        
+
         // Get available versions
         let available_versions = self.get_available_versions(&dependency.name).await?;
         if available_versions.is_empty() {
             return Err(OmniError::PackageNotFound {
                 package: dependency.name.clone(),
-            }.into());
+            }
+            .into());
         }
-        
+
         // Filter versions that satisfy the requirement
         let compatible_versions: Vec<_> = available_versions
             .into_iter()
             .filter(|pkg| dependency.version_req.matches(&pkg.version))
             .collect();
-        
+
         if compatible_versions.is_empty() {
             return Err(OmniError::InstallationFailed {
                 package: dependency.name.clone(),
                 box_type: dependency.box_type.clone(),
-                reason: format!("No version satisfies requirement: {}", dependency.version_req),
-            }.into());
+                reason: format!(
+                    "No version satisfies requirement: {}",
+                    dependency.version_req
+                ),
+            }
+            .into());
         }
-        
+
         // Select best compatible version
-        let selected = self.select_best_version(&compatible_versions, Some(&dependency.version_req))?;
-        
+        let selected =
+            self.select_best_version(&compatible_versions, Some(&dependency.version_req))?;
+
         // Add to graph and state
-        graph.nodes.insert(dependency.name.clone(), GraphNode {
-            package: dependency.name.clone(),
-            version: selected.version.clone(),
-            depth,
-            is_root: false,
-        });
-        
-        state.selected_packages.insert(dependency.name.clone(), selected.clone());
-        
+        graph.nodes.insert(
+            dependency.name.clone(),
+            GraphNode {
+                package: dependency.name.clone(),
+                version: selected.version.clone(),
+                depth,
+                is_root: false,
+            },
+        );
+
+        state
+            .selected_packages
+            .insert(dependency.name.clone(), selected.clone());
+
         Ok(Some(selected))
     }
-    
+
     async fn try_alternatives(
         &mut self,
         graph: &mut DependencyGraph,
@@ -396,33 +433,43 @@ impl AdvancedDependencyResolver {
         depth: usize,
     ) -> Result<Option<String>> {
         for alternative in &dependency.alternatives {
-            match self.resolve_dependency(graph, state, &Dependency {
-                name: alternative.clone(),
-                version_req: dependency.version_req.clone(),
-                box_type: dependency.box_type.clone(),
-                optional: dependency.optional,
-                conflicts: dependency.conflicts.clone(),
-                provides: dependency.provides.clone(),
-                alternatives: vec![], // Prevent infinite recursion
-            }, depth).await {
+            match self
+                .resolve_dependency(
+                    graph,
+                    state,
+                    &Dependency {
+                        name: alternative.clone(),
+                        version_req: dependency.version_req.clone(),
+                        box_type: dependency.box_type.clone(),
+                        optional: dependency.optional,
+                        conflicts: dependency.conflicts.clone(),
+                        provides: dependency.provides.clone(),
+                        alternatives: vec![], // Prevent infinite recursion
+                    },
+                    depth,
+                )
+                .await
+            {
                 Ok(Some(_)) => return Ok(Some(alternative.clone())),
                 Ok(None) => return Ok(Some(alternative.clone())),
                 Err(_) => continue, // Try next alternative
             }
         }
-        
+
         Ok(None)
     }
-    
+
     async fn resolve_version_conflict(
         &mut self,
         state: &mut ResolutionState,
         dependency: &Dependency,
         existing: &ResolvedPackage,
     ) -> Result<Option<ResolvedPackage>> {
-        warn!("Version conflict for {}: need {} but have {}", 
-              dependency.name, dependency.version_req, existing.version);
-        
+        warn!(
+            "Version conflict for {}: need {} but have {}",
+            dependency.name, dependency.version_req, existing.version
+        );
+
         match self.strategy {
             ResolutionStrategy::Conservative => {
                 // Keep existing version if possible
@@ -436,9 +483,12 @@ impl AdvancedDependencyResolver {
                     return Err(OmniError::InstallationFailed {
                         package: dependency.name.clone(),
                         box_type: dependency.box_type.clone(),
-                        reason: format!("Version conflict: need {} but have {}",
-                                      dependency.version_req, existing.version),
-                    }.into());
+                        reason: format!(
+                            "Version conflict: need {} but have {}",
+                            dependency.version_req, existing.version
+                        ),
+                    }
+                    .into());
                 }
             }
             ResolutionStrategy::Latest => {
@@ -449,9 +499,11 @@ impl AdvancedDependencyResolver {
                     .filter(|pkg| dependency.version_req.matches(&pkg.version))
                     .filter(|pkg| pkg.version > existing.version)
                     .collect();
-                
+
                 if let Some(upgraded) = compatible.into_iter().max_by_key(|pkg| &pkg.version) {
-                    state.selected_packages.insert(dependency.name.clone(), upgraded.clone());
+                    state
+                        .selected_packages
+                        .insert(dependency.name.clone(), upgraded.clone());
                     state.warnings.push(format!(
                         "Upgraded {} from {} to {} to resolve conflict",
                         dependency.name, existing.version, upgraded.version
@@ -461,19 +513,20 @@ impl AdvancedDependencyResolver {
             }
             _ => {}
         }
-        
+
         Err(OmniError::InstallationFailed {
             package: dependency.name.clone(),
             box_type: dependency.box_type.clone(),
             reason: "Unresolvable version conflict".to_string(),
-        }.into())
+        }
+        .into())
     }
-    
+
     async fn get_available_versions(&mut self, package_name: &str) -> Result<Vec<ResolvedPackage>> {
         if let Some(cached) = self.package_cache.get(package_name) {
             return Ok(cached.clone());
         }
-        
+
         // This would query the actual package repositories
         // For now, return a mock version
         let mock_package = ResolvedPackage {
@@ -487,13 +540,14 @@ impl AdvancedDependencyResolver {
             is_virtual: false,
             replaces: vec![],
         };
-        
+
         let versions = vec![mock_package];
-        self.package_cache.insert(package_name.to_string(), versions.clone());
-        
+        self.package_cache
+            .insert(package_name.to_string(), versions.clone());
+
         Ok(versions)
     }
-    
+
     fn select_best_version(
         &self,
         versions: &[ResolvedPackage],
@@ -502,18 +556,18 @@ impl AdvancedDependencyResolver {
         if versions.is_empty() {
             return Err(anyhow!("No versions available"));
         }
-        
+
         let mut candidates = versions.to_vec();
-        
+
         // Filter by constraint if provided
         if let Some(req) = constraint {
             candidates.retain(|pkg| req.matches(&pkg.version));
         }
-        
+
         if candidates.is_empty() {
             return Err(anyhow!("No versions satisfy constraints"));
         }
-        
+
         // Select based on strategy
         match self.strategy {
             ResolutionStrategy::Latest => {
@@ -531,15 +585,15 @@ impl AdvancedDependencyResolver {
                 candidates.sort_by(|a, b| b.version.cmp(&a.version));
             }
         }
-        
+
         Ok(candidates.into_iter().next().unwrap())
     }
-    
+
     fn detect_cycles(&self, graph: &DependencyGraph) -> Result<Vec<Vec<String>>> {
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
         let mut cycles = Vec::new();
-        
+
         for node_name in graph.nodes.keys() {
             if !visited.contains(node_name) {
                 self.dfs_detect_cycle(
@@ -552,10 +606,10 @@ impl AdvancedDependencyResolver {
                 );
             }
         }
-        
+
         Ok(cycles)
     }
-    
+
     fn dfs_detect_cycle(
         &self,
         graph: &DependencyGraph,
@@ -568,7 +622,7 @@ impl AdvancedDependencyResolver {
         visited.insert(node.to_string());
         rec_stack.insert(node.to_string());
         path.push(node.to_string());
-        
+
         // Find all outgoing edges
         for edge in &graph.edges {
             if edge.from == node {
@@ -582,21 +636,21 @@ impl AdvancedDependencyResolver {
                 }
             }
         }
-        
+
         path.pop();
         rec_stack.remove(node);
     }
-    
+
     fn detect_conflicts(&self, packages: &[ResolvedPackage]) -> Result<Vec<ConflictReport>> {
         let mut conflicts = Vec::new();
-        
+
         // Check explicit conflicts
         for package in packages {
             for dependency in &package.dependencies {
                 for conflict in &dependency.conflicts {
-                    if let Some(conflicting_pkg) = packages.iter()
-                        .find(|p| p.name == conflict.package && conflict.version_range.matches(&p.version))
-                    {
+                    if let Some(conflicting_pkg) = packages.iter().find(|p| {
+                        p.name == conflict.package && conflict.version_range.matches(&p.version)
+                    }) {
                         conflicts.push(ConflictReport {
                             package1: package.name.clone(),
                             package2: conflicting_pkg.name.clone(),
@@ -611,15 +665,16 @@ impl AdvancedDependencyResolver {
                 }
             }
         }
-        
+
         // Check version incompatibilities
         let mut version_groups: HashMap<String, Vec<&ResolvedPackage>> = HashMap::new();
         for package in packages {
-            version_groups.entry(package.name.clone())
+            version_groups
+                .entry(package.name.clone())
                 .or_insert_with(Vec::new)
                 .push(package);
         }
-        
+
         for (package_name, versions) in version_groups {
             if versions.len() > 1 {
                 conflicts.push(ConflictReport {
@@ -631,10 +686,10 @@ impl AdvancedDependencyResolver {
                 });
             }
         }
-        
+
         Ok(conflicts)
     }
-    
+
     fn topological_sort(
         &self,
         graph: &DependencyGraph,
@@ -642,16 +697,19 @@ impl AdvancedDependencyResolver {
     ) -> Result<Vec<ResolvedPackage>> {
         let mut in_degree = HashMap::new();
         let mut adj_list: HashMap<String, Vec<String>> = HashMap::new();
-        
+
         // Initialize in-degree and adjacency list
         for package in packages {
             in_degree.insert(package.name.clone(), 0);
             adj_list.insert(package.name.clone(), Vec::new());
         }
-        
+
         // Build graph and calculate in-degrees
         for edge in &graph.edges {
-            if matches!(edge.dependency_type, DependencyType::Required | DependencyType::Optional) {
+            if matches!(
+                edge.dependency_type,
+                DependencyType::Required | DependencyType::Optional
+            ) {
                 if let Some(deps) = adj_list.get_mut(&edge.from) {
                     deps.push(edge.to.clone());
                 }
@@ -660,24 +718,24 @@ impl AdvancedDependencyResolver {
                 }
             }
         }
-        
+
         // Kahn's algorithm for topological sorting
         let mut queue = VecDeque::new();
         let mut result = Vec::new();
-        
+
         // Start with nodes that have no incoming edges
         for (package, &degree) in &in_degree {
             if degree == 0 {
                 queue.push_back(package.clone());
             }
         }
-        
+
         while let Some(package_name) = queue.pop_front() {
             // Find the package object
             if let Some(package) = packages.iter().find(|p| p.name == package_name) {
                 result.push(package.clone());
             }
-            
+
             // Reduce in-degree of adjacent nodes
             if let Some(neighbors) = adj_list.get(&package_name) {
                 for neighbor in neighbors {
@@ -690,13 +748,13 @@ impl AdvancedDependencyResolver {
                 }
             }
         }
-        
+
         // Set install order
         let mut ordered_packages = result;
         for (i, package) in ordered_packages.iter_mut().enumerate() {
             package.install_order = i;
         }
-        
+
         Ok(ordered_packages)
     }
 }
@@ -721,17 +779,19 @@ impl ResolutionState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_advanced_resolver_creation() {
         let resolver = AdvancedDependencyResolver::new(ResolutionStrategy::Latest).await;
         assert!(resolver.is_ok());
     }
-    
+
     #[tokio::test]
     async fn test_cycle_detection() {
-        let resolver = AdvancedDependencyResolver::new(ResolutionStrategy::Latest).await.unwrap();
-        
+        let resolver = AdvancedDependencyResolver::new(ResolutionStrategy::Latest)
+            .await
+            .unwrap();
+
         // Create a graph with a cycle
         let mut graph = DependencyGraph {
             nodes: HashMap::new(),
@@ -756,27 +816,30 @@ mod tests {
                 },
             ],
         };
-        
+
         // Add nodes
         for name in &["A", "B", "C"] {
-            graph.nodes.insert(name.to_string(), GraphNode {
-                package: name.to_string(),
-                version: Version::parse("1.0.0").unwrap(),
-                depth: 0,
-                is_root: false,
-            });
+            graph.nodes.insert(
+                name.to_string(),
+                GraphNode {
+                    package: name.to_string(),
+                    version: Version::parse("1.0.0").unwrap(),
+                    depth: 0,
+                    is_root: false,
+                },
+            );
         }
-        
+
         let cycles = resolver.detect_cycles(&graph).unwrap();
         assert!(!cycles.is_empty());
     }
-    
+
     #[test]
     fn test_version_requirement_parsing() {
         let req = VersionReq::parse(">=1.0.0, <2.0.0").unwrap();
         let version1 = Version::parse("1.5.0").unwrap();
         let version2 = Version::parse("2.1.0").unwrap();
-        
+
         assert!(req.matches(&version1));
         assert!(!req.matches(&version2));
     }

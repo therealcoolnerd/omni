@@ -1,15 +1,15 @@
-use crate::error_handling::{RecoveryManager};
-use crate::database::{Database};
+use crate::database::Database;
 use crate::distro::PackageManager;
+use crate::error_handling::RecoveryManager;
 use crate::snapshot::SnapshotManager;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::time::SystemTime;
-use std::fmt;
-use tracing::{info, warn, error};
-use uuid::Uuid;
 use sqlx::Row;
+use std::collections::HashMap;
+use std::fmt;
+use std::time::SystemTime;
+use tracing::{error, info, warn};
+use uuid::Uuid;
 
 /// Transaction types supported by the system
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -111,24 +111,24 @@ impl TransactionManager {
         let db = Database::new().await?;
         let snapshot_manager = SnapshotManager::new().await?;
         let recovery_manager = RecoveryManager::new();
-        
+
         let manager = Self {
             db,
             snapshot_manager,
             recovery_manager,
             current_transaction: None,
         };
-        
+
         // Clean up any old temporary transaction files
         manager.cleanup_temp_files().await?;
-        
+
         Ok(manager)
     }
-    
+
     /// Clean up old temporary transaction files from /tmp/
     async fn cleanup_temp_files(&self) -> Result<()> {
         use tokio::fs;
-        
+
         if let Ok(mut dir) = fs::read_dir("/tmp").await {
             while let Ok(Some(entry)) = dir.next_entry().await {
                 if let Some(file_name) = entry.file_name().to_str() {
@@ -139,10 +139,10 @@ impl TransactionManager {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Begin a new transaction
     pub async fn begin_transaction(
         &mut self,
@@ -152,18 +152,22 @@ impl TransactionManager {
         if self.current_transaction.is_some() {
             return Err(anyhow!("Transaction already in progress"));
         }
-        
+
         let transaction_id = Uuid::new_v4().to_string();
-        info!("Beginning transaction: {} - {}", transaction_id, description);
-        
+        info!(
+            "Beginning transaction: {} - {}",
+            transaction_id, description
+        );
+
         // Create rollback snapshot
-        let snapshot_id = self.snapshot_manager
+        let snapshot_id = self
+            .snapshot_manager
             .create_snapshot(
                 &format!("pre-transaction-{}", transaction_id),
-                Some(&format!("Before {}", description))
+                Some(&format!("Before {}", description)),
             )
             .await?;
-        
+
         let transaction = Transaction {
             id: transaction_id.clone(),
             transaction_type,
@@ -174,14 +178,14 @@ impl TransactionManager {
             rollback_snapshot_id: Some(snapshot_id),
             description,
         };
-        
+
         // Save transaction to database
         self.save_transaction(&transaction).await?;
         self.current_transaction = Some(transaction);
-        
+
         Ok(transaction_id)
     }
-    
+
     /// Add an operation to the current transaction
     pub async fn add_operation(
         &mut self,
@@ -198,11 +202,11 @@ impl TransactionManager {
         } else {
             return Err(anyhow!("No active transaction"));
         }
-        
+
         // Prepare rollback data before borrowing mutably
         let rollback_data = self.prepare_rollback_data(&package_name, &box_type).await?;
         let operation_id = Uuid::new_v4().to_string();
-        
+
         let operation = TransactionOperation {
             id: operation_id.clone(),
             operation_type,
@@ -214,30 +218,35 @@ impl TransactionManager {
             error_message: None,
             rollback_data: Some(rollback_data),
         };
-        
+
         // Now we can safely borrow mutably
         let transaction = self.current_transaction.as_mut().unwrap();
         transaction.operations.push(operation);
-        
+
         let transaction_id = transaction.id.clone();
         self.save_transaction(transaction).await?;
-        
-        info!("Added operation {} to transaction {}", operation_id, transaction_id);
+
+        info!(
+            "Added operation {} to transaction {}",
+            operation_id, transaction_id
+        );
         Ok(operation_id)
     }
-    
+
     /// Execute all operations in the current transaction
     pub async fn commit_transaction(&mut self) -> Result<TransactionResult> {
         // First check if we have a valid transaction
         {
-            let transaction = self.current_transaction.as_ref()
+            let transaction = self
+                .current_transaction
+                .as_ref()
                 .ok_or_else(|| anyhow!("No active transaction"))?;
-            
+
             if transaction.status != TransactionStatus::Planning {
                 return Err(anyhow!("Transaction not in planning state"));
             }
         }
-        
+
         // Update transaction status
         let transaction_id = {
             let transaction = self.current_transaction.as_mut().unwrap();
@@ -247,11 +256,11 @@ impl TransactionManager {
             self.save_transaction(transaction).await?;
             id
         };
-        
+
         let mut successful_operations = 0;
         let mut failed_operations = 0;
         let mut errors = Vec::new();
-        
+
         // Execute operations one by one
         let operations_count = self.current_transaction.as_ref().unwrap().operations.len();
         for i in 0..operations_count {
@@ -261,14 +270,14 @@ impl TransactionManager {
                 transaction.operations[i].status = OperationStatus::InProgress;
                 self.save_transaction(transaction).await?;
             }
-            
+
             // Execute the operation
             let operation_result = {
                 let transaction = self.current_transaction.as_ref().unwrap();
                 let operation = &transaction.operations[i];
                 self.execute_operation(operation).await
             };
-            
+
             // Update operation with result
             match operation_result {
                 Ok(version_after) => {
@@ -276,7 +285,10 @@ impl TransactionManager {
                     transaction.operations[i].version_after = version_after;
                     transaction.operations[i].status = OperationStatus::Completed;
                     successful_operations += 1;
-                    info!("✅ Operation {} completed successfully", transaction.operations[i].id);
+                    info!(
+                        "✅ Operation {} completed successfully",
+                        transaction.operations[i].id
+                    );
                     self.save_transaction(transaction).await?;
                 }
                 Err(e) => {
@@ -285,22 +297,28 @@ impl TransactionManager {
                     transaction.operations[i].error_message = Some(e.to_string());
                     failed_operations += 1;
                     errors.push(e.to_string());
-                    error!("❌ Operation {} failed: {}", transaction.operations[i].id, e);
+                    error!(
+                        "❌ Operation {} failed: {}",
+                        transaction.operations[i].id, e
+                    );
                     self.save_transaction(transaction).await?;
-                    
+
                     // Stop on first failure
                     break;
                 }
             }
         }
-        
+
         // Determine final transaction status
         let result = if failed_operations > 0 {
-            warn!("Transaction failed with {} errors. Starting rollback...", failed_operations);
-            
+            warn!(
+                "Transaction failed with {} errors. Starting rollback...",
+                failed_operations
+            );
+
             // Attempt rollback
             let rollback_result = self.rollback_transaction().await;
-            
+
             let final_status = if let Err(rollback_error) = rollback_result {
                 error!("Rollback failed: {}", rollback_error);
                 errors.push(format!("Rollback failed: {}", rollback_error));
@@ -308,7 +326,7 @@ impl TransactionManager {
             } else {
                 TransactionStatus::RolledBack
             };
-            
+
             // Update transaction status
             {
                 let transaction = self.current_transaction.as_mut().unwrap();
@@ -316,7 +334,7 @@ impl TransactionManager {
                 transaction.completed_at = Some(SystemTime::now());
                 self.save_transaction(transaction).await?;
             }
-            
+
             let transaction_id = self.current_transaction.as_ref().unwrap().id.clone();
             TransactionResult {
                 transaction_id,
@@ -333,7 +351,7 @@ impl TransactionManager {
             } else {
                 TransactionStatus::PartiallyCompleted
             };
-            
+
             // Update transaction status
             {
                 let transaction = self.current_transaction.as_mut().unwrap();
@@ -341,13 +359,13 @@ impl TransactionManager {
                 transaction.completed_at = Some(SystemTime::now());
                 self.save_transaction(transaction).await?;
             }
-            
+
             if final_status == TransactionStatus::Completed {
                 info!("✅ Transaction completed successfully");
             } else {
                 warn!("Transaction partially completed");
             }
-            
+
             let transaction_id = self.current_transaction.as_ref().unwrap().id.clone();
             TransactionResult {
                 transaction_id,
@@ -357,26 +375,29 @@ impl TransactionManager {
                 errors,
             }
         };
-        
+
         // Clear current transaction
         self.current_transaction = None;
-        
+
         Ok(result)
     }
-    
+
     /// Rollback the current transaction
     pub async fn rollback_transaction(&mut self) -> Result<()> {
-        let transaction = self.current_transaction.as_mut()
+        let transaction = self
+            .current_transaction
+            .as_mut()
             .ok_or_else(|| anyhow!("No active transaction"))?;
-        
+
         info!("Rolling back transaction: {}", transaction.id);
-        
+
         // Rollback completed operations in reverse order
-        let completed_operations: Vec<_> = transaction.operations
+        let completed_operations: Vec<_> = transaction
+            .operations
             .iter_mut()
             .filter(|op| op.status == OperationStatus::Completed)
             .collect();
-        
+
         for operation in completed_operations.into_iter().rev() {
             match self.rollback_operation(operation).await {
                 Ok(_) => {
@@ -389,7 +410,7 @@ impl TransactionManager {
                 }
             }
         }
-        
+
         // Use snapshot rollback as final fallback
         if let Some(snapshot_id) = &transaction.rollback_snapshot_id {
             info!("Performing snapshot rollback to: {}", snapshot_id);
@@ -398,30 +419,30 @@ impl TransactionManager {
                 return Err(anyhow!("Snapshot rollback failed: {}", e));
             }
         }
-        
+
         transaction.status = TransactionStatus::RolledBack;
         self.save_transaction(transaction).await?;
-        
+
         Ok(())
     }
-    
+
     /// Abort the current transaction without execution
     pub async fn abort_transaction(&mut self) -> Result<()> {
         if let Some(transaction) = &mut self.current_transaction {
             info!("Aborting transaction: {}", transaction.id);
             transaction.status = TransactionStatus::Failed;
             self.save_transaction(transaction).await?;
-            
+
             // Clean up snapshot if it exists
             if let Some(snapshot_id) = &transaction.rollback_snapshot_id {
                 let _ = self.snapshot_manager.delete_snapshot(snapshot_id).await;
             }
         }
-        
+
         self.current_transaction = None;
         Ok(())
     }
-    
+
     async fn execute_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
         // This would integrate with the secure executor from the boxes
         match operation.operation_type {
@@ -429,23 +450,23 @@ impl TransactionManager {
                 // Use the appropriate box manager to install
                 self.execute_install_operation(operation).await
             }
-            TransactionType::Remove => {
-                self.execute_remove_operation(operation).await
-            }
-            TransactionType::Update => {
-                self.execute_update_operation(operation).await
-            }
-            TransactionType::ManifestInstall => {
-                self.execute_install_operation(operation).await
-            }
+            TransactionType::Remove => self.execute_remove_operation(operation).await,
+            TransactionType::Update => self.execute_update_operation(operation).await,
+            TransactionType::ManifestInstall => self.execute_install_operation(operation).await,
         }
     }
-    
-    async fn execute_install_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
+
+    async fn execute_install_operation(
+        &self,
+        operation: &TransactionOperation,
+    ) -> Result<Option<String>> {
         use crate::boxes::*;
-        
-        info!("Executing install operation for {} via {}", operation.package_name, operation.box_type);
-        
+
+        info!(
+            "Executing install operation for {} via {}",
+            operation.package_name, operation.box_type
+        );
+
         match operation.box_type.as_str() {
             "apt" => {
                 let manager = apt::AptManager::new()?;
@@ -497,12 +518,18 @@ impl TransactionManager {
             }
         }
     }
-    
-    async fn execute_remove_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
+
+    async fn execute_remove_operation(
+        &self,
+        operation: &TransactionOperation,
+    ) -> Result<Option<String>> {
         use crate::boxes::*;
-        
-        info!("Executing remove operation for {} via {}", operation.package_name, operation.box_type);
-        
+
+        info!(
+            "Executing remove operation for {} via {}",
+            operation.package_name, operation.box_type
+        );
+
         match operation.box_type.as_str() {
             "apt" => {
                 let manager = apt::AptManager::new()?;
@@ -554,15 +581,21 @@ impl TransactionManager {
             }
         }
     }
-    
-    async fn execute_update_operation(&self, operation: &TransactionOperation) -> Result<Option<String>> {
+
+    async fn execute_update_operation(
+        &self,
+        operation: &TransactionOperation,
+    ) -> Result<Option<String>> {
         info!("Executing update operation for {}", operation.package_name);
         Ok(Some("1.1.0".to_string()))
     }
-    
+
     async fn rollback_operation(&self, operation: &TransactionOperation) -> Result<()> {
-        info!("Rolling back operation: {} for {}", operation.operation_type, operation.package_name);
-        
+        info!(
+            "Rolling back operation: {} for {}",
+            operation.operation_type, operation.package_name
+        );
+
         match operation.operation_type {
             TransactionType::Install => {
                 // Remove the package that was installed
@@ -576,31 +609,33 @@ impl TransactionManager {
                 // Downgrade to previous version
                 self.rollback_update_operation(operation).await
             }
-            TransactionType::ManifestInstall => {
-                self.rollback_install_operation(operation).await
-            }
+            TransactionType::ManifestInstall => self.rollback_install_operation(operation).await,
         }
     }
-    
+
     async fn rollback_install_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back install of {}", operation.package_name);
         // Use the secure executor to remove the package
         Ok(())
     }
-    
+
     async fn rollback_remove_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back removal of {}", operation.package_name);
         // Use the secure executor to reinstall the package
         Ok(())
     }
-    
+
     async fn rollback_update_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back update of {}", operation.package_name);
         // Use the secure executor to downgrade the package
         Ok(())
     }
-    
-    async fn prepare_rollback_data(&self, package_name: &str, box_type: &str) -> Result<RollbackData> {
+
+    async fn prepare_rollback_data(
+        &self,
+        package_name: &str,
+        box_type: &str,
+    ) -> Result<RollbackData> {
         // Gather information needed for rollback
         let mut rollback_data = RollbackData {
             snapshot_id: None,
@@ -608,31 +643,39 @@ impl TransactionManager {
             config_files: HashMap::new(),
             dependencies: Vec::new(),
         };
-        
+
         // Get current package version if installed
         if let Ok(installed) = self.db.get_installed_packages().await {
             if let Some(record) = installed.iter().find(|r| r.package_name == package_name) {
-                rollback_data.previous_packages.push(record.package_name.clone());
+                rollback_data
+                    .previous_packages
+                    .push(record.package_name.clone());
             }
         }
-        
+
         // Store important config files
-        let config_paths = self.get_package_config_files(package_name, box_type).await?;
+        let config_paths = self
+            .get_package_config_files(package_name, box_type)
+            .await?;
         for config_path in config_paths {
             if let Ok(content) = tokio::fs::read_to_string(&config_path).await {
                 rollback_data.config_files.insert(config_path, content);
             }
         }
-        
+
         Ok(rollback_data)
     }
-    
-    async fn get_package_config_files(&self, _package_name: &str, _box_type: &str) -> Result<Vec<String>> {
+
+    async fn get_package_config_files(
+        &self,
+        _package_name: &str,
+        _box_type: &str,
+    ) -> Result<Vec<String>> {
         // This would identify important config files for the package
         // Implementation would vary by package manager
         Ok(vec![])
     }
-    
+
     async fn save_transaction(&self, transaction: &Transaction) -> Result<()> {
         // Save transaction state to database for persistence
         let json_data = serde_json::to_string(transaction)?;
@@ -644,14 +687,16 @@ impl TransactionManager {
             TransactionStatus::Failed => "failed",
             TransactionStatus::RolledBack => "rolled_back",
         };
-        
-        let created_at = transaction.created_at
+
+        let created_at = transaction
+            .created_at
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
-        
-        let completed_at = transaction.completed_at
+
+        let completed_at = transaction
+            .completed_at
             .map(|t| t.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as i64);
-        
+
         // Create transactions table if it doesn't exist
         sqlx::query(
             r#"
@@ -669,14 +714,14 @@ impl TransactionManager {
         )
         .execute(&self.db.pool)
         .await?;
-        
+
         let transaction_type_str = match transaction.transaction_type {
             TransactionType::Install => "install",
             TransactionType::Remove => "remove",
             TransactionType::Update => "update",
             TransactionType::ManifestInstall => "manifest_install",
         };
-        
+
         // Insert or update transaction
         sqlx::query(
             r#"
@@ -695,41 +740,37 @@ impl TransactionManager {
         .bind(&json_data)
         .execute(&self.db.pool)
         .await?;
-        
+
         Ok(())
     }
-    
+
     /// Get transaction history
     pub async fn get_transaction_history(&self, limit: Option<usize>) -> Result<Vec<Transaction>> {
         let limit = limit.unwrap_or(50) as i64;
-        
-        let rows = sqlx::query(
-            "SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?1"
-        )
-        .bind(limit)
-        .fetch_all(&self.db.pool)
-        .await?;
-        
+
+        let rows = sqlx::query("SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?1")
+            .bind(limit)
+            .fetch_all(&self.db.pool)
+            .await?;
+
         let mut transactions = Vec::new();
-        
+
         for row in rows {
             let operations_json: String = row.get("operations_json");
             let transaction: Transaction = serde_json::from_str(&operations_json)?;
             transactions.push(transaction);
         }
-        
+
         Ok(transactions)
     }
-    
+
     /// Get details of a specific transaction
     pub async fn get_transaction(&self, transaction_id: &str) -> Result<Option<Transaction>> {
-        let row = sqlx::query(
-            "SELECT operations_json FROM transactions WHERE id = ?1"
-        )
-        .bind(transaction_id)
-        .fetch_optional(&self.db.pool)
-        .await?;
-        
+        let row = sqlx::query("SELECT operations_json FROM transactions WHERE id = ?1")
+            .bind(transaction_id)
+            .fetch_optional(&self.db.pool)
+            .await?;
+
         if let Some(row) = row {
             let operations_json: String = row.get("operations_json");
             let transaction: Transaction = serde_json::from_str(&operations_json)?;
@@ -740,12 +781,11 @@ impl TransactionManager {
     }
 }
 
-
 impl TransactionResult {
     pub fn is_successful(&self) -> bool {
         matches!(self.status, TransactionStatus::Completed)
     }
-    
+
     pub fn is_rolled_back(&self) -> bool {
         matches!(self.status, TransactionStatus::RolledBack)
     }
@@ -754,47 +794,50 @@ impl TransactionResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_transaction_lifecycle() {
         let mut tm = TransactionManager::new().await.unwrap();
-        
+
         // Begin transaction
-        let tx_id = tm.begin_transaction(
-            TransactionType::Install,
-            "Test transaction".to_string()
-        ).await.unwrap();
-        
+        let tx_id = tm
+            .begin_transaction(TransactionType::Install, "Test transaction".to_string())
+            .await
+            .unwrap();
+
         assert!(tm.current_transaction.is_some());
-        
+
         // Add operation
-        let op_id = tm.add_operation(
-            TransactionType::Install,
-            "test-package".to_string(),
-            "apt".to_string(),
-            None
-        ).await.unwrap();
-        
+        let op_id = tm
+            .add_operation(
+                TransactionType::Install,
+                "test-package".to_string(),
+                "apt".to_string(),
+                None,
+            )
+            .await
+            .unwrap();
+
         assert!(!op_id.is_empty());
-        
+
         // Abort transaction
         tm.abort_transaction().await.unwrap();
         assert!(tm.current_transaction.is_none());
     }
-    
+
     #[tokio::test]
     async fn test_transaction_persistence() {
         let mut tm = TransactionManager::new().await.unwrap();
-        
-        let tx_id = tm.begin_transaction(
-            TransactionType::Install,
-            "Persistence test".to_string()
-        ).await.unwrap();
-        
+
+        let tx_id = tm
+            .begin_transaction(TransactionType::Install, "Persistence test".to_string())
+            .await
+            .unwrap();
+
         // Transaction should be retrievable
         let retrieved = tm.get_transaction(&tx_id).await.unwrap();
         assert!(retrieved.is_some());
-        
+
         tm.abort_transaction().await.unwrap();
     }
 }

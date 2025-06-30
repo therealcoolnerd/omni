@@ -1,53 +1,59 @@
-use anyhow::{Result, anyhow};
-use thiserror::Error;
+use anyhow::{anyhow, Result};
 use std::fmt;
 use std::time::Duration;
+use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{error, warn, info};
+use tracing::{error, info, warn};
 
 /// Comprehensive error types for Omni
 #[derive(Error, Debug, Clone)]
 pub enum OmniError {
     #[error("Package not found: {package}")]
     PackageNotFound { package: String },
-    
+
     #[error("Box type not supported: {box_type}")]
     UnsupportedBoxType { box_type: String },
-    
+
     #[error("Network error: {message}")]
-    NetworkError { message: String, url: Option<String> },
-    
+    NetworkError {
+        message: String,
+        url: Option<String>,
+    },
+
     #[error("Database error: {message}")]
     DatabaseError { message: String },
-    
+
     #[error("Permission denied: {operation}")]
     PermissionDenied { operation: String },
-    
+
     #[error("Installation failed: {package} via {box_type}: {reason}")]
-    InstallationFailed { 
-        package: String, 
-        box_type: String, 
-        reason: String 
+    InstallationFailed {
+        package: String,
+        box_type: String,
+        reason: String,
     },
-    
+
     #[error("Configuration error: {message}")]
     ConfigurationError { message: String },
-    
+
     #[error("Security violation: {message}")]
     SecurityViolation { message: String },
-    
+
     #[error("Resource exhausted: {resource}")]
     ResourceExhausted { resource: String },
-    
+
     #[error("Timeout occurred: {operation} after {duration:?}")]
-    TimeoutError { operation: String, duration: Duration },
-    
+    TimeoutError {
+        operation: String,
+        duration: Duration,
+    },
+
     #[error("Validation error: {field}: {message}")]
     ValidationError { field: String, message: String },
-    
+
     #[error("Recovery failed: {message}")]
     RecoveryFailed { message: String },
-    
+
     #[error("Unknown error: {message}")]
     Unknown { message: String },
 }
@@ -71,7 +77,7 @@ impl OmniError {
             OmniError::Unknown { .. } => false,
         }
     }
-    
+
     /// Get the severity level of the error
     pub fn severity(&self) -> ErrorSeverity {
         match self {
@@ -90,7 +96,7 @@ impl OmniError {
             OmniError::Unknown { .. } => ErrorSeverity::Medium,
         }
     }
-    
+
     /// Get suggested recovery actions
     pub fn recovery_suggestions(&self) -> Vec<String> {
         match self {
@@ -206,7 +212,7 @@ impl RetryConfig {
             jitter: true,
         }
     }
-    
+
     pub fn new_database() -> Self {
         Self {
             max_attempts: 3,
@@ -216,7 +222,7 @@ impl RetryConfig {
             jitter: false,
         }
     }
-    
+
     pub fn new_critical() -> Self {
         Self {
             max_attempts: 1,
@@ -238,7 +244,7 @@ impl RetryHandler {
     pub fn new(config: RetryConfig) -> Self {
         Self { config }
     }
-    
+
     /// Execute a function with retry logic
     pub async fn execute<F, Fut, T, E>(&self, mut operation: F) -> Result<T, E>
     where
@@ -247,7 +253,7 @@ impl RetryHandler {
         E: std::fmt::Debug + Clone,
     {
         let mut last_error = None;
-        
+
         for attempt in 1..=self.config.max_attempts {
             match operation().await {
                 Ok(result) => {
@@ -259,7 +265,7 @@ impl RetryHandler {
                 Err(error) => {
                     warn!("Operation failed on attempt {}: {:?}", attempt, error);
                     last_error = Some(error.clone());
-                    
+
                     if attempt < self.config.max_attempts {
                         let delay = self.calculate_delay(attempt);
                         info!("Retrying in {:?}", delay);
@@ -268,29 +274,33 @@ impl RetryHandler {
                 }
             }
         }
-        
-        error!("Operation failed after {} attempts", self.config.max_attempts);
-        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown error occurred during retry attempts")))
+
+        error!(
+            "Operation failed after {} attempts",
+            self.config.max_attempts
+        );
+        Err(last_error
+            .unwrap_or_else(|| anyhow::anyhow!("Unknown error occurred during retry attempts")))
     }
-    
+
     fn calculate_delay(&self, attempt: usize) -> Duration {
-        let exponential_delay = self.config.base_delay.as_millis() as f64 
+        let exponential_delay = self.config.base_delay.as_millis() as f64
             * self.config.backoff_multiplier.powi(attempt as i32 - 1);
-        
+
         let mut delay = Duration::from_millis(exponential_delay as u64);
-        
+
         // Cap at max delay
         if delay > self.config.max_delay {
             delay = self.config.max_delay;
         }
-        
+
         // Add jitter to avoid thundering herd
         if self.config.jitter {
             use rand::Rng;
             let jitter_factor = rand::thread_rng().gen_range(0.8..1.2);
             delay = Duration::from_millis((delay.as_millis() as f64 * jitter_factor) as u64);
         }
-        
+
         delay
     }
 }
@@ -307,8 +317,8 @@ pub struct CircuitBreaker {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum CircuitState {
-    Closed,  // Normal operation
-    Open,    // Rejecting requests
+    Closed,   // Normal operation
+    Open,     // Rejecting requests
     HalfOpen, // Testing if service is recovered
 }
 
@@ -322,7 +332,7 @@ impl CircuitBreaker {
             state: std::sync::Arc::new(std::sync::Mutex::new(CircuitState::Closed)),
         }
     }
-    
+
     /// Execute operation through circuit breaker
     pub async fn execute<F, Fut, T, E>(&self, operation: F) -> Result<T, E>
     where
@@ -334,7 +344,7 @@ impl CircuitBreaker {
         if self.is_open() {
             return Err(self.create_circuit_open_error());
         }
-        
+
         match operation().await {
             Ok(result) => {
                 self.on_success();
@@ -346,7 +356,7 @@ impl CircuitBreaker {
             }
         }
     }
-    
+
     fn is_open(&self) -> bool {
         let state = match self.state.lock() {
             Ok(state) => *state,
@@ -355,7 +365,7 @@ impl CircuitBreaker {
                 return true;
             }
         };
-        
+
         match state {
             CircuitState::Closed => false,
             CircuitState::Open => {
@@ -376,12 +386,12 @@ impl CircuitBreaker {
             CircuitState::HalfOpen => false,
         }
     }
-    
+
     fn on_success(&self) {
         if let Ok(mut failure_count) = self.failure_count.lock() {
             *failure_count = 0;
         }
-        
+
         if let Ok(mut state) = self.state.lock() {
             match *state {
                 CircuitState::HalfOpen => {
@@ -392,15 +402,15 @@ impl CircuitBreaker {
             }
         }
     }
-    
+
     fn on_failure(&self) {
         if let Ok(mut failure_count) = self.failure_count.lock() {
             *failure_count += 1;
-            
+
             if let Ok(mut last_failure_time) = self.last_failure_time.lock() {
                 *last_failure_time = Some(std::time::Instant::now());
             }
-            
+
             if *failure_count >= self.failure_threshold {
                 if let Ok(mut state) = self.state.lock() {
                     if *state != CircuitState::Open {
@@ -411,9 +421,9 @@ impl CircuitBreaker {
             }
         }
     }
-    
-    fn create_circuit_open_error<E>(&self) -> E 
-    where 
+
+    fn create_circuit_open_error<E>(&self) -> E
+    where
         E: From<anyhow::Error>,
     {
         E::from(anyhow!("Circuit breaker is open"))
@@ -433,14 +443,14 @@ impl RecoveryManager {
             circuit_breaker: CircuitBreaker::new(5, Duration::from_secs(60)),
         }
     }
-    
+
     pub fn new_with_config(retry_config: RetryConfig) -> Self {
         Self {
             retry_handler: RetryHandler::new(retry_config),
             circuit_breaker: CircuitBreaker::new(5, Duration::from_secs(60)),
         }
     }
-    
+
     /// Execute operation with full recovery capabilities
     pub async fn execute_with_recovery<F, Fut, T>(&self, operation: F) -> Result<T>
     where
@@ -450,71 +460,61 @@ impl RecoveryManager {
     {
         let circuit_operation = || {
             let mut op = operation.clone();
-            async move {
-                self.retry_handler.execute(|| op()).await
-            }
+            async move { self.retry_handler.execute(|| op()).await }
         };
-        
+
         self.circuit_breaker.execute(circuit_operation).await
     }
-    
+
     /// Attempt to recover from a failed operation
     pub async fn attempt_recovery(&self, error: &OmniError) -> Result<()> {
         info!("Attempting recovery for error: {}", error);
-        
+
         match error {
-            OmniError::DatabaseError { .. } => {
-                self.recover_database().await
-            }
-            OmniError::NetworkError { .. } => {
-                self.recover_network().await
-            }
-            OmniError::ConfigurationError { .. } => {
-                self.recover_configuration().await
-            }
-            OmniError::ResourceExhausted { resource } => {
-                self.recover_resources(resource).await
-            }
+            OmniError::DatabaseError { .. } => self.recover_database().await,
+            OmniError::NetworkError { .. } => self.recover_network().await,
+            OmniError::ConfigurationError { .. } => self.recover_configuration().await,
+            OmniError::ResourceExhausted { resource } => self.recover_resources(resource).await,
             _ => {
                 warn!("No specific recovery method for error type: {}", error);
                 Ok(())
             }
         }
     }
-    
+
     async fn recover_database(&self) -> Result<()> {
         info!("Attempting database recovery");
-        
+
         // Check database file permissions
         // Attempt to reconnect
         // Clear corrupted cache if necessary
-        
+
         Ok(())
     }
-    
+
     async fn recover_network(&self) -> Result<()> {
         info!("Attempting network recovery");
-        
+
         // Test connectivity
         // Reset network configuration if needed
         // Switch to backup repositories
-        
+
         Ok(())
     }
-    
+
     async fn recover_configuration(&self) -> Result<()> {
         info!("Attempting configuration recovery");
-        
+
         // Validate configuration
         // Reset to defaults if corrupted
         // Backup and restore previous working config
-        
+
         Ok(())
     }
-    
+
     async fn recover_resources(&self, resource: &str) -> Result<()> {
         info!("Attempting resource recovery for: {}", resource);
-        
+
         match resource {
             "disk" => {
                 // Clean temporary files
@@ -530,7 +530,7 @@ impl RecoveryManager {
                 warn!("Unknown resource type for recovery: {}", resource);
             }
         }
-        
+
         Ok(())
     }
 }
@@ -542,27 +542,29 @@ mod tests {
 
     #[test]
     fn test_omni_error_retryable() {
-        assert!(OmniError::NetworkError { 
-            message: "timeout".to_string(), 
-            url: None 
-        }.is_retryable());
-        
-        assert!(!OmniError::ValidationError { 
-            field: "package".to_string(), 
-            message: "invalid".to_string() 
-        }.is_retryable());
+        assert!(OmniError::NetworkError {
+            message: "timeout".to_string(),
+            url: None
+        }
+        .is_retryable());
+
+        assert!(!OmniError::ValidationError {
+            field: "package".to_string(),
+            message: "invalid".to_string()
+        }
+        .is_retryable());
     }
 
     #[test]
     fn test_error_severity() {
-        let security_error = OmniError::SecurityViolation { 
-            message: "untrusted package".to_string() 
+        let security_error = OmniError::SecurityViolation {
+            message: "untrusted package".to_string(),
         };
         assert_eq!(security_error.severity(), ErrorSeverity::Critical);
-        
-        let network_error = OmniError::NetworkError { 
-            message: "timeout".to_string(), 
-            url: None 
+
+        let network_error = OmniError::NetworkError {
+            message: "timeout".to_string(),
+            url: None,
         };
         assert_eq!(network_error.severity(), ErrorSeverity::Medium);
     }
@@ -572,7 +574,7 @@ mod tests {
         let config = RetryConfig::new_network();
         assert_eq!(config.max_attempts, 5);
         assert!(config.jitter);
-        
+
         let critical_config = RetryConfig::new_critical();
         assert_eq!(critical_config.max_attempts, 1);
     }
@@ -581,18 +583,20 @@ mod tests {
     async fn test_retry_handler_success() {
         let handler = RetryHandler::new(RetryConfig::default());
         let mut attempt_count = 0;
-        
-        let result = handler.execute(|| {
-            attempt_count += 1;
-            async move {
-                if attempt_count < 2 {
-                    Err("temporary failure")
-                } else {
-                    Ok("success")
+
+        let result = handler
+            .execute(|| {
+                attempt_count += 1;
+                async move {
+                    if attempt_count < 2 {
+                        Err("temporary failure")
+                    } else {
+                        Ok("success")
+                    }
                 }
-            }
-        }).await;
-        
+            })
+            .await;
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "success");
         assert_eq!(attempt_count, 2);
@@ -607,17 +611,17 @@ mod tests {
             backoff_multiplier: 2.0,
             jitter: false,
         };
-        
+
         let handler = RetryHandler::new(config);
         let mut attempt_count = 0;
-        
-        let result = handler.execute(|| {
-            attempt_count += 1;
-            async move {
-                Err("persistent failure")
-            }
-        }).await;
-        
+
+        let result = handler
+            .execute(|| {
+                attempt_count += 1;
+                async move { Err("persistent failure") }
+            })
+            .await;
+
         assert!(result.is_err());
         assert_eq!(attempt_count, 2);
     }
@@ -632,7 +636,7 @@ mod tests {
     fn test_recovery_manager_creation() {
         let rm = RecoveryManager::new();
         // Should create without panic
-        
+
         let custom_rm = RecoveryManager::new_with_config(RetryConfig::new_network());
         // Should create with custom config
     }

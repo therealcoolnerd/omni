@@ -1,9 +1,9 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
-use crate::error_handling::OmniError;
 use crate::distro::PackageManager;
+use crate::error_handling::OmniError;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
-use tracing::{info, error};
 use std::time::Duration;
+use tracing::{error, info};
 
 pub struct SnapBox {
     executor: SecureExecutor,
@@ -15,7 +15,7 @@ impl SnapBox {
             executor: SecureExecutor::new()?,
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("snap")
             .arg("--version")
@@ -29,19 +29,18 @@ impl PackageManager for SnapBox {
     fn install(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Installing '{}' via snap", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true, // Snap typically requires sudo for installation
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &["install", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &["install", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Snap successfully installed '{}'", package);
                 Ok(())
@@ -51,27 +50,27 @@ impl PackageManager for SnapBox {
                     package: package.to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Removing '{}' via snap", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(300),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &["remove", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &["remove", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Snap successfully removed '{}'", package);
                 Ok(())
@@ -81,34 +80,34 @@ impl PackageManager for SnapBox {
                     package: package.to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             let mut args = vec!["refresh"];
-            
+
             if let Some(pkg) = package {
                 args.push(pkg);
                 info!("Updating '{}' via snap", pkg);
             } else {
                 info!("Updating all packages via snap");
             }
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(1800), // 30 minutes for updates
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &args,
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &args, config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Snap update completed successfully");
                 Ok(())
@@ -118,29 +117,30 @@ impl PackageManager for SnapBox {
                     package: package.unwrap_or("all").to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Searching for '{}' via snap", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false, // Search doesn't require sudo
                 timeout: Duration::from_secs(120),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &["find", query],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &["find", query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(1) // Skip header line
                     .filter_map(|line| {
@@ -155,29 +155,30 @@ impl PackageManager for SnapBox {
                     package: query.to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Listing installed packages via snap");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &["list"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &["list"], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(1) // Skip header line
                     .filter_map(|line| {
@@ -192,27 +193,27 @@ impl PackageManager for SnapBox {
                     package: "list".to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Getting info for '{}' via snap", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "snap",
-                &["info", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("snap", &["info", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
@@ -221,19 +222,20 @@ impl PackageManager for SnapBox {
                     package: package.to_string(),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         true // Snap requires sudo for install/remove operations
     }
-    
+
     fn get_name(&self) -> &'static str {
         "snap"
     }
-    
+
     fn get_priority(&self) -> u8 {
         60 // Medium priority for Ubuntu systems
     }

@@ -1,10 +1,10 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
-use crate::error_handling::OmniError;
-use anyhow::{Result, anyhow};
-use tracing::{info, error};
-use std::time::Duration;
 use crate::distro::PackageManager;
+use crate::error_handling::OmniError;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use anyhow::{anyhow, Result};
 use std::process::Command;
+use std::time::Duration;
+use tracing::{error, info};
 
 pub struct ChocolateyBox {
     executor: SecureExecutor,
@@ -16,7 +16,7 @@ impl ChocolateyBox {
             executor: SecureExecutor::new()?,
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("choco")
             .arg("--version")
@@ -30,67 +30,73 @@ impl PackageManager for ChocolateyBox {
     fn install(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Installing '{}' via chocolatey", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true, // Chocolatey requires admin
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &["install", package, "-y"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &["install", package, "-y"], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Chocolatey successfully installed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Chocolatey failed to install '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Chocolatey failed to install '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Removing '{}' via chocolatey", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &["uninstall", package, "-y"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &["uninstall", package, "-y"], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Chocolatey successfully removed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Chocolatey failed to remove '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Chocolatey failed to remove '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             let mut args = vec!["upgrade"];
-            
+
             if let Some(pkg) = package {
                 args.push(pkg);
                 info!("Updating '{}' via chocolatey", pkg);
@@ -99,19 +105,18 @@ impl PackageManager for ChocolateyBox {
                 info!("Updating all packages via chocolatey");
             }
             args.push("-y");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(1800), // 30 minutes for updates
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &args,
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &args, config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Chocolatey update completed successfully");
                 Ok(())
@@ -121,29 +126,30 @@ impl PackageManager for ChocolateyBox {
                     package: package.unwrap_or("all").to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Searching for '{}' via chocolatey", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false, // Search doesn't require admin
                 timeout: Duration::from_secs(120),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &["search", query],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &["search", query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .filter_map(|line| {
                         if line.contains(" | ") && !line.starts_with("Chocolatey") {
@@ -165,32 +171,36 @@ impl PackageManager for ChocolateyBox {
                     package: query.to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Listing installed packages via chocolatey");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &["list", "--local-only"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &["list", "--local-only"], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .filter_map(|line| {
-                        if line.contains(" ") && !line.starts_with("Chocolatey") && !line.contains("packages installed") {
+                        if line.contains(" ")
+                            && !line.starts_with("Chocolatey")
+                            && !line.contains("packages installed")
+                        {
                             let parts: Vec<&str> = line.split_whitespace().collect();
                             if !parts.is_empty() {
                                 Some(parts[0].to_string())
@@ -209,48 +219,52 @@ impl PackageManager for ChocolateyBox {
                     package: "list".to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Getting info for '{}' via chocolatey", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "choco",
-                &["info", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("choco", &["info", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
-                error!("❌ Chocolatey info failed for '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Chocolatey info failed for '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "chocolatey".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         true // Chocolatey typically requires admin privileges
     }
-    
+
     fn get_name(&self) -> &'static str {
         "chocolatey"
     }
-    
+
     fn get_priority(&self) -> u8 {
         70 // Medium-high priority for Windows systems
     }

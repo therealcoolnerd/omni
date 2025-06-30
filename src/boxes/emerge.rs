@@ -1,9 +1,9 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
-use crate::error_handling::OmniError;
-use anyhow::Result;
-use tracing::{info, error};
-use std::time::Duration;
 use crate::distro::PackageManager;
+use crate::error_handling::OmniError;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use anyhow::Result;
+use std::time::Duration;
+use tracing::{error, info};
 
 /// Secure Emerge package manager wrapper for Gentoo
 pub struct EmergeBox {
@@ -16,7 +16,7 @@ impl EmergeBox {
             executor: SecureExecutor::new()?,
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("emerge")
             .arg("--version")
@@ -30,63 +30,69 @@ impl PackageManager for EmergeBox {
     fn install(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Installing '{}' via emerge", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(3600), // 1 hour for compilation
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "emerge",
-                &["--ask", "n", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("emerge", &["--ask", "n", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Emerge successfully installed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Emerge failed to install '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Emerge failed to install '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "emerge".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Removing '{}' via emerge", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: true,
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "emerge",
-                &["--unmerge", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("emerge", &["--unmerge", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Emerge successfully removed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Emerge failed to remove '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Emerge failed to remove '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "emerge".to_string(),
                     reason: format!("Remove failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             if let Some(pkg) = package {
@@ -97,13 +103,12 @@ impl PackageManager for EmergeBox {
                     timeout: Duration::from_secs(3600), // 1 hour for compilation
                     ..ExecutionConfig::default()
                 };
-                
-                let result = self.executor.execute_package_command(
-                    "emerge",
-                    &["--update", "--ask", "n", pkg],
-                    config
-                ).await?;
-                
+
+                let result = self
+                    .executor
+                    .execute_package_command("emerge", &["--update", "--ask", "n", pkg], config)
+                    .await?;
+
                 if result.exit_code == 0 {
                     info!("✅ Emerge upgrade completed successfully");
                     Ok(())
@@ -113,7 +118,8 @@ impl PackageManager for EmergeBox {
                         package: pkg.to_string(),
                         box_type: "emerge".to_string(),
                         reason: format!("Update failed: {}", result.stderr),
-                    }.into())
+                    }
+                    .into())
                 }
             } else {
                 // Full system update
@@ -123,13 +129,16 @@ impl PackageManager for EmergeBox {
                     timeout: Duration::from_secs(7200), // 2 hours for world update
                     ..ExecutionConfig::default()
                 };
-                
-                let result = self.executor.execute_package_command(
-                    "emerge",
-                    &["--update", "--deep", "--newuse", "--ask", "n", "@world"],
-                    config
-                ).await?;
-                
+
+                let result = self
+                    .executor
+                    .execute_package_command(
+                        "emerge",
+                        &["--update", "--deep", "--newuse", "--ask", "n", "@world"],
+                        config,
+                    )
+                    .await?;
+
                 if result.exit_code == 0 {
                     info!("✅ Emerge world update completed successfully");
                     Ok(())
@@ -139,30 +148,31 @@ impl PackageManager for EmergeBox {
                         package: "world".to_string(),
                         box_type: "emerge".to_string(),
                         reason: format!("Update failed: {}", result.stderr),
-                    }.into())
+                    }
+                    .into())
                 }
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Searching for '{}' via emerge", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "emerge",
-                &["--search", query],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("emerge", &["--search", query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .filter_map(|line| {
                         if line.starts_with("*  ") {
@@ -170,7 +180,10 @@ impl PackageManager for EmergeBox {
                             let name = line.trim_start_matches("*  ");
                             if let Some(category_package) = name.split_whitespace().next() {
                                 if category_package.contains("/") {
-                                    let pkg_name = category_package.split('/').nth(1).unwrap_or(category_package);
+                                    let pkg_name = category_package
+                                        .split('/')
+                                        .nth(1)
+                                        .unwrap_or(category_package);
                                     Some(pkg_name.to_string())
                                 } else {
                                     Some(category_package.to_string())
@@ -183,7 +196,7 @@ impl PackageManager for EmergeBox {
                         }
                     })
                     .collect();
-                
+
                 info!("✅ Found {} packages matching '{}'", packages.len(), query);
                 Ok(packages)
             } else {
@@ -192,38 +205,36 @@ impl PackageManager for EmergeBox {
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Listing installed packages via emerge");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
+
             // Use qlist from portage-utils which is faster
-            let result = self.executor.execute_package_command(
-                "qlist",
-                &["-I"],
-                config.clone()
-            ).await;
-            
+            let result = self
+                .executor
+                .execute_package_command("qlist", &["-I"], config.clone())
+                .await;
+
             let result = match result {
                 Ok(r) => r,
                 Err(_) => {
                     // Fallback to emerge if qlist is not available
-                    self.executor.execute_package_command(
-                        "emerge",
-                        &["--list"],
-                        config
-                    ).await?
+                    self.executor
+                        .execute_package_command("emerge", &["--list"], config)
+                        .await?
                 }
             };
-            
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .filter_map(|line| {
                         let trimmed = line.trim();
@@ -245,45 +256,46 @@ impl PackageManager for EmergeBox {
                     package: "list".to_string(),
                     box_type: "emerge".to_string(),
                     reason: format!("List failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Getting info for package '{}'", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(30),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "emerge",
-                &["--info", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("emerge", &["--info", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
                 Err(OmniError::PackageNotFound {
                     package: package.to_string(),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         true
     }
-    
+
     fn get_name(&self) -> &'static str {
         "emerge"
     }
-    
+
     fn get_priority(&self) -> u8 {
         80 // High priority for Gentoo systems
     }

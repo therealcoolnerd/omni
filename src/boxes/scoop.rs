@@ -1,6 +1,6 @@
-use std::process::Command;
-use anyhow::{Result, anyhow};
 use crate::distro::PackageManager;
+use anyhow::{anyhow, Result};
+use std::process::Command;
 
 pub struct ScoopBox;
 
@@ -8,7 +8,7 @@ impl ScoopBox {
     pub fn new() -> Result<Self> {
         Ok(ScoopBox)
     }
-    
+
     pub fn is_available() -> bool {
         Command::new("scoop")
             .arg("--version")
@@ -20,10 +20,8 @@ impl ScoopBox {
 
 impl PackageManager for ScoopBox {
     fn install(&self, package: &str) -> Result<()> {
-        let output = Command::new("scoop")
-            .args(&["install", package])
-            .output()?;
-            
+        let output = Command::new("scoop").args(&["install", package]).output()?;
+
         if output.status.success() {
             Ok(())
         } else {
@@ -31,12 +29,12 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop install failed: {}", stderr))
         }
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         let output = Command::new("scoop")
             .args(&["uninstall", package])
             .output()?;
-            
+
         if output.status.success() {
             Ok(())
         } else {
@@ -44,26 +42,22 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop uninstall failed: {}", stderr))
         }
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         // First update scoop itself and buckets
-        let _ = Command::new("scoop")
-            .args(&["update"])
-            .output()?;
-            
+        let _ = Command::new("scoop").args(&["update"]).output()?;
+
         // Then update packages
         let mut args = vec!["update"];
-        
+
         if let Some(pkg) = package {
             args.push(pkg);
         } else {
             args.push("*");
         }
-        
-        let output = Command::new("scoop")
-            .args(&args)
-            .output()?;
-            
+
+        let output = Command::new("scoop").args(&args).output()?;
+
         if output.status.success() {
             Ok(())
         } else {
@@ -71,12 +65,10 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop update failed: {}", stderr))
         }
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        let output = Command::new("scoop")
-            .args(&["search", query])
-            .output()?;
-            
+        let output = Command::new("scoop").args(&["search", query]).output()?;
+
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let packages: Vec<String> = stdout
@@ -112,19 +104,20 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop search failed: {}", stderr))
         }
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
-        let output = Command::new("scoop")
-            .args(&["list"])
-            .output()?;
-            
+        let output = Command::new("scoop").args(&["list"]).output()?;
+
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let packages: Vec<String> = stdout
                 .lines()
                 .filter_map(|line| {
                     let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() >= 2 && !line.starts_with("Installed") && !line.starts_with("Name") {
+                    if parts.len() >= 2
+                        && !line.starts_with("Installed")
+                        && !line.starts_with("Name")
+                    {
                         Some(parts[0].to_string())
                     } else {
                         None
@@ -137,12 +130,10 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop list failed: {}", stderr))
         }
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
-        let output = Command::new("scoop")
-            .args(&["info", package])
-            .output()?;
-            
+        let output = Command::new("scoop").args(&["info", package]).output()?;
+
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
@@ -150,15 +141,15 @@ impl PackageManager for ScoopBox {
             Err(anyhow!("scoop info failed: {}", stderr))
         }
     }
-    
+
     fn needs_privilege(&self) -> bool {
         false // Scoop doesn't require admin privileges
     }
-    
+
     fn get_name(&self) -> &'static str {
         "scoop"
     }
-    
+
     fn get_priority(&self) -> u8 {
         60 // Medium priority for Windows systems
     }

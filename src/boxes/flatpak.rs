@@ -1,9 +1,9 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
-use crate::error_handling::OmniError;
 use crate::distro::PackageManager;
+use crate::error_handling::OmniError;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
-use tracing::{info, error};
 use std::time::Duration;
+use tracing::{error, info};
 
 pub struct FlatpakBox {
     executor: SecureExecutor,
@@ -15,7 +15,7 @@ impl FlatpakBox {
             executor: SecureExecutor::new()?,
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("flatpak")
             .arg("--version")
@@ -29,86 +29,91 @@ impl PackageManager for FlatpakBox {
     fn install(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Installing '{}' via flatpak", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false, // Flatpak typically doesn't require sudo for user installations
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &["install", "-y", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &["install", "-y", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Flatpak successfully installed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Flatpak failed to install '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Flatpak failed to install '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Removing '{}' via flatpak", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(300),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &["uninstall", "-y", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &["uninstall", "-y", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Flatpak successfully removed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Flatpak failed to remove '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Flatpak failed to remove '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             let mut args = vec!["update", "-y"];
-            
+
             if let Some(pkg) = package {
                 args.push(pkg);
                 info!("Updating '{}' via flatpak", pkg);
             } else {
                 info!("Updating all packages via flatpak");
             }
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(1800), // 30 minutes for updates
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &args,
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &args, config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Flatpak update completed successfully");
                 Ok(())
@@ -118,29 +123,30 @@ impl PackageManager for FlatpakBox {
                     package: package.unwrap_or("all").to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Searching for '{}' via flatpak", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(120),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &["search", query],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &["search", query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(1) // Skip header line
                     .filter_map(|line| {
@@ -160,29 +166,30 @@ impl PackageManager for FlatpakBox {
                     package: query.to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Listing installed packages via flatpak");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &["list", "--app"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &["list", "--app"], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(1) // Skip header line
                     .filter_map(|line| {
@@ -202,48 +209,52 @@ impl PackageManager for FlatpakBox {
                     package: "list".to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Getting info for '{}' via flatpak", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "flatpak",
-                &["info", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("flatpak", &["info", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
-                error!("❌ Flatpak info failed for '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Flatpak info failed for '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "flatpak".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         false // Flatpak typically doesn't require sudo for user installations
     }
-    
+
     fn get_name(&self) -> &'static str {
         "flatpak"
     }
-    
+
     fn get_priority(&self) -> u8 {
         50 // Medium priority for Linux systems with Flatpak
     }

@@ -1,10 +1,10 @@
+use chrono::Utc;
 use omni::*;
-use tempfile::{TempDir, NamedTempFile};
 use std::fs;
 use std::io::Write;
-use chrono::Utc;
-use uuid::Uuid;
+use tempfile::{NamedTempFile, TempDir};
 use tokio_test;
+use uuid::Uuid;
 
 #[cfg(test)]
 mod config_tests {
@@ -14,7 +14,7 @@ mod config_tests {
     #[test]
     fn test_config_default_values() {
         let config = OmniConfig::default();
-        
+
         // Test general config defaults
         assert_eq!(config.general.auto_update, false);
         assert_eq!(config.general.parallel_installs, true);
@@ -22,18 +22,21 @@ mod config_tests {
         assert_eq!(config.general.confirm_installs, true);
         assert_eq!(config.general.log_level, "info");
         assert_eq!(config.general.fallback_enabled, true);
-        
+
         // Test box config defaults
         assert_eq!(config.boxes.preferred_order[0], "apt");
         assert_eq!(config.boxes.disabled_boxes.len(), 0);
         assert!(config.boxes.apt_options.contains(&"-y".to_string()));
-        
+
         // Test security config defaults
         assert_eq!(config.security.verify_signatures, true);
         assert_eq!(config.security.verify_checksums, true);
         assert_eq!(config.security.allow_untrusted, false);
-        assert!(config.security.signature_servers.contains(&"keyserver.ubuntu.com".to_string()));
-        
+        assert!(config
+            .security
+            .signature_servers
+            .contains(&"keyserver.ubuntu.com".to_string()));
+
         // Test UI config defaults
         assert_eq!(config.ui.show_progress, true);
         assert_eq!(config.ui.use_colors, true);
@@ -46,7 +49,7 @@ mod config_tests {
         let serialized = serde_yaml::to_string(&config).unwrap();
         assert!(serialized.contains("general:"));
         assert!(serialized.contains("auto_update: false"));
-        
+
         let deserialized: OmniConfig = serde_yaml::from_str(&serialized).unwrap();
         assert_eq!(deserialized.general.auto_update, config.general.auto_update);
     }
@@ -54,11 +57,11 @@ mod config_tests {
     #[test]
     fn test_config_box_enabled() {
         let mut config = OmniConfig::default();
-        
+
         // Test box is enabled by default
         assert!(config.is_box_enabled("apt"));
         assert!(config.is_box_enabled("dnf"));
-        
+
         // Test disabling a box
         config.boxes.disabled_boxes.push("apt".to_string());
         assert!(!config.is_box_enabled("apt"));
@@ -68,7 +71,7 @@ mod config_tests {
     #[test]
     fn test_config_box_priority() {
         let config = OmniConfig::default();
-        
+
         assert_eq!(config.get_box_priority("apt"), Some(0));
         assert_eq!(config.get_box_priority("dnf"), Some(1));
         assert_eq!(config.get_box_priority("pacman"), Some(2));
@@ -78,13 +81,13 @@ mod config_tests {
     #[test]
     fn test_config_save_load_roundtrip() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create a custom config
         let mut config = OmniConfig::default();
         config.general.auto_update = true;
         config.general.max_parallel_jobs = 8;
         config.boxes.disabled_boxes.push("snap".to_string());
-        
+
         // Test that we can't load from non-existent config path currently
         // This tests the create-if-not-exists behavior
         let config_path = temp_dir.path().join("omni").join("config.yaml");
@@ -95,10 +98,10 @@ mod config_tests {
     fn test_config_invalid_yaml() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yaml");
-        
+
         // Write invalid YAML
         fs::write(&config_path, "invalid: yaml: [unclosed").unwrap();
-        
+
         // Should fail to parse
         let content = fs::read_to_string(&config_path).unwrap();
         let result: Result<OmniConfig, _> = serde_yaml::from_str(&content);
@@ -143,7 +146,7 @@ mod database_tests {
         for status in statuses {
             let serialized = serde_json::to_string(&status).unwrap();
             let deserialized: InstallStatus = serde_json::from_str(&serialized).unwrap();
-            
+
             match (&status, &deserialized) {
                 (InstallStatus::Success, InstallStatus::Success) => (),
                 (InstallStatus::Failed, InstallStatus::Failed) => (),
@@ -221,7 +224,7 @@ mod manifest_tests {
     fn test_manifest_parsing_valid() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("test.yaml");
-        
+
         let manifest_content = r#"
 project: "Test Project"
 description: "Test manifest for unit tests"
@@ -238,22 +241,25 @@ meta:
   created_on: "2024-01-01"
   distro_fallback: true
 "#;
-        
+
         fs::write(&manifest_path, manifest_content).unwrap();
-        
+
         let manifest = OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
-        
+
         assert_eq!(manifest.project, "Test Project");
-        assert_eq!(manifest.description, Some("Test manifest for unit tests".to_string()));
+        assert_eq!(
+            manifest.description,
+            Some("Test manifest for unit tests".to_string())
+        );
         assert_eq!(manifest.apps.len(), 2);
-        
+
         assert_eq!(manifest.apps[0].name, "vim");
         assert_eq!(manifest.apps[0].box_type, "apt");
         assert_eq!(manifest.apps[0].version, Some("latest".to_string()));
-        
+
         assert_eq!(manifest.apps[1].name, "firefox");
         assert_eq!(manifest.apps[1].box_type, "snap");
-        
+
         assert!(manifest.meta.is_some());
         let meta = manifest.meta.unwrap();
         assert_eq!(meta.created_by, Some("test-user".to_string()));
@@ -264,18 +270,18 @@ meta:
     fn test_manifest_parsing_minimal() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("minimal.yaml");
-        
+
         let manifest_content = r#"
 project: "Minimal Project"
 apps:
   - name: "git"
     box: "apt"
 "#;
-        
+
         fs::write(&manifest_path, manifest_content).unwrap();
-        
+
         let manifest = OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
-        
+
         assert_eq!(manifest.project, "Minimal Project");
         assert_eq!(manifest.description, None);
         assert_eq!(manifest.apps.len(), 1);
@@ -288,10 +294,10 @@ apps:
     fn test_manifest_parsing_invalid_yaml() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("invalid.yaml");
-        
+
         let invalid_content = "invalid: yaml: content: [unclosed";
         fs::write(&manifest_path, invalid_content).unwrap();
-        
+
         let result = OmniManifest::from_file(manifest_path.to_str().unwrap());
         assert!(result.is_err());
     }
@@ -300,15 +306,15 @@ apps:
     fn test_manifest_parsing_missing_required_fields() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("missing.yaml");
-        
+
         let manifest_content = r#"
 description: "Missing project field"
 apps:
   - name: "git"
 "#;
-        
+
         fs::write(&manifest_path, manifest_content).unwrap();
-        
+
         let result = OmniManifest::from_file(manifest_path.to_str().unwrap());
         assert!(result.is_err());
     }
@@ -329,13 +335,15 @@ mod security_tests {
     #[test]
     fn test_security_policy_default() {
         let policy = SecurityPolicy::default();
-        
+
         assert_eq!(policy.verify_signatures, true);
         assert_eq!(policy.verify_checksums, true);
         assert_eq!(policy.allow_untrusted, false);
         assert_eq!(policy.check_mirrors, true);
         assert!(policy.signature_servers.len() > 0);
-        assert!(policy.signature_servers.contains(&"keyserver.ubuntu.com".to_string()));
+        assert!(policy
+            .signature_servers
+            .contains(&"keyserver.ubuntu.com".to_string()));
     }
 
     #[test]
@@ -343,7 +351,7 @@ mod security_tests {
         let policy = SecurityPolicy::default();
         let serialized = serde_json::to_string(&policy).unwrap();
         let deserialized: SecurityPolicy = serde_json::from_str(&serialized).unwrap();
-        
+
         assert_eq!(policy.verify_signatures, deserialized.verify_signatures);
         assert_eq!(policy.signature_servers, deserialized.signature_servers);
     }
@@ -387,7 +395,7 @@ mod security_tests {
     async fn test_security_verifier_creation() {
         let policy = SecurityPolicy::default();
         let verifier = SecurityVerifier::new(policy);
-        
+
         // Test that verifier can be created without panic
         // Actual verification tests would require test files and GPG setup
     }
@@ -398,7 +406,7 @@ mod security_tests {
         policy.allow_untrusted = true;
         policy.verify_signatures = false;
         policy.trusted_keys.push("test-key-id".to_string());
-        
+
         assert_eq!(policy.allow_untrusted, true);
         assert_eq!(policy.verify_signatures, false);
         assert!(policy.trusted_keys.contains(&"test-key-id".to_string()));
@@ -408,7 +416,7 @@ mod security_tests {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    
+
     // Note: Search tests would typically require mocking external package managers
     // For now, we test basic structure and error handling
 
@@ -457,7 +465,7 @@ mod integration_helpers {
     pub fn create_test_config() -> (TempDir, std::path::PathBuf) {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yaml");
-        
+
         let config = r#"
 general:
   auto_update: false
@@ -473,7 +481,7 @@ ui:
   show_progress: true
   use_colors: true
 "#;
-        
+
         fs::write(&config_path, config).unwrap();
         (temp_dir, config_path)
     }
@@ -489,7 +497,7 @@ mod error_handling_tests {
 general:
   auto_update: false
 "#;
-        
+
         // This should fail to deserialize due to missing required fields
         let result: Result<omni::config::OmniConfig, _> = serde_yaml::from_str(minimal_config);
         assert!(result.is_err());
@@ -499,15 +507,16 @@ general:
     fn test_manifest_handles_empty_apps_list() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("empty_apps.yaml");
-        
+
         let manifest_content = r#"
 project: "Empty Apps Project"
 apps: []
 "#;
-        
+
         fs::write(&manifest_path, manifest_content).unwrap();
-        
-        let manifest = omni::manifest::OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
+
+        let manifest =
+            omni::manifest::OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
         assert_eq!(manifest.apps.len(), 0);
     }
 
@@ -529,11 +538,11 @@ mod performance_tests {
     #[test]
     fn test_config_creation_performance() {
         let start = Instant::now();
-        
+
         for _ in 0..1000 {
             let _config = omni::config::OmniConfig::default();
         }
-        
+
         let duration = start.elapsed();
         // Should create 1000 configs in well under a second
         assert!(duration.as_millis() < 1000);
@@ -543,7 +552,7 @@ mod performance_tests {
     fn test_manifest_parsing_performance() {
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("perf_test.yaml");
-        
+
         // Create a manifest with many apps
         let mut manifest_content = String::from("project: \"Performance Test\"\napps:\n");
         for i in 0..100 {
@@ -552,13 +561,14 @@ mod performance_tests {
                 i, i
             ));
         }
-        
+
         fs::write(&manifest_path, manifest_content).unwrap();
-        
+
         let start = Instant::now();
-        let manifest = omni::manifest::OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
+        let manifest =
+            omni::manifest::OmniManifest::from_file(manifest_path.to_str().unwrap()).unwrap();
         let duration = start.elapsed();
-        
+
         assert_eq!(manifest.apps.len(), 100);
         // Should parse 100 apps quickly
         assert!(duration.as_millis() < 100);

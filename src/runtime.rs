@@ -1,6 +1,6 @@
+use anyhow::Result;
 use std::sync::OnceLock;
 use tokio::runtime::{Handle, Runtime};
-use anyhow::Result;
 
 /// Global runtime manager for the application
 pub struct RuntimeManager {
@@ -12,11 +12,9 @@ static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 impl RuntimeManager {
     /// Get or create the global runtime
     pub fn global() -> &'static Runtime {
-        RUNTIME.get_or_init(|| {
-            Runtime::new().expect("Failed to create tokio runtime")
-        })
+        RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create tokio runtime"))
     }
-    
+
     /// Get the current runtime handle
     pub fn handle() -> Result<Handle> {
         match Handle::try_current() {
@@ -24,7 +22,7 @@ impl RuntimeManager {
             Err(_) => Ok(Self::global().handle().clone()),
         }
     }
-    
+
     /// Block on a future using the global runtime
     pub fn block_on<F>(future: F) -> F::Output
     where
@@ -34,9 +32,9 @@ impl RuntimeManager {
         match Handle::try_current() {
             Ok(handle) => {
                 // We're already in an async context, need to spawn
-                std::thread::spawn(move || {
-                    Self::global().block_on(future)
-                }).join().expect("Failed to join thread")
+                std::thread::spawn(move || Self::global().block_on(future))
+                    .join()
+                    .expect("Failed to join thread")
             }
             Err(_) => {
                 // We're in a sync context, can block directly
@@ -44,7 +42,7 @@ impl RuntimeManager {
             }
         }
     }
-    
+
     /// Spawn a task on the global runtime
     pub fn spawn<F>(future: F) -> tokio::task::JoinHandle<F::Output>
     where

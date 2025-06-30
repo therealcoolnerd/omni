@@ -1,6 +1,6 @@
 use omni::{
-    UnifiedPackageManager, SecureOmniBrainV2, OmniConfig,
-    distro::{PackageManager, detect_os, OperatingSystem}
+    distro::{detect_os, OperatingSystem, PackageManager},
+    OmniConfig, SecureOmniBrainV2, UnifiedPackageManager,
 };
 use std::collections::HashMap;
 use tokio;
@@ -15,9 +15,9 @@ fn is_safe_test_environment() -> bool {
 fn get_safe_test_package() -> &'static str {
     match detect_os() {
         OperatingSystem::Linux(_) => "curl", // Available on most Linux distros
-        OperatingSystem::Windows => "7zip", // Small, common package
-        OperatingSystem::MacOS => "wget",   // Available via brew
-        _ => "curl"
+        OperatingSystem::Windows => "7zip",  // Small, common package
+        OperatingSystem::MacOS => "wget",    // Available via brew
+        _ => "curl",
     }
 }
 
@@ -25,12 +25,15 @@ fn get_safe_test_package() -> &'static str {
 async fn test_unified_manager_initialization() {
     let config = OmniConfig::default();
     let result = UnifiedPackageManager::new(config);
-    
+
     match result {
         Ok(manager) => {
             let available = manager.get_available_managers();
             println!("Available package managers: {:?}", available);
-            assert!(!available.is_empty(), "At least one package manager should be available");
+            assert!(
+                !available.is_empty(),
+                "At least one package manager should be available"
+            );
         }
         Err(e) => {
             println!("Failed to initialize UnifiedPackageManager: {}", e);
@@ -42,12 +45,18 @@ async fn test_unified_manager_initialization() {
 #[tokio::test]
 async fn test_secure_brain_v2_initialization() {
     let result = SecureOmniBrainV2::new();
-    
+
     match result {
         Ok(brain) => {
             let available = brain.get_available_managers();
-            println!("SecureOmniBrainV2 initialized with managers: {:?}", available);
-            assert!(!available.is_empty(), "At least one package manager should be available");
+            println!(
+                "SecureOmniBrainV2 initialized with managers: {:?}",
+                available
+            );
+            assert!(
+                !available.is_empty(),
+                "At least one package manager should be available"
+            );
         }
         Err(e) => {
             println!("Failed to initialize SecureOmniBrainV2: {}", e);
@@ -62,7 +71,7 @@ async fn test_package_search_functionality() {
         println!("Skipping real package manager tests - set OMNI_ENABLE_REAL_TESTS to enable");
         return;
     }
-    
+
     let config = OmniConfig::default();
     let manager = match UnifiedPackageManager::new(config) {
         Ok(m) => m,
@@ -71,17 +80,24 @@ async fn test_package_search_functionality() {
             return;
         }
     };
-    
+
     // Test search functionality
     let search_results = manager.search("curl").unwrap_or_default();
-    
+
     for (manager_name, packages) in &search_results {
-        println!("Search results from {}: {} packages found", manager_name, packages.len());
+        println!(
+            "Search results from {}: {} packages found",
+            manager_name,
+            packages.len()
+        );
         if !packages.is_empty() {
-            println!("  Sample packages: {:?}", &packages[..std::cmp::min(3, packages.len())]);
+            println!(
+                "  Sample packages: {:?}",
+                &packages[..std::cmp::min(3, packages.len())]
+            );
         }
     }
-    
+
     // At least one manager should return results for a common package like curl
     // But don't assert this as it depends on the system
 }
@@ -92,7 +108,7 @@ async fn test_list_installed_packages() {
         println!("Skipping real package manager tests - set OMNI_ENABLE_REAL_TESTS to enable");
         return;
     }
-    
+
     let config = OmniConfig::default();
     let manager = match UnifiedPackageManager::new(config) {
         Ok(m) => m,
@@ -101,14 +117,21 @@ async fn test_list_installed_packages() {
             return;
         }
     };
-    
+
     // Test listing installed packages
     let installed_results = manager.list_installed().unwrap_or_default();
-    
+
     for (manager_name, packages) in &installed_results {
-        println!("Installed packages from {}: {} packages", manager_name, packages.len());
+        println!(
+            "Installed packages from {}: {} packages",
+            manager_name,
+            packages.len()
+        );
         if !packages.is_empty() {
-            println!("  Sample packages: {:?}", &packages[..std::cmp::min(5, packages.len())]);
+            println!(
+                "  Sample packages: {:?}",
+                &packages[..std::cmp::min(5, packages.len())]
+            );
         }
     }
 }
@@ -119,7 +142,7 @@ async fn test_package_info_functionality() {
         println!("Skipping real package manager tests - set OMNI_ENABLE_REAL_TESTS to enable");
         return;
     }
-    
+
     let config = OmniConfig::default();
     let manager = match UnifiedPackageManager::new(config) {
         Ok(m) => m,
@@ -128,13 +151,17 @@ async fn test_package_info_functionality() {
             return;
         }
     };
-    
+
     let available_managers = manager.get_available_managers();
-    
+
     for manager_name in &available_managers {
         match manager.get_info("curl", manager_name) {
             Ok(info) => {
-                println!("Info for 'curl' from {}: {} characters", manager_name, info.len());
+                println!(
+                    "Info for 'curl' from {}: {} characters",
+                    manager_name,
+                    info.len()
+                );
                 assert!(!info.is_empty(), "Package info should not be empty");
                 // Print first few lines of info
                 let lines: Vec<&str> = info.lines().take(3).collect();
@@ -151,10 +178,10 @@ async fn test_package_info_functionality() {
 #[tokio::test]
 async fn test_configuration_integration() {
     let mut config = OmniConfig::default();
-    
+
     // Test disabling a box
     config.boxes.disabled_boxes.push("snap".to_string());
-    
+
     let manager = match UnifiedPackageManager::new(config.clone()) {
         Ok(m) => m,
         Err(e) => {
@@ -162,10 +189,10 @@ async fn test_configuration_integration() {
             return;
         }
     };
-    
+
     let available = manager.get_available_managers();
     println!("Available managers with snap disabled: {:?}", available);
-    
+
     // Snap should not be in the available managers if it was disabled
     // (unless it wasn't available in the first place)
 }
@@ -180,7 +207,7 @@ apps:
     box_type: "apt"
     source: null
 "#;
-    
+
     let manifest: omni::manifest::OmniManifest = match serde_yaml::from_str(manifest_content) {
         Ok(m) => m,
         Err(e) => {
@@ -188,9 +215,9 @@ apps:
             return;
         }
     };
-    
+
     println!("Test manifest loaded: {:?}", manifest);
-    
+
     // We don't actually install from the manifest in tests
     // but we verify it can be parsed and processed
     assert_eq!(manifest.project, "test-project");
@@ -203,12 +230,12 @@ apps:
 async fn test_real_package_installation() {
     // This test is only enabled with the "dangerous_tests" feature
     // and should only be run in isolated environments
-    
+
     if !is_safe_test_environment() {
         println!("Skipping dangerous package installation test");
         return;
     }
-    
+
     let mut brain = match SecureOmniBrainV2::new() {
         Ok(b) => b,
         Err(e) => {
@@ -216,14 +243,17 @@ async fn test_real_package_installation() {
             return;
         }
     };
-    
+
     let test_package = get_safe_test_package();
     println!("Testing with package: {}", test_package);
-    
+
     // Note: This test would actually install and then remove a package
     // It should only be run in containerized or VM environments
-    println!("This test would install and remove package: {}", test_package);
-    
+    println!(
+        "This test would install and remove package: {}",
+        test_package
+    );
+
     // Simulate the test without actually running it
     // In a real dangerous test, you would:
     // 1. Check if package is already installed
@@ -243,7 +273,7 @@ async fn test_error_handling() {
             return;
         }
     };
-    
+
     // Test with a non-existent package
     let result = manager.install("this-package-definitely-does-not-exist-12345");
     match result {
@@ -261,7 +291,7 @@ async fn test_concurrent_operations() {
         println!("Skipping concurrent operations test");
         return;
     }
-    
+
     let config = OmniConfig::default();
     let manager = match UnifiedPackageManager::new(config) {
         Ok(m) => m,
@@ -270,7 +300,7 @@ async fn test_concurrent_operations() {
             return;
         }
     };
-    
+
     // Test concurrent search operations
     let search_tasks = vec![
         tokio::spawn(async {
@@ -289,9 +319,9 @@ async fn test_concurrent_operations() {
             manager.search("git")
         }),
     ];
-    
+
     let results = futures::future::join_all(search_tasks).await;
-    
+
     for (i, result) in results.into_iter().enumerate() {
         match result {
             Ok(Ok(search_results)) => {

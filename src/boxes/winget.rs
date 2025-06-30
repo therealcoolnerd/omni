@@ -1,9 +1,9 @@
-use crate::secure_executor::{SecureExecutor, ExecutionConfig};
-use crate::error_handling::OmniError;
-use anyhow::Result;
-use tracing::{info, error};
-use std::time::Duration;
 use crate::distro::PackageManager;
+use crate::error_handling::OmniError;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use anyhow::Result;
+use std::time::Duration;
+use tracing::{error, info};
 
 pub struct WingetBox {
     executor: SecureExecutor,
@@ -15,7 +15,7 @@ impl WingetBox {
             executor: SecureExecutor::new()?,
         })
     }
-    
+
     pub fn is_available() -> bool {
         std::process::Command::new("winget")
             .arg("--version")
@@ -29,67 +29,82 @@ impl PackageManager for WingetBox {
     fn install(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Installing '{}' via winget", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &["install", package, "--accept-package-agreements", "--accept-source-agreements"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command(
+                    "winget",
+                    &[
+                        "install",
+                        package,
+                        "--accept-package-agreements",
+                        "--accept-source-agreements",
+                    ],
+                    config,
+                )
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Winget successfully installed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Winget failed to install '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Winget failed to install '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "winget".to_string(),
                     reason: result.stderr,
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn remove(&self, package: &str) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Removing '{}' via winget", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(300),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &["uninstall", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("winget", &["uninstall", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Winget successfully removed '{}'", package);
                 Ok(())
             } else {
-                error!("❌ Winget failed to remove '{}': {}", package, result.stderr);
+                error!(
+                    "❌ Winget failed to remove '{}': {}",
+                    package, result.stderr
+                );
                 Err(OmniError::InstallationFailed {
                     package: package.to_string(),
                     box_type: "winget".to_string(),
                     reason: format!("Remove failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn update(&self, package: Option<&str>) -> Result<()> {
         tokio::runtime::Runtime::new()?.block_on(async {
             let mut args = vec!["upgrade"];
-            
+
             if let Some(pkg) = package {
                 args.push(pkg);
                 info!("Updating '{}' via winget", pkg);
@@ -98,19 +113,18 @@ impl PackageManager for WingetBox {
                 info!("Updating all packages via winget");
             }
             args.extend(&["--accept-package-agreements", "--accept-source-agreements"]);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(1200), // 20 minutes for updates
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &args,
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("winget", &args, config)
+                .await?;
+
             if result.exit_code == 0 {
                 info!("✅ Winget update completed successfully");
                 Ok(())
@@ -120,29 +134,30 @@ impl PackageManager for WingetBox {
                     package: package.unwrap_or("all").to_string(),
                     box_type: "winget".to_string(),
                     reason: format!("Update failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn search(&self, query: &str) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Searching for '{}' via winget", query);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &["search", query],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("winget", &["search", query], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(2) // Skip header lines
                     .filter_map(|line| {
@@ -154,7 +169,7 @@ impl PackageManager for WingetBox {
                         }
                     })
                     .collect();
-                
+
                 info!("✅ Found {} packages matching '{}'", packages.len(), query);
                 Ok(packages)
             } else {
@@ -163,25 +178,25 @@ impl PackageManager for WingetBox {
             }
         })
     }
-    
+
     fn list_installed(&self) -> Result<Vec<String>> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Listing installed packages via winget");
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(60),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &["list"],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("winget", &["list"], config)
+                .await?;
+
             if result.exit_code == 0 {
-                let packages: Vec<String> = result.stdout
+                let packages: Vec<String> = result
+                    .stdout
                     .lines()
                     .skip(2) // Skip header lines
                     .filter_map(|line| {
@@ -201,45 +216,46 @@ impl PackageManager for WingetBox {
                     package: "list".to_string(),
                     box_type: "winget".to_string(),
                     reason: format!("List failed: {}", result.stderr),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn get_info(&self, package: &str) -> Result<String> {
         tokio::runtime::Runtime::new()?.block_on(async {
             info!("Getting info for package '{}'", package);
-            
+
             let config = ExecutionConfig {
                 requires_sudo: false,
                 timeout: Duration::from_secs(30),
                 ..ExecutionConfig::default()
             };
-            
-            let result = self.executor.execute_package_command(
-                "winget",
-                &["show", package],
-                config
-            ).await?;
-            
+
+            let result = self
+                .executor
+                .execute_package_command("winget", &["show", package], config)
+                .await?;
+
             if result.exit_code == 0 {
                 Ok(result.stdout)
             } else {
                 Err(OmniError::PackageNotFound {
                     package: package.to_string(),
-                }.into())
+                }
+                .into())
             }
         })
     }
-    
+
     fn needs_privilege(&self) -> bool {
         false // winget typically doesn't require admin privileges
     }
-    
+
     fn get_name(&self) -> &'static str {
         "winget"
     }
-    
+
     fn get_priority(&self) -> u8 {
         80 // High priority for Windows systems
     }
