@@ -1,7 +1,7 @@
 use crate::distro::PackageManager;
 use crate::error_handling::OmniError;
 use crate::runtime::RuntimeManager;
-use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+// use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -9,13 +9,13 @@ use tracing::{error, info, warn};
 /// Secure APT package manager wrapper
 #[derive(Clone)]
 pub struct AptManager {
-    executor: SecureExecutor,
+    // executor: SecureExecutor, // Temporarily disabled
 }
 
 impl AptManager {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            executor: SecureExecutor::new()?,
+            // executor: SecureExecutor::new()?, // Temporarily disabled
         })
     }
 

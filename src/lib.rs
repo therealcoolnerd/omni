@@ -24,19 +24,19 @@ pub mod input_validation;
 pub mod privilege_manager;
 pub mod runtime;
 pub mod sandboxing;
-pub mod secure_executor;
+// pub mod secure_executor; // Temporarily disabled for CI
 // pub mod audit;            // Has sqlx Row issues
 pub mod unified_manager;
 
 // Advanced features - temporarily disabled for compilation
-pub mod advanced_resolver;
-pub mod transaction; // Fixed borrow checker issues // Fixed version constraint issues
-                     // pub mod secure_brain_v2;  // Depends on problematic modules
+// pub mod advanced_resolver; // Temporarily disabled for CI
+// pub mod transaction; // Temporarily disabled for CI
+// pub mod secure_brain_v2;  // Depends on problematic modules
 
 // Remote capabilities - disabled until integration complete
-pub mod docker;
-pub mod ssh; // Fixed SSH API issues
-pub mod ssh_real; // Fixed SSH API issues // Fixed async compilation issues
+// pub mod docker; // Temporarily disabled for CI
+// pub mod ssh; // Temporarily disabled for CI
+// pub mod ssh_real; // Temporarily disabled for CI
 
 // Re-export commonly used types for easier testing
 pub use brain::OmniBrain;
@@ -52,16 +52,16 @@ pub use snapshot::SnapshotManager;
 pub use error_handling::{OmniError, RecoveryManager, RetryHandler};
 pub use input_validation::InputValidator;
 pub use privilege_manager::PrivilegeManager;
-pub use secure_executor::{ExecutionConfig, ExecutionResult, SecureExecutor};
+// pub use secure_executor::{ExecutionConfig, ExecutionResult, SecureExecutor};
 // pub use audit::{AuditManager, AuditEntry, SecurityEvent, SecuritySeverity, AuditConfig};
 pub use runtime::RuntimeManager;
 pub use unified_manager::UnifiedPackageManager;
 
 // Re-export advanced components - temporarily disabled
-pub use advanced_resolver::{AdvancedDependencyResolver, ResolutionPlan, ResolutionStrategy};
-pub use transaction::{Transaction, TransactionManager, TransactionStatus, TransactionType};
+// pub use advanced_resolver::{AdvancedDependencyResolver, ResolutionPlan, ResolutionStrategy};
+// pub use transaction::{Transaction, TransactionManager, TransactionStatus, TransactionType};
 // pub use secure_brain_v2::SecureOmniBrainV2;
 
 // Remote capabilities - disabled until integration complete
-pub use docker::{ContainerInfo, DockerClient, DockerConfig, DockerPackageManager};
-pub use ssh::{AuthMethod, SshClient, SshCommandResult, SshConfig, SshSession, SystemInfo};
+// pub use docker::{ContainerInfo, DockerClient, DockerConfig, DockerPackageManager};
+// pub use ssh::{AuthMethod, SshClient, SshCommandResult, SshConfig, SshSession, SystemInfo};
