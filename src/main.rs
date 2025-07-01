@@ -1,8 +1,11 @@
+mod advanced_resolver_v2;
+mod audit;
 mod boxes;
 mod brain;
 mod config;
 mod database;
 mod distro;
+mod docker;
 mod error_handling;
 #[cfg(feature = "gui")]
 mod gui;
@@ -14,24 +17,21 @@ mod manifest;
 mod privilege_manager;
 mod rate_limiter;
 mod resolver;
+mod runtime;
 mod sandboxing;
 mod search;
+mod secure_brain_v2;
+mod secure_executor;
 mod security;
 mod snapshot;
-mod updater;
-mod types;
-mod audit;
-mod unified_manager;
-mod advanced_resolver_v2;
-mod transaction_v2;
-mod secure_brain_v2;
 #[cfg(feature = "ssh")]
 mod ssh;
 #[cfg(feature = "ssh")]
 mod ssh_real;
-mod docker;
-mod runtime;
-mod secure_executor;
+mod transaction_v2;
+mod types;
+mod unified_manager;
+mod updater;
 
 use anyhow::Result;
 use brain::OmniBrain;

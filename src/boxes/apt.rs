@@ -1,5 +1,5 @@
 use crate::distro::PackageManager;
-use crate::error_handling::{OmniError, record_error};
+use crate::error_handling::{record_error, OmniError};
 use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use crate::types::InstalledPackage;
@@ -196,17 +196,13 @@ impl PackageManager for AptManager {
     fn install(&self, package: &str) -> Result<()> {
         let apt_manager = self.clone();
         let package = package.to_string();
-        RuntimeManager::block_on(async move {
-            apt_manager.install_internal(&package).await
-        })
+        RuntimeManager::block_on(async move { apt_manager.install_internal(&package).await })
     }
 
     fn remove(&self, package: &str) -> Result<()> {
         let apt_manager = self.clone();
         let package = package.to_string();
-        RuntimeManager::block_on(async move {
-            apt_manager.remove_internal(&package).await
-        })
+        RuntimeManager::block_on(async move { apt_manager.remove_internal(&package).await })
     }
 
     fn update(&self, package: Option<&str>) -> Result<()> {
@@ -224,9 +220,7 @@ impl PackageManager for AptManager {
     fn search(&self, query: &str) -> Result<Vec<String>> {
         let apt_manager = self.clone();
         let query = query.to_string();
-        RuntimeManager::block_on(async move {
-            apt_manager.search_internal(&query).await
-        })
+        RuntimeManager::block_on(async move { apt_manager.search_internal(&query).await })
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
@@ -240,9 +234,9 @@ impl PackageManager for AptManager {
     fn get_info(&self, package: &str) -> Result<String> {
         let apt_manager = self.clone();
         let package = package.to_string();
-        RuntimeManager::block_on(async move {
-            apt_manager.get_package_info_internal(&package).await
-        })
+        RuntimeManager::block_on(
+            async move { apt_manager.get_package_info_internal(&package).await },
+        )
     }
 
     fn needs_privilege(&self) -> bool {
@@ -325,7 +319,6 @@ impl AptManager {
         }
     }
 }
-
 
 // Legacy functions for backward compatibility
 pub fn install_with_apt(package: &str) {

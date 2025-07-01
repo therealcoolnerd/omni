@@ -70,16 +70,10 @@ pub enum OmniError {
     },
 
     #[error("Snapshot operation failed: {operation}: {reason}")]
-    SnapshotFailed {
-        operation: String,
-        reason: String,
-    },
+    SnapshotFailed { operation: String, reason: String },
 
     #[error("Cache operation failed: {operation}: {reason}")]
-    CacheFailed {
-        operation: String,
-        reason: String,
-    },
+    CacheFailed { operation: String, reason: String },
 }
 
 impl From<anyhow::Error> for OmniError {
@@ -342,7 +336,12 @@ impl ErrorContext {
         self.context_data.insert(key, value);
     }
 
-    pub fn add_recovery_attempt(&mut self, strategy: RecoveryStrategy, success: bool, details: String) {
+    pub fn add_recovery_attempt(
+        &mut self,
+        strategy: RecoveryStrategy,
+        success: bool,
+        details: String,
+    ) {
         let attempt = RecoveryAttempt {
             attempt_id: Uuid::new_v4(),
             strategy,
@@ -354,7 +353,7 @@ impl ErrorContext {
             details,
         };
         self.recovery_attempts.push(attempt);
-        
+
         if success {
             self.resolved = true;
         }
@@ -465,7 +464,7 @@ pub struct RetryHandler {
 
 impl RetryHandler {
     pub fn new(config: RetryConfig) -> Self {
-        Self { 
+        Self {
             config,
             error_contexts: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
@@ -473,36 +472,44 @@ impl RetryHandler {
 
     /// Execute a function with enhanced retry logic and error context tracking
     pub async fn execute_with_context<F, Fut, T>(
-        &self, 
+        &self,
         operation_name: &str,
-        mut operation: F
+        mut operation: F,
     ) -> Result<T, OmniError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T, OmniError>>,
     {
         let mut error_context = ErrorContext::new(
-            OmniError::Unknown { message: "Placeholder".to_string() },
-            operation_name.to_string()
+            OmniError::Unknown {
+                message: "Placeholder".to_string(),
+            },
+            operation_name.to_string(),
         );
-        
+
         let mut last_error = None;
 
         for attempt in 1..=self.config.max_attempts {
             match operation().await {
                 Ok(result) => {
                     if attempt > 1 {
-                        info!("Operation '{}' succeeded on attempt {}", operation_name, attempt);
+                        info!(
+                            "Operation '{}' succeeded on attempt {}",
+                            operation_name, attempt
+                        );
                         error_context.add_recovery_attempt(
                             RecoveryStrategy::Retry,
                             true,
-                            format!("Succeeded on attempt {}", attempt)
+                            format!("Succeeded on attempt {}", attempt),
                         );
                     }
                     return Ok(result);
                 }
                 Err(error) => {
-                    warn!("Operation '{}' failed on attempt {}: {}", operation_name, attempt, error);
+                    warn!(
+                        "Operation '{}' failed on attempt {}: {}",
+                        operation_name, attempt, error
+                    );
                     error_context.error = error.clone();
                     error_context.increment_retry();
                     last_error = Some(error.clone());
@@ -510,16 +517,19 @@ impl RetryHandler {
                     if attempt < self.config.max_attempts && error.is_retryable() {
                         let delay = self.calculate_delay(attempt);
                         info!("Retrying '{}' in {:?}", operation_name, delay);
-                        
+
                         error_context.add_recovery_attempt(
                             RecoveryStrategy::Retry,
                             false,
-                            format!("Attempt {} failed, retrying in {:?}", attempt, delay)
+                            format!("Attempt {} failed, retrying in {:?}", attempt, delay),
                         );
-                        
+
                         sleep(delay).await;
                     } else if !error.is_retryable() {
-                        error!("Operation '{}' failed with non-retryable error: {}", operation_name, error);
+                        error!(
+                            "Operation '{}' failed with non-retryable error: {}",
+                            operation_name, error
+                        );
                         break;
                     }
                 }
@@ -533,14 +543,12 @@ impl RetryHandler {
 
         error!(
             "Operation '{}' failed after {} attempts",
-            operation_name,
-            self.config.max_attempts
+            operation_name, self.config.max_attempts
         );
-        
-        Err(last_error
-            .unwrap_or_else(|| OmniError::Unknown { 
-                message: "Unknown error occurred during retry attempts".to_string() 
-            }))
+
+        Err(last_error.unwrap_or_else(|| OmniError::Unknown {
+            message: "Unknown error occurred during retry attempts".to_string(),
+        }))
     }
 
     /// Simplified execute method for backward compatibility
@@ -577,8 +585,9 @@ impl RetryHandler {
             "Operation failed after {} attempts",
             self.config.max_attempts
         );
-        Err(last_error
-            .unwrap_or_else(|| anyhow::anyhow!("Unknown error occurred during retry attempts").into()))
+        Err(last_error.unwrap_or_else(|| {
+            anyhow::anyhow!("Unknown error occurred during retry attempts").into()
+        }))
     }
 
     fn calculate_delay(&self, attempt: usize) -> Duration {
@@ -620,10 +629,8 @@ impl RetryHandler {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            
-            contexts.retain(|_, ctx| {
-                current_time - ctx.timestamp < max_age_seconds
-            });
+
+            contexts.retain(|_, ctx| current_time - ctx.timestamp < max_age_seconds);
         }
     }
 }
@@ -776,41 +783,56 @@ pub struct RecoveryMetrics {
 impl RecoveryManager {
     pub fn new() -> Self {
         let mut recovery_strategies = HashMap::new();
-        
+
         // Define default recovery strategies for each error category
-        recovery_strategies.insert(ErrorCategory::Network, vec![
-            RecoveryStrategy::Retry,
-            RecoveryStrategy::AlternativeSource,
-        ]);
-        
-        recovery_strategies.insert(ErrorCategory::Storage, vec![
-            RecoveryStrategy::CacheClear,
-            RecoveryStrategy::SystemRepair,
-            RecoveryStrategy::Retry,
-        ]);
-        
-        recovery_strategies.insert(ErrorCategory::Package, vec![
-            RecoveryStrategy::AlternativeSource,
-            RecoveryStrategy::Retry,
-            RecoveryStrategy::Fallback,
-        ]);
-        
-        recovery_strategies.insert(ErrorCategory::Security, vec![
-            RecoveryStrategy::PermissionEscalation,
-            RecoveryStrategy::UserIntervention,
-        ]);
-        
-        recovery_strategies.insert(ErrorCategory::Configuration, vec![
-            RecoveryStrategy::ConfigurationReset,
-            RecoveryStrategy::UserIntervention,
-        ]);
-        
-        recovery_strategies.insert(ErrorCategory::Dependencies, vec![
-            RecoveryStrategy::Retry,
-            RecoveryStrategy::AlternativeSource,
-            RecoveryStrategy::Fallback,
-        ]);
-        
+        recovery_strategies.insert(
+            ErrorCategory::Network,
+            vec![RecoveryStrategy::Retry, RecoveryStrategy::AlternativeSource],
+        );
+
+        recovery_strategies.insert(
+            ErrorCategory::Storage,
+            vec![
+                RecoveryStrategy::CacheClear,
+                RecoveryStrategy::SystemRepair,
+                RecoveryStrategy::Retry,
+            ],
+        );
+
+        recovery_strategies.insert(
+            ErrorCategory::Package,
+            vec![
+                RecoveryStrategy::AlternativeSource,
+                RecoveryStrategy::Retry,
+                RecoveryStrategy::Fallback,
+            ],
+        );
+
+        recovery_strategies.insert(
+            ErrorCategory::Security,
+            vec![
+                RecoveryStrategy::PermissionEscalation,
+                RecoveryStrategy::UserIntervention,
+            ],
+        );
+
+        recovery_strategies.insert(
+            ErrorCategory::Configuration,
+            vec![
+                RecoveryStrategy::ConfigurationReset,
+                RecoveryStrategy::UserIntervention,
+            ],
+        );
+
+        recovery_strategies.insert(
+            ErrorCategory::Dependencies,
+            vec![
+                RecoveryStrategy::Retry,
+                RecoveryStrategy::AlternativeSource,
+                RecoveryStrategy::Fallback,
+            ],
+        );
+
         Self {
             retry_handler: RetryHandler::new(RetryConfig::default()),
             circuit_breaker: CircuitBreaker::new(5, Duration::from_secs(60)),
@@ -848,11 +870,12 @@ impl RecoveryManager {
         Fut: std::future::Future<Output = Result<T, OmniError>>,
     {
         self.metrics.total_errors += 1;
-        
+
         // Simple execution with retry handler
-        match self.retry_handler
+        match self
+            .retry_handler
             .execute_with_context(operation_name, operation)
-            .await 
+            .await
         {
             Ok(result) => {
                 self.metrics.total_recoveries += 1;
@@ -863,9 +886,12 @@ impl RecoveryManager {
                 // Track error by category
                 let category = error.category();
                 *self.metrics.errors_by_category.entry(category).or_insert(0) += 1;
-                
+
                 if self.auto_recovery_enabled {
-                    match self.attempt_auto_recovery::<T>(&error, operation_name).await {
+                    match self
+                        .attempt_auto_recovery::<T>(&error, operation_name)
+                        .await
+                    {
                         Ok(_) => Err(error.into()), // Recovery completed but operation needs retry
                         Err(recovery_error) => Err(recovery_error.into()),
                     }
@@ -877,39 +903,64 @@ impl RecoveryManager {
     }
 
     /// Attempt automatic recovery based on error category
-    async fn attempt_auto_recovery<T>(&mut self, error: &OmniError, operation_name: &str) -> Result<T, OmniError> {
+    async fn attempt_auto_recovery<T>(
+        &mut self,
+        error: &OmniError,
+        operation_name: &str,
+    ) -> Result<T, OmniError> {
         let category = error.category();
-        let strategies = self.recovery_strategies.get(&category).cloned().unwrap_or_default();
-        
-        info!("Attempting automatic recovery for {} error in operation '{}'", 
-              category, operation_name);
-        
+        let strategies = self
+            .recovery_strategies
+            .get(&category)
+            .cloned()
+            .unwrap_or_default();
+
+        info!(
+            "Attempting automatic recovery for {} error in operation '{}'",
+            category, operation_name
+        );
+
         for strategy in strategies {
             info!("Trying recovery strategy: {:?}", strategy);
-            
-            match self.execute_recovery_strategy(&strategy, error, operation_name).await {
+
+            match self
+                .execute_recovery_strategy(&strategy, error, operation_name)
+                .await
+            {
                 Ok(_) => {
-                    info!("Recovery strategy {:?} succeeded for operation '{}'", strategy, operation_name);
-                    *self.metrics.recoveries_by_strategy.entry(strategy.clone()).or_insert(0) += 1;
+                    info!(
+                        "Recovery strategy {:?} succeeded for operation '{}'",
+                        strategy, operation_name
+                    );
+                    *self
+                        .metrics
+                        .recoveries_by_strategy
+                        .entry(strategy.clone())
+                        .or_insert(0) += 1;
                     self.metrics.total_recoveries += 1;
                     self.update_success_rate();
-                    
+
                     // Note: In a real implementation, we would re-execute the original operation here
                     // For now, we'll return an error indicating manual retry is needed
                     return Err(OmniError::RecoveryFailed {
-                        message: format!("Recovery strategy {:?} completed, please retry operation", strategy)
+                        message: format!(
+                            "Recovery strategy {:?} completed, please retry operation",
+                            strategy
+                        ),
                     });
                 }
                 Err(recovery_error) => {
-                    warn!("Recovery strategy {:?} failed for operation '{}': {}", 
-                          strategy, operation_name, recovery_error);
+                    warn!(
+                        "Recovery strategy {:?} failed for operation '{}': {}",
+                        strategy, operation_name, recovery_error
+                    );
                     continue;
                 }
             }
         }
-        
+
         Err(OmniError::RecoveryFailed {
-            message: format!("All recovery strategies failed for {} error", category)
+            message: format!("All recovery strategies failed for {} error", category),
         })
     }
 
@@ -958,7 +1009,7 @@ impl RecoveryManager {
 
     fn update_success_rate(&mut self) {
         if self.metrics.total_errors > 0 {
-            self.metrics.recovery_success_rate = 
+            self.metrics.recovery_success_rate =
                 (self.metrics.total_recoveries as f64) / (self.metrics.total_errors as f64) * 100.0;
         }
     }
@@ -1101,8 +1152,8 @@ pub struct AlertThresholds {
 impl Default for AlertThresholds {
     fn default() -> Self {
         Self {
-            error_rate_threshold: 10.0, // errors per minute
-            critical_error_threshold: 5, // critical errors before alert
+            error_rate_threshold: 10.0,       // errors per minute
+            critical_error_threshold: 5,      // critical errors before alert
             recovery_failure_threshold: 50.0, // recovery failure rate %
         }
     }
@@ -1125,29 +1176,29 @@ impl ErrorMonitor {
     pub fn record_error(&self, error: &OmniError) {
         if let Ok(mut metrics) = self.metrics.lock() {
             metrics.total_errors += 1;
-            
+
             let category = error.category();
             *metrics.errors_by_category.entry(category).or_insert(0) += 1;
-            
+
             let severity = error.severity();
             *metrics.errors_by_severity.entry(severity).or_insert(0) += 1;
-            
+
             let error_code = error.error_code().to_string();
             *metrics.errors_by_code.entry(error_code).or_insert(0) += 1;
-            
+
             let current_time = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            
+
             metrics.last_error_timestamp = current_time;
-            
+
             // Calculate error rate per minute
             let uptime_minutes = (current_time - metrics.uptime_start) as f64 / 60.0;
             if uptime_minutes > 0.0 {
                 metrics.error_rate_per_minute = metrics.total_errors as f64 / uptime_minutes;
             }
-            
+
             // Check for alerts
             self.check_alerts(&metrics);
         }
@@ -1156,24 +1207,31 @@ impl ErrorMonitor {
     fn check_alerts(&self, metrics: &ErrorMetrics) {
         // Check error rate threshold
         if metrics.error_rate_per_minute > self.alert_thresholds.error_rate_threshold {
-            warn!("High error rate detected: {:.2} errors/minute (threshold: {:.2})", 
-                  metrics.error_rate_per_minute, self.alert_thresholds.error_rate_threshold);
+            warn!(
+                "High error rate detected: {:.2} errors/minute (threshold: {:.2})",
+                metrics.error_rate_per_minute, self.alert_thresholds.error_rate_threshold
+            );
         }
-        
+
         // Check critical error threshold
         if let Some(&critical_count) = metrics.errors_by_severity.get(&ErrorSeverity::Critical) {
             if critical_count >= self.alert_thresholds.critical_error_threshold {
-                error!("Critical error threshold exceeded: {} critical errors (threshold: {})", 
-                       critical_count, self.alert_thresholds.critical_error_threshold);
+                error!(
+                    "Critical error threshold exceeded: {} critical errors (threshold: {})",
+                    critical_count, self.alert_thresholds.critical_error_threshold
+                );
             }
         }
     }
 
     pub fn get_metrics(&self) -> ErrorMetrics {
-        self.metrics.lock().unwrap_or_else(|poisoned| {
-            warn!("Error metrics mutex poisoned, returning default");
-            poisoned.into_inner()
-        }).clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|poisoned| {
+                warn!("Error metrics mutex poisoned, returning default");
+                poisoned.into_inner()
+            })
+            .clone()
     }
 
     pub fn reset_metrics(&self) {

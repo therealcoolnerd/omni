@@ -116,7 +116,7 @@ impl SecureExecutor {
         let cmd = command.to_string();
         let args = validated_args.clone();
         let cfg = config.clone();
-        
+
         let result = self.execute_with_safety_checks(&cmd, &args, &cfg).await?;
 
         let duration = start_time.elapsed();

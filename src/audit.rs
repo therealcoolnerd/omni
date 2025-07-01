@@ -1,46 +1,123 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, Row};
+use sqlx::{Row, SqlitePool};
 use std::collections::HashMap;
 use std::net::IpAddr;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 /// Security event types for auditing
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityEvent {
     // Authentication events
-    LoginAttempt { success: bool, user: String, ip: Option<IpAddr> },
-    LoginFailure { user: String, ip: Option<IpAddr>, reason: String },
-    PrivilegeEscalation { user: String, command: String },
-    
+    LoginAttempt {
+        success: bool,
+        user: String,
+        ip: Option<IpAddr>,
+    },
+    LoginFailure {
+        user: String,
+        ip: Option<IpAddr>,
+        reason: String,
+    },
+    PrivilegeEscalation {
+        user: String,
+        command: String,
+    },
+
     // Package management events
-    PackageInstall { package: String, box_type: String, user: String },
-    PackageRemove { package: String, box_type: String, user: String },
-    PackageUpdate { package: String, box_type: String, user: String },
-    PackageSearch { query: String, user: String },
-    
+    PackageInstall {
+        package: String,
+        box_type: String,
+        user: String,
+    },
+    PackageRemove {
+        package: String,
+        box_type: String,
+        user: String,
+    },
+    PackageUpdate {
+        package: String,
+        box_type: String,
+        user: String,
+    },
+    PackageSearch {
+        query: String,
+        user: String,
+    },
+
     // System events
-    SystemAccess { user: String, ip: Option<IpAddr>, method: String },
-    FileAccess { path: String, operation: String, user: String },
-    NetworkConnection { destination: String, port: u16, user: String },
-    ConfigurationChange { setting: String, old_value: String, new_value: String, user: String },
-    
+    SystemAccess {
+        user: String,
+        ip: Option<IpAddr>,
+        method: String,
+    },
+    FileAccess {
+        path: String,
+        operation: String,
+        user: String,
+    },
+    NetworkConnection {
+        destination: String,
+        port: u16,
+        user: String,
+    },
+    ConfigurationChange {
+        setting: String,
+        old_value: String,
+        new_value: String,
+        user: String,
+    },
+
     // Security events
-    SecurityViolation { description: String, user: String, severity: SecuritySeverity },
-    MaliciousActivity { description: String, ip: Option<IpAddr>, indicators: Vec<String> },
-    SuspiciousCommand { command: String, user: String, reason: String },
-    
+    SecurityViolation {
+        description: String,
+        user: String,
+        severity: SecuritySeverity,
+    },
+    MaliciousActivity {
+        description: String,
+        ip: Option<IpAddr>,
+        indicators: Vec<String>,
+    },
+    SuspiciousCommand {
+        command: String,
+        user: String,
+        reason: String,
+    },
+
     // SSH and remote events
-    SshConnection { host: String, user: String, success: bool },
-    RemoteCommand { host: String, command: String, user: String, success: bool },
-    
+    SshConnection {
+        host: String,
+        user: String,
+        success: bool,
+    },
+    RemoteCommand {
+        host: String,
+        command: String,
+        user: String,
+        success: bool,
+    },
+
     // Container events
-    ContainerCreated { image: String, container_id: String, user: String },
-    ContainerStarted { container_id: String, user: String },
-    ContainerStopped { container_id: String, user: String },
-    ContainerDeleted { container_id: String, user: String },
+    ContainerCreated {
+        image: String,
+        container_id: String,
+        user: String,
+    },
+    ContainerStarted {
+        container_id: String,
+        user: String,
+    },
+    ContainerStopped {
+        container_id: String,
+        user: String,
+    },
+    ContainerDeleted {
+        container_id: String,
+        user: String,
+    },
 }
 
 /// Security severity levels
@@ -76,7 +153,7 @@ impl AuditEntry {
             SecurityEvent::PrivilegeEscalation { .. } => SecuritySeverity::High,
             _ => SecuritySeverity::Low,
         };
-        
+
         Self {
             id: Uuid::new_v4().to_string(),
             timestamp: Utc::now(),
@@ -89,22 +166,22 @@ impl AuditEntry {
             severity,
         }
     }
-    
+
     pub fn with_session(mut self, session_id: String) -> Self {
         self.session_id = Some(session_id);
         self
     }
-    
+
     pub fn with_ip(mut self, ip: IpAddr) -> Self {
         self.source_ip = Some(ip);
         self
     }
-    
+
     pub fn with_user_agent(mut self, user_agent: String) -> Self {
         self.user_agent = Some(user_agent);
         self
     }
-    
+
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
@@ -171,27 +248,30 @@ impl AuditManager {
             config,
             file_logger: None,
         };
-        
+
         manager.initialize().await?;
         Ok(manager)
     }
-    
+
     async fn initialize(&mut self) -> Result<()> {
         // Create audit tables
         self.create_tables().await?;
-        
+
         // Set up file logging if enabled
         if self.config.file_logging {
             self.setup_file_logging().await?;
         }
-        
+
         // Set up cleanup job
         self.schedule_cleanup().await?;
-        
-        info!("Audit manager initialized with retention {} days", self.config.retention_days);
+
+        info!(
+            "Audit manager initialized with retention {} days",
+            self.config.retention_days
+        );
         Ok(())
     }
-    
+
     async fn create_tables(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -211,95 +291,102 @@ impl AuditManager {
         )
         .execute(&self.pool)
         .await?;
-        
+
         // Create indexes for performance
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
-            .execute(&self.pool).await?;
-        
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_log(user_id)")
-            .execute(&self.pool).await?;
-        
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_log(event_type)")
-            .execute(&self.pool).await?;
-        
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_severity ON audit_log(severity)")
-            .execute(&self.pool).await?;
-        
+            .execute(&self.pool)
+            .await?;
+
         Ok(())
     }
-    
+
     async fn setup_file_logging(&mut self) -> Result<()> {
         use tracing_appender::rolling::{RollingFileAppender, Rotation};
-        
+
         let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "audit.log");
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-        
+
         // Set up file-specific subscriber
         let subscriber = tracing_subscriber::fmt()
             .with_writer(non_blocking)
             .with_ansi(false)
             .finish();
-        
+
         tracing::subscriber::set_global_default(subscriber)?;
         self.file_logger = Some(guard);
-        
+
         Ok(())
     }
-    
+
     async fn schedule_cleanup(&self) -> Result<()> {
         // In a real implementation, this would set up a background task
         // to clean old entries based on retention policy
-        info!("Scheduled audit log cleanup for {} days retention", self.config.retention_days);
+        info!(
+            "Scheduled audit log cleanup for {} days retention",
+            self.config.retention_days
+        );
         Ok(())
     }
-    
+
     /// Log an audit entry
     pub async fn log(&self, entry: AuditEntry) -> Result<()> {
         if !self.config.enabled {
             return Ok(());
         }
-        
+
         // Check if this severity level should be logged
         if !self.should_log_severity(&entry.severity) {
             return Ok(());
         }
-        
+
         // Check rate limits
         if !self.check_rate_limits().await? {
             warn!("Audit logging rate limit exceeded");
             return Ok(());
         }
-        
+
         // Log to database
         if self.config.database_logging {
             self.log_to_database(&entry).await?;
         }
-        
+
         // Log to structured logging (file)
         if self.config.file_logging {
             self.log_to_file(&entry).await?;
         }
-        
+
         // Log to syslog if enabled
         if self.config.syslog_logging {
             self.log_to_syslog(&entry).await?;
         }
-        
+
         // Send real-time alerts for high-severity events
         if self.config.real_time_alerts && self.is_high_severity(&entry.severity) {
             self.send_alert(&entry).await?;
         }
-        
+
         Ok(())
     }
-    
+
     async fn log_to_database(&self, entry: &AuditEntry) -> Result<()> {
         let event_type = self.get_event_type(&entry.event);
         let event_data = serde_json::to_string(&entry.event)?;
         let metadata = serde_json::to_string(&entry.metadata)?;
         let severity = self.severity_to_string(&entry.severity);
         let timestamp = entry.timestamp.timestamp();
-        
+
         sqlx::query(
             r#"
             INSERT INTO audit_log 
@@ -319,10 +406,10 @@ impl AuditManager {
         .bind(&severity)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
-    
+
     async fn log_to_file(&self, entry: &AuditEntry) -> Result<()> {
         // Use structured logging
         match entry.severity {
@@ -357,30 +444,30 @@ impl AuditManager {
                 );
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn log_to_syslog(&self, _entry: &AuditEntry) -> Result<()> {
         // In a real implementation, this would use syslog facilities
         // For now, this is a placeholder
         Ok(())
     }
-    
+
     async fn send_alert(&self, entry: &AuditEntry) -> Result<()> {
         // Send webhook alert
         if let Some(webhook_url) = &self.config.alert_webhook {
             self.send_webhook_alert(webhook_url, entry).await?;
         }
-        
+
         // Send email alert
         if let Some(email) = &self.config.alert_email {
             self.send_email_alert(email, entry).await?;
         }
-        
+
         Ok(())
     }
-    
+
     async fn send_webhook_alert(&self, webhook_url: &str, entry: &AuditEntry) -> Result<()> {
         let client = reqwest::Client::new();
         let payload = serde_json::json!({
@@ -391,29 +478,25 @@ impl AuditManager {
             "user_id": entry.user_id,
             "source_ip": entry.source_ip
         });
-        
-        let response = client
-            .post(webhook_url)
-            .json(&payload)
-            .send()
-            .await?;
-        
+
+        let response = client.post(webhook_url).json(&payload).send().await?;
+
         if response.status().is_success() {
             info!("Alert webhook sent successfully");
         } else {
             warn!("Failed to send alert webhook: {}", response.status());
         }
-        
+
         Ok(())
     }
-    
+
     async fn send_email_alert(&self, _email: &str, _entry: &AuditEntry) -> Result<()> {
         // In a real implementation, this would integrate with an email service
         // For now, this is a placeholder
         info!("Email alert would be sent");
         Ok(())
     }
-    
+
     /// Query audit logs with filters
     pub async fn query_logs(
         &self,
@@ -426,7 +509,7 @@ impl AuditManager {
     ) -> Result<Vec<AuditEntry>> {
         let mut query = "SELECT * FROM audit_log WHERE 1=1".to_string();
         let mut conditions = Vec::new();
-        
+
         if user_id.is_some() {
             conditions.push("user_id = ?");
         }
@@ -442,20 +525,20 @@ impl AuditManager {
         if severity.is_some() {
             conditions.push("severity = ?");
         }
-        
+
         if !conditions.is_empty() {
             query.push_str(" AND ");
             query.push_str(&conditions.join(" AND "));
         }
-        
+
         query.push_str(" ORDER BY timestamp DESC");
-        
+
         if let Some(limit) = limit {
             query.push_str(&format!(" LIMIT {}", limit));
         }
-        
+
         let mut sql_query = sqlx::query(&query);
-        
+
         if let Some(user) = user_id {
             sql_query = sql_query.bind(user);
         }
@@ -471,70 +554,71 @@ impl AuditManager {
         if let Some(sev) = severity {
             sql_query = sql_query.bind(self.severity_to_string(sev));
         }
-        
+
         let rows = sql_query.fetch_all(&self.pool).await?;
-        
+
         let mut entries = Vec::new();
         for row in rows {
             if let Some(entry) = self.row_to_audit_entry(row)? {
                 entries.push(entry);
             }
         }
-        
+
         Ok(entries)
     }
-    
+
     /// Get audit statistics
     pub async fn get_statistics(&self) -> Result<AuditStats> {
         let total_entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_log")
             .fetch_one(&self.pool)
             .await?;
-        
-        let today_start = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
-        let entries_today: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM audit_log WHERE timestamp >= ?"
-        )
-        .bind(today_start)
-        .fetch_one(&self.pool)
-        .await?;
-        
-        let critical_events: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM audit_log WHERE severity = 'critical'"
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        
-        let high_severity_events: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM audit_log WHERE severity = 'high'"
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        
-        let failed_logins: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM audit_log WHERE event_type = 'login_failure'"
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        
+
+        let today_start = Utc::now()
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp();
+        let entries_today: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE timestamp >= ?")
+                .bind(today_start)
+                .fetch_one(&self.pool)
+                .await?;
+
+        let critical_events: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE severity = 'critical'")
+                .fetch_one(&self.pool)
+                .await?;
+
+        let high_severity_events: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE severity = 'high'")
+                .fetch_one(&self.pool)
+                .await?;
+
+        let failed_logins: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE event_type = 'login_failure'")
+                .fetch_one(&self.pool)
+                .await?;
+
         let package_operations: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM audit_log WHERE event_type IN ('package_install', 'package_remove', 'package_update')"
         )
         .fetch_one(&self.pool)
         .await?;
-        
+
         let remote_connections: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM audit_log WHERE event_type IN ('ssh_connection', 'remote_command')"
         )
         .fetch_one(&self.pool)
         .await?;
-        
+
         // Get most active users
         let user_rows = sqlx::query(
             "SELECT user_id, COUNT(*) as count FROM audit_log WHERE user_id IS NOT NULL GROUP BY user_id ORDER BY count DESC LIMIT 10"
         )
         .fetch_all(&self.pool)
         .await?;
-        
+
         let most_active_users: Vec<(String, u64)> = user_rows
             .into_iter()
             .map(|row| {
@@ -543,14 +627,14 @@ impl AuditManager {
                 (user_id, count as u64)
             })
             .collect();
-        
+
         // Get most common events
         let event_rows = sqlx::query(
             "SELECT event_type, COUNT(*) as count FROM audit_log GROUP BY event_type ORDER BY count DESC LIMIT 10"
         )
         .fetch_all(&self.pool)
         .await?;
-        
+
         let most_common_events: Vec<(String, u64)> = event_rows
             .into_iter()
             .map(|row| {
@@ -559,7 +643,7 @@ impl AuditManager {
                 (event_type, count as u64)
             })
             .collect();
-        
+
         Ok(AuditStats {
             total_entries: total_entries as u64,
             entries_today: entries_today as u64,
@@ -572,27 +656,27 @@ impl AuditManager {
             most_common_events,
         })
     }
-    
+
     /// Clean up old audit entries based on retention policy
     pub async fn cleanup_old_entries(&self) -> Result<u64> {
         let cutoff_date = Utc::now() - chrono::Duration::days(self.config.retention_days as i64);
         let cutoff_timestamp = cutoff_date.timestamp();
-        
+
         let result = sqlx::query("DELETE FROM audit_log WHERE timestamp < ?")
             .bind(cutoff_timestamp)
             .execute(&self.pool)
             .await?;
-        
+
         let deleted_count = result.rows_affected();
         if deleted_count > 0 {
             info!("Cleaned up {} old audit entries", deleted_count);
         }
-        
+
         Ok(deleted_count)
     }
-    
+
     // Helper methods
-    
+
     fn should_log_severity(&self, severity: &SecuritySeverity) -> bool {
         match (&self.config.log_level, severity) {
             (SecuritySeverity::Low, _) => true,
@@ -604,27 +688,34 @@ impl AuditManager {
             (SecuritySeverity::Critical, _) => false,
         }
     }
-    
+
     async fn check_rate_limits(&self) -> Result<bool> {
         if let Some(max_entries) = self.config.max_entries_per_day {
-            let today_start = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
-            let entries_today: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM audit_log WHERE timestamp >= ?"
-            )
-            .bind(today_start)
-            .fetch_one(&self.pool)
-            .await?;
-            
+            let today_start = Utc::now()
+                .date_naive()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+                .and_utc()
+                .timestamp();
+            let entries_today: i64 =
+                sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE timestamp >= ?")
+                    .bind(today_start)
+                    .fetch_one(&self.pool)
+                    .await?;
+
             return Ok(entries_today < max_entries as i64);
         }
-        
+
         Ok(true)
     }
-    
+
     fn is_high_severity(&self, severity: &SecuritySeverity) -> bool {
-        matches!(severity, SecuritySeverity::High | SecuritySeverity::Critical)
+        matches!(
+            severity,
+            SecuritySeverity::High | SecuritySeverity::Critical
+        )
     }
-    
+
     fn get_event_type(&self, event: &SecurityEvent) -> String {
         match event {
             SecurityEvent::LoginAttempt { .. } => "login_attempt",
@@ -647,18 +738,20 @@ impl AuditManager {
             SecurityEvent::ContainerStarted { .. } => "container_started",
             SecurityEvent::ContainerStopped { .. } => "container_stopped",
             SecurityEvent::ContainerDeleted { .. } => "container_deleted",
-        }.to_string()
+        }
+        .to_string()
     }
-    
+
     fn severity_to_string(&self, severity: &SecuritySeverity) -> String {
         match severity {
             SecuritySeverity::Low => "low",
             SecuritySeverity::Medium => "medium",
             SecuritySeverity::High => "high",
             SecuritySeverity::Critical => "critical",
-        }.to_string()
+        }
+        .to_string()
     }
-    
+
     fn string_to_severity(&self, s: &str) -> SecuritySeverity {
         match s {
             "low" => SecuritySeverity::Low,
@@ -668,10 +761,10 @@ impl AuditManager {
             _ => SecuritySeverity::Low,
         }
     }
-    
+
     fn row_to_audit_entry(&self, row: sqlx::sqlite::SqliteRow) -> Result<Option<AuditEntry>> {
         use sqlx::Row;
-        
+
         let id: String = row.get("id");
         let timestamp: i64 = row.get("timestamp");
         let event_data: String = row.get("event_data");
@@ -681,16 +774,17 @@ impl AuditManager {
         let user_agent: Option<String> = row.get("user_agent");
         let metadata_str: String = row.get("metadata");
         let severity_str: String = row.get("severity");
-        
-        let timestamp = DateTime::from_timestamp(timestamp, 0)
-            .unwrap_or_else(|| Utc::now());
-        
-        let event: SecurityEvent = serde_json::from_str(&event_data).map_err(|_| anyhow::anyhow!("Failed to parse event"))?;
-        let metadata: HashMap<String, String> = serde_json::from_str(&metadata_str).unwrap_or_default();
+
+        let timestamp = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now());
+
+        let event: SecurityEvent = serde_json::from_str(&event_data)
+            .map_err(|_| anyhow::anyhow!("Failed to parse event"))?;
+        let metadata: HashMap<String, String> =
+            serde_json::from_str(&metadata_str).unwrap_or_default();
         let severity = self.string_to_severity(&severity_str);
-        
+
         let source_ip = source_ip_str.and_then(|s| s.parse().ok());
-        
+
         Ok(Some(AuditEntry {
             id,
             timestamp,
@@ -709,7 +803,7 @@ impl AuditManager {
 mod tests {
     use super::*;
     use sqlx::SqlitePool;
-    
+
     #[tokio::test]
     async fn test_audit_entry_creation() {
         let event = SecurityEvent::PackageInstall {
@@ -717,22 +811,22 @@ mod tests {
             box_type: "apt".to_string(),
             user: "testuser".to_string(),
         };
-        
+
         let entry = AuditEntry::new(event, Some("user123".to_string()));
         assert_eq!(entry.user_id, Some("user123".to_string()));
         assert!(matches!(entry.severity, SecuritySeverity::Low));
     }
-    
+
     #[tokio::test]
     async fn test_security_severity_ordering() {
         let config = AuditConfig {
             log_level: SecuritySeverity::Medium,
             ..AuditConfig::default()
         };
-        
+
         let pool = SqlitePool::connect(":memory:").await.unwrap();
         let manager = AuditManager::new(pool, config).await.unwrap();
-        
+
         assert!(!manager.should_log_severity(&SecuritySeverity::Low));
         assert!(manager.should_log_severity(&SecuritySeverity::Medium));
         assert!(manager.should_log_severity(&SecuritySeverity::High));

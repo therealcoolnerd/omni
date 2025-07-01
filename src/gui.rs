@@ -769,7 +769,7 @@ impl OmniGui {
                 self.status = "Snapshot created".to_string();
             }
             if ui.button("↩️ Undo Last").clicked() {
-                // Note: In a real GUI app, this would be handled asynchronously  
+                // Note: In a real GUI app, this would be handled asynchronously
                 // For now, we'll spawn a blocking task simulation
                 let _ = std::thread::spawn(move || {
                     // This would be: runtime.block_on(brain.undo_last())

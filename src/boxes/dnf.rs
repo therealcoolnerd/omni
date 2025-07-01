@@ -1,5 +1,5 @@
 use crate::distro::PackageManager;
-use crate::error_handling::{OmniError, RetryHandler, RetryConfig};
+use crate::error_handling::{OmniError, RetryConfig, RetryHandler};
 use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use crate::types::InstalledPackage;
@@ -308,7 +308,8 @@ impl DnfBox {
                 package: package.to_string(),
                 box_type: "dnf".to_string(),
                 reason: result.stderr,
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -335,7 +336,8 @@ impl DnfBox {
                 package: package.to_string(),
                 box_type: "dnf".to_string(),
                 reason: format!("Remove failed: {}", result.stderr),
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -401,7 +403,8 @@ impl DnfBox {
         } else {
             Err(OmniError::PackageNotFound {
                 package: package.to_string(),
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -428,7 +431,8 @@ impl DnfBox {
                 package: "cache".to_string(),
                 box_type: "dnf".to_string(),
                 reason: format!("Cache update failed: {}", result.stderr),
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -473,11 +477,11 @@ impl DnfBox {
                 package: "list".to_string(),
                 box_type: "dnf".to_string(),
                 reason: format!("List failed: {}", result.stderr),
-            }.into())
+            }
+            .into())
         }
     }
 }
-
 
 // Legacy functions for backward compatibility
 pub fn install_with_dnf(package: &str) {

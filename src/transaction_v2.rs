@@ -88,7 +88,7 @@ impl TransactionManager {
     /// Begin a new transaction
     pub async fn begin_transaction(&mut self, transaction_type: TransactionType) -> Result<Uuid> {
         let transaction_id = Uuid::new_v4();
-        
+
         let transaction = Transaction {
             id: transaction_id,
             status: TransactionStatus::Pending,
@@ -100,7 +100,7 @@ impl TransactionManager {
         };
 
         self.active_transactions.insert(transaction_id, transaction);
-        
+
         info!("Started transaction: {}", transaction_id);
         Ok(transaction_id)
     }
@@ -114,7 +114,7 @@ impl TransactionManager {
         version: Option<String>,
     ) -> Result<Uuid> {
         let operation_id = Uuid::new_v4();
-        
+
         let operation = Operation {
             id: operation_id,
             operation_type,
@@ -126,7 +126,10 @@ impl TransactionManager {
 
         if let Some(transaction) = self.active_transactions.get_mut(&transaction_id) {
             transaction.operations.push(operation);
-            info!("Added operation {} to transaction {}", operation_id, transaction_id);
+            info!(
+                "Added operation {} to transaction {}",
+                operation_id, transaction_id
+            );
             Ok(operation_id)
         } else {
             Err(anyhow::anyhow!("Transaction not found: {}", transaction_id))
@@ -137,9 +140,12 @@ impl TransactionManager {
     pub async fn execute_transaction(&mut self, transaction_id: Uuid) -> Result<()> {
         // First, check if transaction exists and get its info
         let operations = if let Some(transaction) = self.active_transactions.get(&transaction_id) {
-            info!("Executing transaction: {} with {} operations", 
-                  transaction_id, transaction.operations.len());
-            
+            info!(
+                "Executing transaction: {} with {} operations",
+                transaction_id,
+                transaction.operations.len()
+            );
+
             // Clone operations for processing
             transaction.operations.clone()
         } else {
@@ -148,7 +154,7 @@ impl TransactionManager {
 
         // Create rollback data
         let rollback_data = self.create_rollback_data().await?;
-        
+
         // Update transaction status
         if let Some(transaction) = self.active_transactions.get_mut(&transaction_id) {
             transaction.status = TransactionStatus::InProgress;
@@ -160,7 +166,7 @@ impl TransactionManager {
         for operation in operations {
             let mut op_copy = operation.clone();
             op_copy.status = OperationStatus::InProgress;
-            
+
             match self.execute_operation(&op_copy).await {
                 Ok(_) => {
                     op_copy.status = OperationStatus::Completed;
@@ -171,7 +177,7 @@ impl TransactionManager {
                     op_copy.status = OperationStatus::Failed;
                     op_copy.error = Some(e.to_string());
                     warn!("Operation {} failed: {}", op_copy.id, e);
-                    
+
                     // Rollback the transaction
                     return self.rollback_transaction(transaction_id).await;
                 }
@@ -183,10 +189,10 @@ impl TransactionManager {
             transaction.operations = operation_results;
             transaction.status = TransactionStatus::Completed;
             transaction.completed_at = Some(Utc::now());
-            
+
             info!("Transaction {} completed successfully", transaction_id);
         }
-        
+
         Ok(())
     }
 
@@ -194,7 +200,7 @@ impl TransactionManager {
     pub async fn rollback_transaction(&mut self, transaction_id: Uuid) -> Result<()> {
         if let Some(transaction) = self.active_transactions.get_mut(&transaction_id) {
             info!("Rolling back transaction: {}", transaction_id);
-            
+
             // Implement rollback logic here
             if let Some(rollback_data) = &transaction.rollback_data {
                 // Restore from snapshot if available
@@ -206,7 +212,7 @@ impl TransactionManager {
 
             transaction.status = TransactionStatus::RolledBack;
             transaction.completed_at = Some(Utc::now());
-            
+
             info!("Transaction {} rolled back successfully", transaction_id);
             Ok(())
         } else {
@@ -228,18 +234,14 @@ impl TransactionManager {
 
     async fn execute_operation(&self, operation: &Operation) -> Result<()> {
         use crate::boxes::{
-            apt::AptManager,
-            dnf::DnfBox,
-            winget::WingetBox,
-            brew::BrewBox,
-            snap::SnapBox,
+            apt::AptManager, brew::BrewBox, dnf::DnfBox, snap::SnapBox, winget::WingetBox,
         };
         use crate::distro::PackageManager;
-        
+
         match operation.operation_type {
             OperationType::InstallPackage => {
                 info!("Installing package: {}", operation.package);
-                
+
                 // Detect and use appropriate package manager using trait methods
                 if AptManager::is_available() {
                     let apt = AptManager::new()?;
@@ -262,7 +264,7 @@ impl TransactionManager {
             }
             OperationType::RemovePackage => {
                 info!("Removing package: {}", operation.package);
-                
+
                 // Use trait methods for consistent interface
                 if AptManager::is_available() {
                     let apt = AptManager::new()?;
