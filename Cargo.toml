@@ -6,6 +6,16 @@ authors = ["therealcoolnerd"]
 license = "AGPL-3.0-or-later"
 description = "Universal Cross-Platform Package Manager - Unify Linux, Windows, and macOS package management"
 
+[lints.rust]
+unused_imports = "allow"
+unused_variables = "allow"
+dead_code = "allow"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
