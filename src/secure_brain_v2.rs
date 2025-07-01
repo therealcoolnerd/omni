@@ -61,7 +61,7 @@ impl SecureOmniBrainV2 {
         if let Some(snapshot_manager) = &self.snapshot_manager {
             if self.config.general.confirm_installs {
                 info!("Creating pre-installation snapshot");
-                snapshot_manager.create_snapshot(&format!("pre-install-{}", package)).await?;
+                snapshot_manager.create_snapshot(&format!("pre-install-{}", package), Some("Pre-installation system snapshot")).await?;
             }
         }
         
@@ -90,7 +90,7 @@ impl SecureOmniBrainV2 {
                 if let Some(snapshot_manager) = &self.snapshot_manager {
                     if self.config.general.confirm_installs {
                         info!("Creating post-installation snapshot");
-                        snapshot_manager.create_snapshot(&format!("post-install-{}", package)).await?;
+                        snapshot_manager.create_snapshot(&format!("post-install-{}", package), Some("Post-installation system snapshot")).await?;
                     }
                 }
                 

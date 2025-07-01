@@ -294,11 +294,8 @@ impl DependencyResolver {
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut dependencies = Vec::new();
-        let mut in_depends = false;
-
         for line in stdout.lines() {
             if line.starts_with("Depends On") {
-                in_depends = true;
                 let deps_part = line.split(':').nth(1).unwrap_or("").trim();
                 if deps_part != "None" {
                     for dep in deps_part.split_whitespace() {

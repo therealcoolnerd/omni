@@ -238,7 +238,6 @@ impl AuditManager {
         let subscriber = tracing_subscriber::fmt()
             .with_writer(non_blocking)
             .with_ansi(false)
-            .json()
             .finish();
         
         tracing::subscriber::set_global_default(subscriber)?;

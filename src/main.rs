@@ -4,6 +4,7 @@ mod config;
 mod database;
 mod distro;
 mod error_handling;
+#[cfg(feature = "gui")]
 mod gui;
 mod history;
 mod input_validation;
@@ -18,6 +19,19 @@ mod search;
 mod security;
 mod snapshot;
 mod updater;
+mod types;
+mod audit;
+mod unified_manager;
+mod advanced_resolver_v2;
+mod transaction_v2;
+mod secure_brain_v2;
+#[cfg(feature = "ssh")]
+mod ssh;
+#[cfg(feature = "ssh")]
+mod ssh_real;
+mod docker;
+mod runtime;
+mod secure_executor;
 
 use anyhow::Result;
 use brain::OmniBrain;
@@ -251,7 +265,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
             box_type,
             url,
         } => {
-            let brain = OmniBrain::new_with_mock(cli.mock);
+            let mut brain = OmniBrain::new_with_mock(cli.mock);
 
             if let Some(manifest_path) = from {
                 let manifest = OmniManifest::from_file(&manifest_path)?;
@@ -279,7 +293,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
         }
 
         Commands::Remove { package, box_type } => {
-            let brain = OmniBrain::new_with_mock(cli.mock);
+            let mut brain = OmniBrain::new_with_mock(cli.mock);
             brain.remove(&package, box_type.as_deref()).await?;
         }
 
@@ -460,7 +474,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
             }
 
             HistoryCommands::Undo => {
-                let brain = OmniBrain::new_with_mock(cli.mock);
+                let mut brain = OmniBrain::new_with_mock(cli.mock);
                 brain.undo_last().await?;
             }
         },
@@ -508,7 +522,14 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
         }
 
         Commands::Gui => {
-            gui::launch_gui();
+            #[cfg(feature = "gui")]
+            {
+                gui::launch_gui();
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                println!("❌ GUI feature not compiled. Please rebuild with --features gui");
+            }
         }
 
         Commands::Config { action } => {
@@ -624,7 +645,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                 .await?;
 
             println!("\n📋 Verification Results:");
-            println!("─".repeat(50));
+            println!("{}", "─".repeat(50));
             println!("{}", result.details);
 
             match result.trust_level {

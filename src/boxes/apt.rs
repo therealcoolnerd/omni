@@ -1,7 +1,8 @@
 use crate::distro::PackageManager;
-use crate::error_handling::OmniError;
+use crate::error_handling::{OmniError, record_error};
 use crate::runtime::RuntimeManager;
-// use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use crate::types::InstalledPackage;
 use anyhow::Result;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -9,13 +10,13 @@ use tracing::{error, info, warn};
 /// Secure APT package manager wrapper
 #[derive(Clone)]
 pub struct AptManager {
-    // executor: SecureExecutor, // Temporarily disabled
+    executor: SecureExecutor,
 }
 
 impl AptManager {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            // executor: SecureExecutor::new()?, // Temporarily disabled
+            executor: SecureExecutor::new()?,
         })
     }
 
@@ -63,12 +64,13 @@ impl AptManager {
             Ok(())
         } else {
             error!("❌ APT failed to install '{}': {}", package, result.stderr);
-            Err(OmniError::InstallationFailed {
+            let error = OmniError::InstallationFailed {
                 package: package.to_string(),
                 box_type: "apt".to_string(),
                 reason: result.stderr,
-            }
-            .into())
+            };
+            record_error(&error);
+            Err(error.into())
         }
     }
 
@@ -192,11 +194,19 @@ impl AptManager {
 
 impl PackageManager for AptManager {
     fn install(&self, package: &str) -> Result<()> {
-        RuntimeManager::block_on(self.install_internal(package))
+        let apt_manager = self.clone();
+        let package = package.to_string();
+        RuntimeManager::block_on(async move {
+            apt_manager.install_internal(&package).await
+        })
     }
 
     fn remove(&self, package: &str) -> Result<()> {
-        RuntimeManager::block_on(self.remove_internal(package))
+        let apt_manager = self.clone();
+        let package = package.to_string();
+        RuntimeManager::block_on(async move {
+            apt_manager.remove_internal(&package).await
+        })
     }
 
     fn update(&self, package: Option<&str>) -> Result<()> {
@@ -212,7 +222,11 @@ impl PackageManager for AptManager {
     }
 
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        RuntimeManager::block_on(self.search_internal(query))
+        let apt_manager = self.clone();
+        let query = query.to_string();
+        RuntimeManager::block_on(async move {
+            apt_manager.search_internal(&query).await
+        })
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
@@ -224,7 +238,11 @@ impl PackageManager for AptManager {
     }
 
     fn get_info(&self, package: &str) -> Result<String> {
-        RuntimeManager::block_on(self.get_package_info_internal(package))
+        let apt_manager = self.clone();
+        let package = package.to_string();
+        RuntimeManager::block_on(async move {
+            apt_manager.get_package_info_internal(&package).await
+        })
     }
 
     fn needs_privilege(&self) -> bool {
@@ -283,11 +301,11 @@ impl AptManager {
                 .filter_map(|line| {
                     let parts: Vec<&str> = line.split('\t').collect();
                     if parts.len() >= 3 && parts[2].contains("installed") {
-                        Some(InstalledPackage {
-                            name: parts[0].to_string(),
-                            version: parts[1].to_string(),
-                            description: None,
-                        })
+                        Some(InstalledPackage::with_description(
+                            parts[0].to_string(),
+                            parts[1].to_string(),
+                            None,
+                        ))
                     } else {
                         None
                     }
@@ -308,12 +326,6 @@ impl AptManager {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct InstalledPackage {
-    pub name: String,
-    pub version: String,
-    pub description: Option<String>,
-}
 
 // Legacy functions for backward compatibility
 pub fn install_with_apt(package: &str) {

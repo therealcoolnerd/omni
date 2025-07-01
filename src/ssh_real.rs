@@ -165,10 +165,10 @@ impl RealSshSession {
                 .map_err(|e| anyhow!("Connection failed: {}", e))?;
 
         // Create SSH session
-        let session = client::connect(ssh_config, tcp_stream, handler).await?;
+        let mut session = client::connect(Arc::new(ssh_config), addr, handler).await?;
 
         // Authenticate
-        self.authenticate(&session).await?;
+        self.authenticate(&mut session).await?;
 
         self.client_session = Some(Arc::new(Mutex::new(session)));
         self.connected = true;
@@ -455,7 +455,7 @@ impl RealSshSession {
 
     // Private helper methods
 
-    async fn authenticate(&self, session: &client::Handle<SshClientHandler>) -> Result<()> {
+    async fn authenticate(&self, session: &mut client::Handle<SshClientHandler>) -> Result<()> {
         info!("Authenticating SSH session");
 
         match &self.config.auth_method {
@@ -474,12 +474,12 @@ impl RealSshSession {
                 passphrase,
             } => {
                 // Load private key
-                let key_data = tokio::fs::read(private_key_path)
+                let key_data = tokio::fs::read_to_string(private_key_path)
                     .await
                     .map_err(|e| anyhow!("Failed to read private key: {}", e))?;
 
                 let key = if let Some(passphrase) = passphrase {
-                    decode_secret_key(&key_data, Some(passphrase.as_bytes()))?
+                    decode_secret_key(&key_data, Some(&passphrase))?
                 } else {
                     decode_secret_key(&key_data, None)?
                 };
@@ -549,7 +549,7 @@ impl RealSshSession {
             return Err(anyhow!("Host cannot be empty"));
         }
 
-        if self.config.port == 0 || self.config.port > 65535 {
+        if self.config.port == 0 {
             return Err(anyhow!("Invalid port: {}", self.config.port));
         }
 

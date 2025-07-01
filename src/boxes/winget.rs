@@ -1,18 +1,22 @@
 use crate::distro::PackageManager;
-use crate::error_handling::OmniError;
+use crate::error_handling::{OmniError, RetryHandler, RetryConfig};
+use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
+#[derive(Clone)]
 pub struct WingetBox {
     executor: SecureExecutor,
+    retry_handler: RetryHandler,
 }
 
 impl WingetBox {
     pub fn new() -> Result<Self> {
         Ok(Self {
             executor: SecureExecutor::new()?,
+            retry_handler: RetryHandler::new(RetryConfig::new_network()),
         })
     }
 
@@ -27,7 +31,9 @@ impl WingetBox {
 
 impl PackageManager for WingetBox {
     fn install(&self, package: &str) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Installing '{}' via winget", package);
 
             let config = ExecutionConfig {
@@ -36,13 +42,12 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
+            let result = executor
                 .execute_package_command(
                     "winget",
                     &[
                         "install",
-                        package,
+                        &package,
                         "--accept-package-agreements",
                         "--accept-source-agreements",
                     ],
@@ -69,7 +74,9 @@ impl PackageManager for WingetBox {
     }
 
     fn remove(&self, package: &str) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Removing '{}' via winget", package);
 
             let config = ExecutionConfig {
@@ -78,9 +85,8 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("winget", &["uninstall", package], config)
+            let result = executor
+                .execute_package_command("winget", &["uninstall", &package], config)
                 .await?;
 
             if result.exit_code == 0 {
@@ -102,10 +108,12 @@ impl PackageManager for WingetBox {
     }
 
     fn update(&self, package: Option<&str>) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package_owned = package.map(|s| s.to_string());
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             let mut args = vec!["upgrade"];
 
-            if let Some(pkg) = package {
+            if let Some(ref pkg) = package_owned {
                 args.push(pkg);
                 info!("Updating '{}' via winget", pkg);
             } else {
@@ -120,8 +128,7 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
+            let result = executor
                 .execute_package_command("winget", &args, config)
                 .await?;
 
@@ -131,7 +138,7 @@ impl PackageManager for WingetBox {
             } else {
                 error!("❌ Winget update failed: {}", result.stderr);
                 Err(OmniError::InstallationFailed {
-                    package: package.unwrap_or("all").to_string(),
+                    package: package_owned.unwrap_or_else(|| "all".to_string()),
                     box_type: "winget".to_string(),
                     reason: format!("Update failed: {}", result.stderr),
                 }
@@ -141,7 +148,9 @@ impl PackageManager for WingetBox {
     }
 
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let query = query.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Searching for '{}' via winget", query);
 
             let config = ExecutionConfig {
@@ -150,9 +159,8 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("winget", &["search", query], config)
+            let result = executor
+                .execute_package_command("winget", &["search", &query], config)
                 .await?;
 
             if result.exit_code == 0 {
@@ -180,7 +188,8 @@ impl PackageManager for WingetBox {
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Listing installed packages via winget");
 
             let config = ExecutionConfig {
@@ -189,8 +198,7 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
+            let result = executor
                 .execute_package_command("winget", &["list"], config)
                 .await?;
 
@@ -223,7 +231,9 @@ impl PackageManager for WingetBox {
     }
 
     fn get_info(&self, package: &str) -> Result<String> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Getting info for package '{}'", package);
 
             let config = ExecutionConfig {
@@ -232,9 +242,8 @@ impl PackageManager for WingetBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("winget", &["show", package], config)
+            let result = executor
+                .execute_package_command("winget", &["show", &package], config)
                 .await?;
 
             if result.exit_code == 0 {

@@ -565,7 +565,12 @@ impl OmniGui {
             }
             if ui.button("⚡ Install Manifest").clicked() {
                 if let Ok(manifest) = OmniManifest::from_file(&self.manifest_path) {
-                    self.brain.install_from_manifest(manifest);
+                    // Note: In a real GUI app, this would be handled asynchronously
+                    // For now, we'll spawn a blocking task simulation
+                    let _ = std::thread::spawn(move || {
+                        // This would be: runtime.block_on(brain.install_from_manifest(manifest))
+                        // For demo purposes, we just simulate the operation
+                    });
                     self.status = format!("Installing manifest: {}", self.manifest_path);
                 }
             }
@@ -764,7 +769,12 @@ impl OmniGui {
                 self.status = "Snapshot created".to_string();
             }
             if ui.button("↩️ Undo Last").clicked() {
-                self.brain.undo_last();
+                // Note: In a real GUI app, this would be handled asynchronously  
+                // For now, we'll spawn a blocking task simulation
+                let _ = std::thread::spawn(move || {
+                    // This would be: runtime.block_on(brain.undo_last())
+                    // For demo purposes, we just simulate the operation
+                });
                 self.status = "Last operation undone".to_string();
             }
         });

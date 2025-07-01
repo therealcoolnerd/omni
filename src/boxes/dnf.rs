@@ -1,21 +1,25 @@
 use crate::distro::PackageManager;
-use crate::error_handling::OmniError;
+use crate::error_handling::{OmniError, RetryHandler, RetryConfig};
 use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use crate::types::InstalledPackage;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Secure DNF package manager wrapper
+#[derive(Clone)]
 pub struct DnfBox {
     executor: Arc<SecureExecutor>,
+    retry_handler: RetryHandler,
 }
 
 impl DnfBox {
     pub fn new() -> Result<Self> {
         Ok(Self {
             executor: Arc::new(SecureExecutor::new()?),
+            retry_handler: RetryHandler::new(RetryConfig::new_network()),
         })
     }
 
@@ -41,6 +45,20 @@ impl PackageManager for DnfBox {
                 timeout: Duration::from_secs(600),
                 ..ExecutionConfig::default()
             };
+
+            // First update package cache
+            let update_config = ExecutionConfig {
+                requires_sudo: true,
+                timeout: Duration::from_secs(300),
+                ..ExecutionConfig::default()
+            };
+
+            if let Err(e) = executor
+                .execute_package_command("dnf", &["check-update"], update_config)
+                .await
+            {
+                warn!("DNF cache check failed, continuing: {}", e);
+            }
 
             let result = executor
                 .execute_package_command("dnf", &["install", "-y", &package], config)
@@ -264,6 +282,202 @@ impl PackageManager for DnfBox {
         85 // High priority for Red Hat systems
     }
 }
+
+impl DnfBox {
+    // Public async methods for better integration
+    pub async fn install_async(&self, package: &str) -> Result<()> {
+        info!("Installing '{}' via dnf", package);
+
+        let config = ExecutionConfig {
+            requires_sudo: true,
+            timeout: Duration::from_secs(600),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["install", "-y", package], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            info!("✅ DNF successfully installed '{}'", package);
+            Ok(())
+        } else {
+            error!("❌ DNF failed to install '{}': {}", package, result.stderr);
+            Err(OmniError::InstallationFailed {
+                package: package.to_string(),
+                box_type: "dnf".to_string(),
+                reason: result.stderr,
+            }.into())
+        }
+    }
+
+    pub async fn remove_async(&self, package: &str) -> Result<()> {
+        info!("Removing '{}' via dnf", package);
+
+        let config = ExecutionConfig {
+            requires_sudo: true,
+            timeout: Duration::from_secs(300),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["remove", "-y", package], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            info!("✅ DNF successfully removed '{}'", package);
+            Ok(())
+        } else {
+            error!("❌ DNF failed to remove '{}': {}", package, result.stderr);
+            Err(OmniError::InstallationFailed {
+                package: package.to_string(),
+                box_type: "dnf".to_string(),
+                reason: format!("Remove failed: {}", result.stderr),
+            }.into())
+        }
+    }
+
+    pub async fn search_async(&self, query: &str) -> Result<Vec<String>> {
+        info!("Searching for '{}' via dnf", query);
+
+        let config = ExecutionConfig {
+            requires_sudo: false,
+            timeout: Duration::from_secs(60),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["search", query], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            let packages: Vec<String> = result
+                .stdout
+                .lines()
+                .filter_map(|line| {
+                    if line.contains(".")
+                        && !line.starts_with("=")
+                        && !line.starts_with("Last metadata")
+                    {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if !parts.is_empty() {
+                            Some(parts[0].split('.').next().unwrap_or(parts[0]).to_string())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            info!("✅ Found {} packages matching '{}'", packages.len(), query);
+            Ok(packages)
+        } else {
+            error!("❌ DNF search failed: {}", result.stderr);
+            Ok(vec![]) // Return empty list instead of error for search
+        }
+    }
+
+    pub async fn get_package_info_async(&self, package: &str) -> Result<String> {
+        info!("Getting info for package '{}'", package);
+
+        let config = ExecutionConfig {
+            requires_sudo: false,
+            timeout: Duration::from_secs(30),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["info", package], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            Ok(result.stdout)
+        } else {
+            Err(OmniError::PackageNotFound {
+                package: package.to_string(),
+            }.into())
+        }
+    }
+
+    pub async fn update_cache(&self) -> Result<()> {
+        info!("Updating dnf package cache");
+
+        let config = ExecutionConfig {
+            requires_sudo: true,
+            timeout: Duration::from_secs(300),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["makecache"], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            info!("✅ DNF cache updated successfully");
+            Ok(())
+        } else {
+            error!("❌ DNF cache update failed: {}", result.stderr);
+            Err(OmniError::InstallationFailed {
+                package: "cache".to_string(),
+                box_type: "dnf".to_string(),
+                reason: format!("Cache update failed: {}", result.stderr),
+            }.into())
+        }
+    }
+
+    pub async fn get_installed_packages(&self) -> Result<Vec<InstalledPackage>> {
+        info!("Getting installed packages via dnf");
+
+        let config = ExecutionConfig {
+            requires_sudo: false,
+            timeout: Duration::from_secs(60),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command("dnf", &["list", "installed"], config)
+            .await?;
+
+        if result.exit_code == 0 {
+            let packages: Vec<InstalledPackage> = result
+                .stdout
+                .lines()
+                .skip(1) // Skip header line
+                .filter_map(|line| {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 3 && parts[0].contains(".") {
+                        Some(InstalledPackage::with_description(
+                            parts[0].split('.').next().unwrap_or(parts[0]).to_string(),
+                            parts[1].to_string(),
+                            None,
+                        ))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            info!("✅ Found {} installed packages", packages.len());
+            Ok(packages)
+        } else {
+            error!("❌ Failed to get installed packages: {}", result.stderr);
+            Err(OmniError::InstallationFailed {
+                package: "list".to_string(),
+                box_type: "dnf".to_string(),
+                reason: format!("List failed: {}", result.stderr),
+            }.into())
+        }
+    }
+}
+
 
 // Legacy functions for backward compatibility
 pub fn install_with_dnf(package: &str) {

@@ -60,6 +60,7 @@ pub struct DatabaseHealth {
     pub integrity_ok: bool,
 }
 
+#[derive(Debug, Clone)]
 pub struct Database {
     pub pool: SqlitePool,
 }

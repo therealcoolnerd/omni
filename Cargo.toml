@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 authors = ["therealcoolnerd"]
 license = "AGPL-3.0-or-later"
-description = "Universal Cross-Platform Package Manager - Unify Linux, Windows, and macOS package management"
+description = "Omni Enterprise - Full-featured Universal Package Manager with advanced capabilities"
 
 [lints.rust]
 unused_imports = "allow"
@@ -17,48 +17,92 @@ nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 [dependencies]
+# Core serialization - optimized for speed
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 chrono = { version = "0.4", features = ["serde"] }
-eframe = { version = "0.31", features = ["default"] }
-egui_extras = { version = "0.31", features = ["default"] }
-rfd = "0.15"
-tokio = { version = "1.0", features = ["full"] }
+
+# GUI dependencies - only when needed
+eframe = { version = "0.31", features = ["default"], optional = true }
+egui_extras = { version = "0.31", features = ["default"], optional = true }
+rfd = { version = "0.15", optional = true }
+
+# Core async runtime - minimal features for faster compile
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "process", "fs", "net"] }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# CLI and user interaction
 indicatif = "0.17"
 dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+clap = { version = "4.0", features = ["derive"] }
+
+# Cryptography and security
 sha2 = "0.10"
 hex = "0.4"
+base64 = "0.22"
+
+# Network and HTTP
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
-tempfile = "3.0"
+
+# File handling
+tempfile = "3.0" 
 zip = "4.2"
 tar = "0.4"
 flate2 = "1.0"
-clap = { version = "4.0", features = ["derive"] }
-anyhow = "1.0"
-thiserror = "2.0"
+
+# System and utilities
 dirs = "6.0"
 semver = { version = "1.0", features = ["serde"] }
-tracing-appender = "0.2"
 regex = "1.10"
 url = "2.5"
 libc = "0.2"
 rand = "0.8"
-base64 = "0.22"
-russh = "0.44"
-russh-keys = "0.44"
+
+# SSH support - only when needed
+russh = { version = "0.44", optional = true }
+russh-keys = { version = "0.44", optional = true }
+
+# Async utilities
 async-trait = "0.1"
 futures = "0.3"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
 tempfile = "3.0"
 tokio-test = "0.4"
 futures = "0.3"
+
+[features]
+default = []
+
+# Main version tiers  
+lite = []
+core = ["snapshots", "manifests", "enhanced-security"]
+enterprise = ["core", "gui", "ssh", "transactions", "advanced-resolver", "audit-trails"]
+
+# Individual feature groups
+gui = ["eframe", "egui_extras", "rfd"]
+ssh = ["russh", "russh-keys"]
+snapshots = []
+manifests = []
+enhanced-security = []
+transactions = []
+advanced-resolver = []
+audit-trails = []
+
+# Convenience aliases
+full = ["enterprise"]
 
 [[bench]]
 name = "performance"
@@ -67,4 +111,15 @@ harness = false
 [lib]
 name = "omni"
 path = "src/lib.rs"
+
+# Optimization profiles
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
+debug = true
 

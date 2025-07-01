@@ -1,6 +1,6 @@
 use crate::distro::PackageManager;
 use crate::error_handling::OmniError;
-// use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
 use tracing::{error, info};

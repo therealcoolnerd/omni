@@ -1,18 +1,22 @@
 use crate::distro::PackageManager;
-use crate::error_handling::OmniError;
+use crate::error_handling::{OmniError, RetryHandler, RetryConfig};
+use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
+#[derive(Clone)]
 pub struct SnapBox {
     executor: SecureExecutor,
+    retry_handler: RetryHandler,
 }
 
 impl SnapBox {
     pub fn new() -> Result<Self> {
         Ok(Self {
             executor: SecureExecutor::new()?,
+            retry_handler: RetryHandler::new(RetryConfig::new_network()),
         })
     }
 
@@ -27,7 +31,9 @@ impl SnapBox {
 
 impl PackageManager for SnapBox {
     fn install(&self, package: &str) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Installing '{}' via snap", package);
 
             let config = ExecutionConfig {
@@ -36,9 +42,8 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("snap", &["install", package], config)
+            let result = executor
+                .execute_package_command("snap", &["install", &package], config)
                 .await?;
 
             if result.exit_code == 0 {
@@ -57,7 +62,9 @@ impl PackageManager for SnapBox {
     }
 
     fn remove(&self, package: &str) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Removing '{}' via snap", package);
 
             let config = ExecutionConfig {
@@ -66,9 +73,8 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("snap", &["remove", package], config)
+            let result = executor
+                .execute_package_command("snap", &["remove", &package], config)
                 .await?;
 
             if result.exit_code == 0 {
@@ -87,10 +93,12 @@ impl PackageManager for SnapBox {
     }
 
     fn update(&self, package: Option<&str>) -> Result<()> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package_owned = package.map(|s| s.to_string());
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             let mut args = vec!["refresh"];
 
-            if let Some(pkg) = package {
+            if let Some(ref pkg) = package_owned {
                 args.push(pkg);
                 info!("Updating '{}' via snap", pkg);
             } else {
@@ -103,8 +111,7 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
+            let result = executor
                 .execute_package_command("snap", &args, config)
                 .await?;
 
@@ -114,7 +121,7 @@ impl PackageManager for SnapBox {
             } else {
                 error!("❌ Snap update failed: {}", result.stderr);
                 Err(OmniError::InstallationFailed {
-                    package: package.unwrap_or("all").to_string(),
+                    package: package_owned.unwrap_or_else(|| "all".to_string()),
                     box_type: "snap".to_string(),
                     reason: result.stderr,
                 }
@@ -124,7 +131,9 @@ impl PackageManager for SnapBox {
     }
 
     fn search(&self, query: &str) -> Result<Vec<String>> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let query = query.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Searching for '{}' via snap", query);
 
             let config = ExecutionConfig {
@@ -133,9 +142,8 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("snap", &["find", query], config)
+            let result = executor
+                .execute_package_command("snap", &["find", &query], config)
                 .await?;
 
             if result.exit_code == 0 {
@@ -162,7 +170,8 @@ impl PackageManager for SnapBox {
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Listing installed packages via snap");
 
             let config = ExecutionConfig {
@@ -171,8 +180,7 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
+            let result = executor
                 .execute_package_command("snap", &["list"], config)
                 .await?;
 
@@ -200,7 +208,9 @@ impl PackageManager for SnapBox {
     }
 
     fn get_info(&self, package: &str) -> Result<String> {
-        tokio::runtime::Runtime::new()?.block_on(async {
+        let package = package.to_string();
+        let executor = self.executor.clone();
+        RuntimeManager::block_on(async move {
             info!("Getting info for '{}' via snap", package);
 
             let config = ExecutionConfig {
@@ -209,9 +219,8 @@ impl PackageManager for SnapBox {
                 ..ExecutionConfig::default()
             };
 
-            let result = self
-                .executor
-                .execute_package_command("snap", &["info", package], config)
+            let result = executor
+                .execute_package_command("snap", &["info", &package], config)
                 .await?;
 
             if result.exit_code == 0 {

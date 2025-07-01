@@ -6,6 +6,7 @@ pub mod brain;
 pub mod config;
 pub mod database;
 pub mod distro;
+#[cfg(feature = "gui")]
 pub mod gui;
 pub mod history;
 pub mod interactive;
@@ -16,6 +17,7 @@ pub mod resolver;
 pub mod search;
 pub mod security;
 pub mod snapshot;
+pub mod types;
 pub mod updater;
 
 // Essential security and execution modules
@@ -24,19 +26,23 @@ pub mod input_validation;
 pub mod privilege_manager;
 pub mod runtime;
 pub mod sandboxing;
-// pub mod secure_executor; // Temporarily disabled for CI
-// pub mod audit;            // Has sqlx Row issues
+pub mod secure_executor;
+pub mod audit;
 pub mod unified_manager;
 
-// Advanced features - temporarily disabled for compilation
-// pub mod advanced_resolver; // Temporarily disabled for CI
-// pub mod transaction; // Temporarily disabled for CI
-// pub mod secure_brain_v2;  // Depends on problematic modules
+// Advanced features - refactored for stability
+pub mod advanced_resolver_v2;
+pub mod transaction_v2;
+pub mod secure_brain_v2;
 
-// Remote capabilities - disabled until integration complete
-// pub mod docker; // Temporarily disabled for CI
-// pub mod ssh; // Temporarily disabled for CI
-// pub mod ssh_real; // Temporarily disabled for CI
+// Remote capabilities - feature gated
+#[cfg(feature = "ssh")]
+pub mod ssh;
+#[cfg(feature = "ssh")]
+pub mod ssh_real;
+
+// Container support - optional
+pub mod docker;
 
 // Re-export commonly used types for easier testing
 pub use brain::OmniBrain;
@@ -49,18 +55,31 @@ pub use resolver::DependencyResolver;
 pub use snapshot::SnapshotManager;
 
 // Re-export essential secure components
-pub use error_handling::{OmniError, RecoveryManager, RetryHandler};
+pub use error_handling::{
+    OmniError, RecoveryManager, RetryHandler, ErrorContext, ErrorCategory, ErrorSeverity,
+    RecoveryStrategy, ErrorMonitor, ErrorMetrics, RecoveryMetrics, get_error_monitor, record_error
+};
 pub use input_validation::InputValidator;
 pub use privilege_manager::PrivilegeManager;
-// pub use secure_executor::{ExecutionConfig, ExecutionResult, SecureExecutor};
+pub use secure_executor::{ExecutionConfig, ExecutionResult, SecureExecutor};
 // pub use audit::{AuditManager, AuditEntry, SecurityEvent, SecuritySeverity, AuditConfig};
 pub use runtime::RuntimeManager;
 pub use unified_manager::UnifiedPackageManager;
 
-// Re-export advanced components - temporarily disabled
-// pub use advanced_resolver::{AdvancedDependencyResolver, ResolutionPlan, ResolutionStrategy};
-// pub use transaction::{Transaction, TransactionManager, TransactionStatus, TransactionType};
+// Re-export advanced components - refactored versions
+pub use advanced_resolver_v2::{AdvancedDependencyResolver, ResolutionPlan, ResolutionStrategy, PackageAction, ActionType};
+pub use transaction_v2::{Transaction, TransactionManager, TransactionStatus, TransactionType, Operation, OperationType, OperationStatus};
 // pub use secure_brain_v2::SecureOmniBrainV2;
+
+// Re-export common types
+pub use types::InstalledPackage;
+
+// Re-export enhanced package managers
+pub use boxes::apt::AptManager;
+pub use boxes::dnf::DnfBox;
+pub use boxes::winget::WingetBox;
+pub use boxes::brew::BrewBox;
+pub use boxes::snap::SnapBox;
 
 // Remote capabilities - disabled until integration complete
 // pub use docker::{ContainerInfo, DockerClient, DockerConfig, DockerPackageManager};

@@ -31,7 +31,7 @@ pub struct MetaInfo {
 }
 
 impl OmniManifest {
-    pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_file(path: &str) -> anyhow::Result<Self> {
         let content = fs::read_to_string(path)?;
         let manifest: OmniManifest = serde_yaml::from_str(&content)?;
         Ok(manifest)
