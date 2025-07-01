@@ -36,7 +36,7 @@ impl Default for SecurityPolicy {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SecurityVerifier {
     policy: SecurityPolicy,
 }

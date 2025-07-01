@@ -4,7 +4,7 @@ use crate::security::{TrustLevel, VerificationResult};
 use anyhow::Result;
 use dialoguer::{theme::ColorfulTheme, Confirm, FuzzySelect, Input, MultiSelect, Select};
 use std::fmt::Display;
-use tracing::{info, warn};
+use tracing::info;
 
 pub struct InteractivePrompts {
     theme: ColorfulTheme,
@@ -338,7 +338,7 @@ impl InteractivePrompts {
             })
         } else {
             println!("\nAvailable alternatives:");
-            let mut options = alternatives.clone();
+            let mut options = alternatives.to_vec();
             options.extend(vec![
                 "Abort installation".to_string(),
                 "Force original (ignore conflict)".to_string(),

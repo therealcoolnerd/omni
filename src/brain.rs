@@ -734,6 +734,7 @@ impl OmniBrain {
                 version: Some("latest".to_string()),
                 source: Some("apt".to_string()),
                 box_type: "apt".to_string(),
+                installed: false,
             },
             crate::search::SearchResult {
                 name: format!("vim"),
@@ -741,6 +742,7 @@ impl OmniBrain {
                 version: Some("latest".to_string()),
                 source: Some("apt".to_string()),
                 box_type: "apt".to_string(),
+                installed: false,
             },
             crate::search::SearchResult {
                 name: format!("git"),
@@ -748,6 +750,7 @@ impl OmniBrain {
                 version: Some("latest".to_string()),
                 source: Some("apt".to_string()),
                 box_type: "apt".to_string(),
+                installed: false,
             },
         ];
 

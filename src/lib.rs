@@ -31,7 +31,7 @@ pub mod unified_manager;
 // Advanced features - temporarily disabled for compilation
 pub mod advanced_resolver;
 pub mod transaction; // Fixed borrow checker issues // Fixed version constraint issues
-                                                    // pub mod secure_brain_v2;  // Depends on problematic modules
+                     // pub mod secure_brain_v2;  // Depends on problematic modules
 
 // Remote capabilities - disabled until integration complete
 pub mod docker;

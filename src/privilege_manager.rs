@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use tracing::{error, info, warn};
 
 /// Manages privilege escalation and dropping for secure operations
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PrivilegeManager {
     original_uid: Option<u32>,
     original_gid: Option<u32>,

@@ -235,7 +235,7 @@ impl RetryConfig {
 }
 
 /// Retry mechanism with exponential backoff
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RetryHandler {
     config: RetryConfig,
 }

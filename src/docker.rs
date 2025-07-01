@@ -802,7 +802,10 @@ impl DockerPackageManager {
 
 impl Default for DockerPackageManager {
     fn default() -> Self {
-        Self::new().expect("Failed to create Docker package manager")
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(Self::new())
+            .expect("Failed to create Docker package manager")
     }
 }
 

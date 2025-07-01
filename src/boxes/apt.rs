@@ -7,6 +7,7 @@ use std::time::Duration;
 use tracing::{error, info, warn};
 
 /// Secure APT package manager wrapper
+#[derive(Clone)]
 pub struct AptManager {
     executor: SecureExecutor,
 }
@@ -199,11 +200,13 @@ impl PackageManager for AptManager {
     }
 
     fn update(&self, package: Option<&str>) -> Result<()> {
+        let package_owned = package.map(|s| s.to_string());
+        let apt_manager = self.clone();
         RuntimeManager::block_on(async move {
-            if let Some(pkg) = package {
-                self.install_internal(pkg).await
+            if let Some(pkg) = package_owned {
+                apt_manager.install_internal(&pkg).await
             } else {
-                self.update_cache().await
+                apt_manager.update_cache().await
             }
         })
     }
@@ -213,8 +216,9 @@ impl PackageManager for AptManager {
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
+        let apt_manager = self.clone();
         RuntimeManager::block_on(async move {
-            let packages = self.get_installed_packages().await?;
+            let packages = apt_manager.get_installed_packages().await?;
             Ok(packages.into_iter().map(|p| p.name).collect())
         })
     }

@@ -9,7 +9,7 @@ use std::time::Duration;
 use tracing::{error, info, warn};
 
 /// Secure command execution wrapper that validates inputs and manages privileges
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SecureExecutor {
     privilege_manager: PrivilegeManager,
     security_verifier: SecurityVerifier,

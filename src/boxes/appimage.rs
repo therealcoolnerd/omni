@@ -3,9 +3,8 @@ use dirs;
 use reqwest;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use tracing::{error, info, warn};
+use std::path::Path;
+use tracing::info;
 
 const APPIMAGE_DIR: &str = ".local/share/applications/appimages";
 
