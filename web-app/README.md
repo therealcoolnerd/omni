@@ -1,6 +1,12 @@
-# Omni Web App - Secure React Application
+# ⚫ Omni Web App — Security-First React Interface
 
-This is the secure web application for the Omni package manager, implementing comprehensive XSS protection and security best practices.
+**The web interface for Omni that doesn't compromise.** Built with security as a foundation, not an afterthought.
+
+```ascii
+┌─────────────────────────────────────────────────────────┐
+│  🔒 Zero XSS tolerance. Maximum user protection.       │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## 🔒 Security Features
 
