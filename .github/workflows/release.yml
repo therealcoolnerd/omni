@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   actions: read
+  security-events: write
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,50 +18,12 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Omni ${{ github.ref }}
-        body: |
-          ## What's Changed
-          
-          * See the [changelog](CHANGELOG.md) for detailed changes
-          * Download the appropriate binary for your platform below
-          
-          ## Installation
-          
-          ### Linux (Ubuntu/Debian)
-          ```bash
-          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-linux-x86_64.tar.gz
-          tar -xzf omni-linux-x86_64.tar.gz
-          sudo mv omni /usr/local/bin/
-          ```
-          
-          ### Windows
-          ```powershell
-          # Download omni-windows-x86_64.zip and extract
-          # Add to PATH or run directly
-          ```
-          
-          ### macOS
-          ```bash
-          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-macos-x86_64.tar.gz
-          tar -xzf omni-macos-x86_64.tar.gz
-          sudo mv omni /usr/local/bin/
-          ```
-        draft: false
-        prerelease: false
+    - name: Checkout code
+      uses: actions/checkout@v4
 
   build-release:
     name: Build Release
-    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -86,8 +50,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@25dc93b901a87194fc51fcb9b13cf938a4ca9b30
       with:
+        toolchain: stable
         targets: ${{ matrix.target }}
 
     - name: Install Linux dependencies
@@ -123,15 +88,44 @@ jobs:
         7z a ../../../omni-${{ matrix.name }}.zip omni.exe
         cd ../../..
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create checksums
+      run: |
+        cd .
+        sha256sum omni-${{ matrix.name }}.${{ matrix.archive }} > omni-${{ matrix.name }}.${{ matrix.archive }}.sha256
+        
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
       with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./omni-${{ matrix.name }}.${{ matrix.archive }}
-        asset_name: omni-${{ matrix.name }}.${{ matrix.archive }}
-        asset_content_type: application/octet-stream
+        files: |
+          omni-${{ matrix.name }}.${{ matrix.archive }}
+          omni-${{ matrix.name }}.${{ matrix.archive }}.sha256
+        body: |
+          ## What's Changed
+          
+          * See the [changelog](CHANGELOG.md) for detailed changes
+          * Download the appropriate binary for your platform below
+          
+          ## Installation
+          
+          ### Linux (Ubuntu/Debian)
+          ```bash
+          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-linux-x86_64.tar.gz
+          tar -xzf omni-linux-x86_64.tar.gz
+          sudo mv omni /usr/local/bin/
+          ```
+          
+          ### Windows
+          ```powershell
+          # Download omni-windows-x86_64.zip and extract
+          # Add to PATH or run directly
+          ```
+          
+          ### macOS
+          ```bash
+          wget https://github.com/therealcoolnerd/omni/releases/download/${{ github.ref_name }}/omni-macos-x86_64.tar.gz
+          tar -xzf omni-macos-x86_64.tar.gz
+          sudo mv omni /usr/local/bin/
+          ```
 
   publish-crates:
     name: Publish to crates.io
@@ -144,7 +138,9 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@25dc93b901a87194fc51fcb9b13cf938a4ca9b30
+      with:
+        toolchain: stable
       
     - name: Install dependencies
       run: |
@@ -155,8 +151,11 @@ jobs:
           libssl-dev \
           libsqlite3-dev
           
+    - name: Login to crates.io
+      run: echo "${{ secrets.CRATES_TOKEN }}" | cargo login
+      
     - name: Publish to crates.io
-      run: cargo publish --token ${{ secrets.CRATES_TOKEN }}
+      run: cargo publish
 
   update-homebrew:
     name: Update Homebrew Formula
@@ -166,7 +165,7 @@ jobs:
     
     steps:
     - name: Update Homebrew formula
-      uses: mislav/bump-homebrew-formula-action@v3
+      uses: mislav/bump-homebrew-formula-action@65542ba63f8a8b4ef91a5b30d15b8e324a6bb6ff
       with:
         formula-name: omni
         homebrew-tap: therealcoolnerd/homebrew-tap
