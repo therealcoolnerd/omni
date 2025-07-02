@@ -615,20 +615,194 @@ impl TransactionManager {
 
     async fn rollback_install_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back install of {}", operation.package_name);
-        // Use the secure executor to remove the package
+        
+        // Remove the package that was installed
+        match operation.box_type.as_str() {
+            "apt" => {
+                let manager = crate::boxes::apt::AptManager::new()?;
+                manager.remove(&operation.package_name).await?;
+            }
+            "dnf" => {
+                let manager = crate::boxes::dnf::DnfBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "pacman" => {
+                let manager = crate::boxes::pacman::PacmanBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "zypper" => {
+                let manager = crate::boxes::zypper::ZypperBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "emerge" => {
+                let manager = crate::boxes::emerge::EmergeBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "brew" => {
+                let manager = crate::boxes::brew::BrewBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "winget" => {
+                let manager = crate::boxes::winget::WingetBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "chocolatey" => {
+                let manager = crate::boxes::chocolatey::ChocolateyBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "scoop" => {
+                let manager = crate::boxes::scoop::ScoopBox;
+                manager.remove(&operation.package_name)?;
+            }
+            "snap" => {
+                let manager = crate::boxes::snap::SnapBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "flatpak" => {
+                let manager = crate::boxes::flatpak::FlatpakBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            "mas" => {
+                warn!("Cannot rollback MAS installations automatically");
+                return Err(anyhow!("MAS rollback not supported"));
+            }
+            "nix" => {
+                let manager = crate::boxes::nix::NixBox::new()?;
+                manager.remove(&operation.package_name)?;
+            }
+            _ => {
+                return Err(anyhow!("Unknown package manager: {}", operation.box_type));
+            }
+        }
+        
+        info!("✅ Successfully rolled back install of {}", operation.package_name);
         Ok(())
     }
 
     async fn rollback_remove_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back removal of {}", operation.package_name);
-        // Use the secure executor to reinstall the package
+        
+        // Reinstall the package that was removed
+        if let Some(version) = &operation.version_before {
+            info!("Attempting to reinstall {} version {}", operation.package_name, version);
+        }
+        
+        match operation.box_type.as_str() {
+            "apt" => {
+                let manager = crate::boxes::apt::AptManager::new()?;
+                manager.install(&operation.package_name).await?;
+            }
+            "dnf" => {
+                let manager = crate::boxes::dnf::DnfBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "pacman" => {
+                let manager = crate::boxes::pacman::PacmanBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "zypper" => {
+                let manager = crate::boxes::zypper::ZypperBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "emerge" => {
+                let manager = crate::boxes::emerge::EmergeBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "brew" => {
+                let manager = crate::boxes::brew::BrewBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "winget" => {
+                let manager = crate::boxes::winget::WingetBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "chocolatey" => {
+                let manager = crate::boxes::chocolatey::ChocolateyBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "scoop" => {
+                let manager = crate::boxes::scoop::ScoopBox;
+                manager.install(&operation.package_name)?;
+            }
+            "snap" => {
+                let manager = crate::boxes::snap::SnapBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "flatpak" => {
+                let manager = crate::boxes::flatpak::FlatpakBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            "mas" => {
+                warn!("Cannot rollback MAS removals automatically");
+                return Err(anyhow!("MAS rollback not supported"));
+            }
+            "nix" => {
+                let manager = crate::boxes::nix::NixBox::new()?;
+                manager.install(&operation.package_name)?;
+            }
+            _ => {
+                return Err(anyhow!("Unknown package manager: {}", operation.box_type));
+            }
+        }
+        
+        info!("✅ Successfully rolled back removal of {}", operation.package_name);
         Ok(())
     }
 
     async fn rollback_update_operation(&self, operation: &TransactionOperation) -> Result<()> {
         info!("Rolling back update of {}", operation.package_name);
-        // Use the secure executor to downgrade the package
-        Ok(())
+        
+        // Try to downgrade to the previous version
+        if let Some(previous_version) = &operation.version_before {
+            info!("Attempting to downgrade {} from {} to {}", 
+                  operation.package_name, 
+                  operation.version_after.as_deref().unwrap_or("unknown"),
+                  previous_version);
+                  
+            // Note: Not all package managers support easy downgrades
+            match operation.box_type.as_str() {
+                "apt" => {
+                    // APT downgrades require specific version syntax
+                    warn!("APT downgrade may require manual intervention");
+                    // Could try: apt install package=version
+                    return Err(anyhow!("APT downgrade requires manual intervention"));
+                }
+                "dnf" => {
+                    // DNF supports downgrade command
+                    warn!("DNF downgrade not fully implemented");
+                    return Err(anyhow!("DNF downgrade not fully implemented"));
+                }
+                "pacman" => {
+                    // Pacman supports downgrade with package cache
+                    warn!("Pacman downgrade requires package cache");
+                    return Err(anyhow!("Pacman downgrade requires package cache"));
+                }
+                "brew" => {
+                    // Homebrew supports pin/unpin for version control
+                    warn!("Homebrew downgrade requires formula version availability");
+                    return Err(anyhow!("Homebrew downgrade not supported"));
+                }
+                "snap" => {
+                    // Snap supports revert command
+                    let manager = crate::boxes::snap::SnapBox::new()?;
+                    // This would need snap revert functionality
+                    warn!("Snap revert functionality needs implementation");
+                    return Err(anyhow!("Snap revert not implemented"));
+                }
+                "nix" => {
+                    // Nix has excellent rollback support
+                    let manager = crate::boxes::nix::NixBox::new()?;
+                    // Could use nix-env --rollback
+                    warn!("Nix rollback needs proper implementation");
+                    return Err(anyhow!("Nix rollback not implemented"));
+                }
+                _ => {
+                    return Err(anyhow!("Downgrade not supported for {}", operation.box_type));
+                }
+            }
+        } else {
+            return Err(anyhow!("No previous version recorded for rollback"));
+        }
     }
 
     async fn prepare_rollback_data(

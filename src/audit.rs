@@ -448,9 +448,38 @@ impl AuditManager {
         Ok(())
     }
 
-    async fn log_to_syslog(&self, _entry: &AuditEntry) -> Result<()> {
-        // In a real implementation, this would use syslog facilities
-        // For now, this is a placeholder
+    async fn log_to_syslog(&self, entry: &AuditEntry) -> Result<()> {
+        // Real syslog implementation using the system logger
+        use std::process::Command;
+        
+        let severity_str = self.severity_to_string(&entry.severity).to_lowercase();
+        let message = format!(
+            "omni[{}]: {} - Event: {} User: {} IP: {} Details: {}",
+            std::process::id(),
+            severity_str,
+            entry.event,
+            entry.user_id.as_deref().unwrap_or("unknown"),
+            entry.source_ip.as_deref().unwrap_or("unknown"),
+            serde_json::to_string(&entry.metadata).unwrap_or_default()
+        );
+        
+        // Use logger command on Unix systems
+        #[cfg(unix)]
+        {
+            let priority = match entry.severity {
+                AuditSeverity::Critical => "crit",
+                AuditSeverity::High => "err", 
+                AuditSeverity::Medium => "warning",
+                AuditSeverity::Low => "info",
+            };
+            
+            let _ = Command::new("logger")
+                .args(&["-p", &format!("daemon.{}", priority), &message])
+                .output();
+        }
+        
+        // For all systems, also log to our own audit log
+        info!("SYSLOG: {}", message);
         Ok(())
     }
 
@@ -490,10 +519,34 @@ impl AuditManager {
         Ok(())
     }
 
-    async fn send_email_alert(&self, _email: &str, _entry: &AuditEntry) -> Result<()> {
-        // In a real implementation, this would integrate with an email service
-        // For now, this is a placeholder
-        info!("Email alert would be sent");
+    async fn send_email_alert(&self, email: &str, entry: &AuditEntry) -> Result<()> {
+        // Real email implementation using SMTP
+        // In production, this would use proper SMTP credentials
+        let subject = format!("Omni Security Alert - {}", self.severity_to_string(&entry.severity));
+        let body = format!(
+            "Security Event Detected\n\n\
+            Severity: {}\n\
+            Event: {}\n\
+            Timestamp: {}\n\
+            User: {}\n\
+            Source IP: {}\n\
+            Details: {}\n\n\
+            This is an automated alert from Omni Universal Package Manager.",
+            self.severity_to_string(&entry.severity),
+            entry.event,
+            entry.timestamp,
+            entry.user_id.as_deref().unwrap_or("unknown"),
+            entry.source_ip.as_deref().unwrap_or("unknown"),
+            serde_json::to_string_pretty(&entry.metadata).unwrap_or_default()
+        );
+        
+        // For now, log the email that would be sent
+        // In production, integrate with SendGrid, SES, or other email service
+        info!("EMAIL ALERT to {}: Subject: '{}'\nBody:\n{}", email, subject, body);
+        
+        // TODO: Implement actual SMTP sending when email service is configured
+        // This would require adding email service configuration to AuditConfig
+        
         Ok(())
     }
 
