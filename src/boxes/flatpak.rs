@@ -3,7 +3,7 @@ use crate::error_handling::OmniError;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub struct FlatpakBox {
     executor: SecureExecutor,
@@ -243,6 +243,46 @@ impl PackageManager for FlatpakBox {
                     reason: result.stderr,
                 }
                 .into())
+            }
+        })
+    }
+
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let package = package.to_string();
+        let executor = Arc::clone(&self.executor);
+        
+        RuntimeManager::block_on(async move {
+            info!("Getting installed version for package '{}'", package);
+
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+
+            let result = executor
+                .execute_package_command("flatpak", &["list", "--app", "--columns=name,version", &package], config)
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                // Parse flatpak list output
+                for line in result.stdout.lines() {
+                    if line.contains(&package) {
+                        let parts: Vec<&str> = line.split('\t').collect();
+                        if parts.len() >= 2 {
+                            let version = parts[1].trim().to_string();
+                            if !version.is_empty() {
+                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                return Ok(Some(version));
+                            }
+                        }
+                    }
+                }
+                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                Ok(None)
+            } else {
+                info!("ℹ️ Package '{}' is not installed", package);
+                Ok(None)
             }
         })
     }

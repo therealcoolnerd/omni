@@ -55,13 +55,7 @@ pub struct OmniGui {
 
 impl Default for OmniGui {
     fn default() -> Self {
-        let mut stats = HashMap::new();
-        stats.insert("Total Packages".to_string(), 1247);
-        stats.insert("Installed".to_string(), 89);
-        stats.insert("Available Updates".to_string(), 12);
-        stats.insert("Failed Installs".to_string(), 3);
-
-        Self {
+        let mut gui = Self {
             brain: OmniBrain::new(),
             active_tab: Tab::Dashboard,
             package_input: String::new(),
@@ -75,11 +69,15 @@ impl Default for OmniGui {
             sort_mode: SortMode::Popularity,
             animation_time: Instant::now(),
             show_advanced_search: false,
-            package_stats: stats,
+            package_stats: HashMap::new(),
             system_performance: 0.85,
             download_speed: 45.2,
-            active_operations: 2,
-        }
+            active_operations: 0,
+        };
+        
+        // Initialize with real data
+        gui.refresh_stats();
+        gui
     }
 }
 
@@ -480,7 +478,14 @@ impl OmniGui {
                     if search_response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))
                     {
                         if !self.package_input.is_empty() {
-                            self.search_results = self.brain.search(&self.package_input);
+                            // Use async search - for GUI we'll use block_on for now
+                            if let Ok(results) = futures::executor::block_on(
+                                self.brain.search(&self.package_input)
+                            ) {
+                                self.search_results = results;
+                            } else {
+                                self.search_results = Vec::new();
+                            }
                         }
                     }
 
@@ -489,7 +494,14 @@ impl OmniGui {
                         egui::Button::new("🔍 Search").corner_radius(6.0),
                     );
                     if search_btn.clicked() && !self.package_input.is_empty() {
-                        self.search_results = self.brain.search(&self.package_input);
+                        // Use async search - for GUI we'll use block_on for now
+                        if let Ok(results) = futures::executor::block_on(
+                            self.brain.search(&self.package_input)
+                        ) {
+                            self.search_results = results;
+                        } else {
+                            self.search_results = Vec::new();
+                        }
                     }
 
                     let install_btn = ui.add_sized(
@@ -821,7 +833,7 @@ impl OmniGui {
                 ui.label("SSH Host:");
                 ui.text_edit_singleline(&mut String::new()); // TODO: Add SSH host field
                 if ui.button("Connect").clicked() {
-                    self.status = "SSH connection feature coming soon!".to_string();
+                    self.status = "SSH connection functionality is being developed. Check the roadmap for updates.".to_string();
                 }
             });
 
@@ -829,7 +841,7 @@ impl OmniGui {
                 ui.label("Docker Container:");
                 ui.text_edit_singleline(&mut String::new()); // TODO: Add container field
                 if ui.button("Attach").clicked() {
-                    self.status = "Docker integration coming soon!".to_string();
+                    self.status = "Docker integration is in development. Contributions welcome!".to_string();
                 }
             });
         });
@@ -886,4 +898,40 @@ pub fn launch_gui() {
         options,
         Box::new(|_| Ok(Box::new(OmniGui::default()))),
     );
+}
+
+impl OmniGui {
+    /// Refresh package statistics with real data from the system
+    fn refresh_stats(&mut self) {
+        // Get real data from the brain's list_installed functionality
+        match self.brain.list_installed() {
+            Ok(installed_packages) => {
+                let total_installed: usize = installed_packages.values().map(|v| v.len()).sum();
+                self.package_stats.insert("Installed".to_string(), total_installed as u32);
+                
+                // Store installed packages for display
+                self.installed_packages = installed_packages
+                    .into_iter()
+                    .flat_map(|(_, packages)| packages)
+                    .collect();
+            }
+            Err(e) => {
+                self.status = format!("Failed to get installed packages: {}", e);
+                self.package_stats.insert("Installed".to_string(), 0);
+            }
+        }
+        
+        // Placeholder for total available packages - would need package manager search
+        // In a real implementation, this would query package repositories
+        self.package_stats.insert("Total Available".to_string(), 50000);
+        
+        // Placeholder for updates - would need actual update checking
+        self.package_stats.insert("Available Updates".to_string(), 0);
+        
+        // Reset failed installs - would track from actual operations
+        self.package_stats.insert("Failed Installs".to_string(), 0);
+        
+        // Reset active operations
+        self.active_operations = 0;
+    }
 }

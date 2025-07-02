@@ -3,7 +3,7 @@ use crate::error_handling::OmniError;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub struct ChocolateyBox {
     executor: SecureExecutor,
@@ -252,6 +252,44 @@ impl PackageManager for ChocolateyBox {
                     reason: result.stderr,
                 }
                 .into())
+            }
+        })
+    }
+
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let package = package.to_string();
+        let executor = Arc::clone(&self.executor);
+        
+        RuntimeManager::block_on(async move {
+            info!("Getting installed version for package '{}'", package);
+
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+
+            let result = executor
+                .execute_package_command("choco", &["list", "--local-only", "--exact", &package], config)
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                // Parse chocolatey list output: packagename version
+                for line in result.stdout.lines() {
+                    if line.starts_with(&package) && line.contains(' ') {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 2 && parts[0] == package {
+                            let version = parts[1].to_string();
+                            info!("✅ Found installed version '{}' for package '{}'", version, package);
+                            return Ok(Some(version));
+                        }
+                    }
+                }
+                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                Ok(None)
+            } else {
+                info!("ℹ️ Package '{}' is not installed", package);
+                Ok(None)
             }
         })
     }

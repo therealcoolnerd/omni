@@ -220,8 +220,11 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let pkg = InstalledPackage::new("curl".to_string(), "7.68.0".to_string())
-            .with_description(Some("HTTP client".to_string()));
+        let pkg = InstalledPackage::with_description(
+            "curl".to_string(), 
+            "7.68.0".to_string(),
+            Some("HTTP client".to_string())
+        );
 
         // Test JSON serialization
         let json = serde_json::to_string(&pkg).unwrap();

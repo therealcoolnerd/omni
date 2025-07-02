@@ -302,4 +302,29 @@ impl UnifiedPackageManager {
         self.config = config;
         Ok(())
     }
+
+    pub fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        // Try to get version from the first package manager that has the package installed
+        for box_name in &self.get_preferred_box_order() {
+            if let Some(manager) = self.managers.get(box_name) {
+                match manager.get_installed_version(package) {
+                    Ok(Some(version)) => {
+                        info!("✅ Found version '{}' for package '{}' from {}", version, package, box_name);
+                        return Ok(Some(version));
+                    }
+                    Ok(None) => {
+                        // Package not installed with this manager, try next one
+                        continue;
+                    }
+                    Err(e) => {
+                        warn!("❌ Error checking version for '{}' with {}: {}", package, box_name, e);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        info!("ℹ️ Package '{}' not found in any package manager", package);
+        Ok(None)
+    }
 }

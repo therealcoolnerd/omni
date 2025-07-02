@@ -257,6 +257,45 @@ impl PackageManager for WingetBox {
         })
     }
 
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let package = package.to_string();
+        let executor = Arc::clone(&self.executor);
+        
+        RuntimeManager::block_on(async move {
+            info!("Getting installed version for package '{}'", package);
+
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+
+            let result = executor
+                .execute_package_command("winget", &["list", "--exact", "--id", &package], config)
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                // Parse winget list output - look for the package line
+                for line in result.stdout.lines() {
+                    if line.contains(&package) && !line.starts_with("Name") && !line.starts_with("-") {
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if parts.len() >= 3 {
+                            // Typically format: Name Id Version [Available] [Source]
+                            let version = parts[2].to_string();
+                            info!("✅ Found installed version '{}' for package '{}'", version, package);
+                            return Ok(Some(version));
+                        }
+                    }
+                }
+                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                Ok(None)
+            } else {
+                info!("ℹ️ Package '{}' is not installed", package);
+                Ok(None)
+            }
+        })
+    }
+
     fn needs_privilege(&self) -> bool {
         false // winget typically doesn't require admin privileges
     }

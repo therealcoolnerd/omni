@@ -1,6 +1,7 @@
 use crate::distro::PackageManager;
 use anyhow::{anyhow, Result};
 use std::process::Command;
+use tracing::warn;
 
 pub struct ScoopBox;
 
@@ -139,6 +140,36 @@ impl PackageManager for ScoopBox {
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(anyhow!("scoop info failed: {}", stderr))
+        }
+    }
+
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        info!("Getting installed version for package '{}'", package);
+
+        let output = Command::new("scoop")
+            .args(&["list", package])
+            .output()
+            .map_err(|e| anyhow!("Failed to execute scoop command: {}", e))?;
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            
+            // Parse scoop list output
+            for line in stdout.lines() {
+                if line.contains(package) && !line.starts_with("Name") && !line.starts_with("-") {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 2 && parts[0] == package {
+                        let version = parts[1].to_string();
+                        info!("✅ Found installed version '{}' for package '{}'", version, package);
+                        return Ok(Some(version));
+                    }
+                }
+            }
+            info!("ℹ️ Package '{}' output format unexpected: {}", package, stdout.trim());
+            Ok(None)
+        } else {
+            info!("ℹ️ Package '{}' is not installed", package);
+            Ok(None)
         }
     }
 

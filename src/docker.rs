@@ -839,7 +839,7 @@ mod tests {
     #[tokio::test]
     async fn test_docker_package_manager_creation() {
         // This test might fail if Docker is not available
-        if let Ok(manager) = DockerPackageManager::new() {
+        if let Ok(manager) = DockerPackageManager::new().await {
             assert!(manager.base_images.contains_key("apt"));
             assert!(manager.base_images.contains_key("dnf"));
         }

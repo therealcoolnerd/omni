@@ -6,6 +6,7 @@ use crate::manifest::OmniManifest;
 use crate::privilege_manager::PrivilegeManager;
 use crate::sandboxing::Sandbox;
 use crate::snapshot::SnapshotManager;
+use crate::search::SearchEngine;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -17,6 +18,7 @@ pub struct OmniBrain {
     db: Option<Database>,
     snapshot_manager: Option<SnapshotManager>,
     privilege_manager: PrivilegeManager,
+    search_engine: Option<SearchEngine>,
 }
 
 impl OmniBrain {
@@ -29,6 +31,7 @@ impl OmniBrain {
             db: None,
             snapshot_manager: None,
             privilege_manager,
+            search_engine: None,
         }
     }
 
@@ -41,6 +44,7 @@ impl OmniBrain {
             db: None,
             snapshot_manager: None,
             privilege_manager,
+            search_engine: None,
         }
     }
 
@@ -50,6 +54,9 @@ impl OmniBrain {
         }
         if self.snapshot_manager.is_none() {
             self.snapshot_manager = Some(SnapshotManager::new().await?);
+        }
+        if self.search_engine.is_none() {
+            self.search_engine = Some(SearchEngine::new().await?);
         }
         Ok(())
     }
@@ -720,51 +727,30 @@ impl OmniBrain {
     }
 
     /// Search for packages across all available package managers
-    pub fn search(&self, query: &str) -> Vec<crate::search::SearchResult> {
+    pub async fn search(&mut self, query: &str) -> Result<Vec<crate::search::SearchResult>> {
         if query.trim().is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
-        // Mock search results for now - in a real implementation this would
-        // search across all enabled package managers
-        let mock_results = vec![
-            crate::search::SearchResult {
-                name: format!("firefox"),
-                description: Some("Mozilla Firefox web browser".to_string()),
-                version: Some("latest".to_string()),
-                source: Some("apt".to_string()),
-                box_type: "apt".to_string(),
-                installed: false,
-            },
-            crate::search::SearchResult {
-                name: format!("vim"),
-                description: Some("Vi IMproved text editor".to_string()),
-                version: Some("latest".to_string()),
-                source: Some("apt".to_string()),
-                box_type: "apt".to_string(),
-                installed: false,
-            },
-            crate::search::SearchResult {
-                name: format!("git"),
-                description: Some("Distributed version control system".to_string()),
-                version: Some("latest".to_string()),
-                source: Some("apt".to_string()),
-                box_type: "apt".to_string(),
-                installed: false,
-            },
-        ];
+        // Ensure search engine is initialized
+        self.ensure_initialized().await?;
 
-        // Filter results based on query
-        mock_results
-            .into_iter()
-            .filter(|result| {
-                result.name.to_lowercase().contains(&query.to_lowercase())
-                    || result
-                        .description
-                        .as_ref()
-                        .map_or(false, |d| d.to_lowercase().contains(&query.to_lowercase()))
-            })
-            .collect()
+        if let Some(search_engine) = &self.search_engine {
+            match search_engine.search_all(query).await {
+                Ok(results) => {
+                    info!("✅ Found {} packages matching '{}'", results.len(), query);
+                    Ok(results)
+                }
+                Err(e) => {
+                    warn!("❌ Search failed: {}", e);
+                    // Fall back to empty results rather than failing completely
+                    Ok(Vec::new())
+                }
+            }
+        } else {
+            warn!("❌ Search engine not initialized");
+            Ok(Vec::new())
+        }
     }
 
     /// List all installed packages

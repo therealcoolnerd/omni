@@ -270,6 +270,34 @@ impl PackageManager for DnfBox {
         })
     }
 
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let package = package.to_string();
+        let executor = Arc::clone(&self.executor);
+        
+        RuntimeManager::block_on(async move {
+            info!("Getting installed version for package '{}'", package);
+
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+
+            let result = executor
+                .execute_package_command("rpm", &["-q", "--queryformat", "%{VERSION}-%{RELEASE}", &package], config)
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                let version = result.stdout.trim().to_string();
+                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                Ok(Some(version))
+            } else {
+                info!("ℹ️ Package '{}' is not installed", package);
+                Ok(None)
+            }
+        })
+    }
+
     fn needs_privilege(&self) -> bool {
         true
     }

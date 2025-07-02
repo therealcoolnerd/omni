@@ -28,6 +28,7 @@ pub trait PackageManager {
     fn search(&self, query: &str) -> Result<Vec<String>>;
     fn list_installed(&self) -> Result<Vec<String>>;
     fn get_info(&self, package: &str) -> Result<String>;
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>>;
     fn needs_privilege(&self) -> bool;
     fn get_name(&self) -> &'static str;
     fn get_priority(&self) -> u8;

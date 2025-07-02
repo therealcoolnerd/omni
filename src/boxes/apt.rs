@@ -239,6 +239,12 @@ impl PackageManager for AptManager {
         )
     }
 
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let apt_manager = self.clone();
+        let package = package.to_string();
+        RuntimeManager::block_on(async move { apt_manager.get_installed_version_async(&package).await })
+    }
+
     fn needs_privilege(&self) -> bool {
         true
     }
@@ -268,6 +274,34 @@ impl AptManager {
 
     pub async fn get_package_info_async(&self, package: &str) -> Result<String> {
         self.get_package_info_internal(package).await
+    }
+
+    pub async fn get_installed_version_async(&self, package: &str) -> Result<Option<String>> {
+        info!("Getting installed version for package '{}'", package);
+
+        let config = ExecutionConfig {
+            requires_sudo: false,
+            timeout: Duration::from_secs(30),
+            ..ExecutionConfig::default()
+        };
+
+        let result = self
+            .executor
+            .execute_package_command(
+                "dpkg-query",
+                &["-W", "--showformat=${Version}", package],
+                config,
+            )
+            .await?;
+
+        if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+            let version = result.stdout.trim().to_string();
+            info!("✅ Found installed version '{}' for package '{}'", version, package);
+            Ok(Some(version))
+        } else {
+            info!("ℹ️ Package '{}' is not installed", package);
+            Ok(None)
+        }
     }
 
     pub async fn get_installed_packages(&self) -> Result<Vec<InstalledPackage>> {

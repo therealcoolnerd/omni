@@ -1,8 +1,15 @@
+#[cfg(feature = "ssh")]
 use omni::ssh::{AuthMethod, SshClient, SshConfig};
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio;
 
+#[cfg(not(feature = "ssh"))]
+fn main() {
+    println!("SSH tests skipped - feature not enabled");
+}
+
+#[cfg(feature = "ssh")]
 fn get_test_ssh_config() -> SshConfig {
     SshConfig {
         host: "localhost".to_string(),
@@ -22,6 +29,8 @@ fn get_test_ssh_config() -> SshConfig {
     }
 }
 
+#[cfg(feature = "ssh")]
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_client_creation() {
     // Test that SSH client can be created without errors
@@ -32,6 +41,7 @@ async fn test_ssh_client_creation() {
     println!("SSH client created successfully");
 }
 
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_config_creation() {
     let config = get_test_ssh_config();
@@ -45,6 +55,7 @@ async fn test_ssh_config_creation() {
     println!("SSH config created and validated successfully");
 }
 
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_config_serialization() {
     let config = get_test_ssh_config();
@@ -69,6 +80,7 @@ async fn test_ssh_config_serialization() {
     assert_eq!(config.username, deserialized_config.username);
 }
 
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_auth_methods() {
     // Test password authentication
@@ -103,6 +115,7 @@ async fn test_ssh_auth_methods() {
     println!("SSH authentication methods validated successfully");
 }
 
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_config_defaults() {
     let default_config = SshConfig::default();
@@ -122,6 +135,7 @@ async fn test_ssh_config_defaults() {
 // setting up a test SSH server. They test the configuration and client creation
 // aspects of the SSH implementation.
 
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_ssh_error_handling() {
     let mut invalid_config = get_test_ssh_config();
@@ -133,6 +147,7 @@ async fn test_ssh_error_handling() {
 }
 
 #[cfg(feature = "dangerous_tests")]
+#[cfg(feature = "ssh")]
 #[tokio::test]
 async fn test_real_ssh_connection() {
     // This test would attempt a real SSH connection

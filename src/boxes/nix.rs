@@ -3,7 +3,7 @@ use crate::error_handling::OmniError;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Secure Nix package manager wrapper
 pub struct NixBox {
@@ -330,6 +330,70 @@ impl PackageManager for NixBox {
                     .into())
                 }
             }
+        })
+    }
+
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        let package = package.to_string();
+        let executor = Arc::clone(&self.executor);
+        
+        RuntimeManager::block_on(async move {
+            info!("Getting installed version for package '{}'", package);
+
+            let config = ExecutionConfig {
+                requires_sudo: false,
+                timeout: Duration::from_secs(30),
+                ..ExecutionConfig::default()
+            };
+
+            // Try nix-env first (for imperative installs)
+            let result = executor
+                .execute_package_command("nix-env", &["-q", &package], config.clone())
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                // Parse nix-env output: package-version
+                for line in result.stdout.lines() {
+                    if line.contains(&package) {
+                        // Extract version from package-version format
+                        if let Some(last_dash) = line.rfind('-') {
+                            let version = line[last_dash + 1..].to_string();
+                            if !version.is_empty() && version != package {
+                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                return Ok(Some(version));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If not found in nix-env, try nix profile (for flakes)
+            let result = executor
+                .execute_package_command("nix", &["profile", "list"], config)
+                .await?;
+
+            if result.exit_code == 0 && !result.stdout.trim().is_empty() {
+                for line in result.stdout.lines() {
+                    if line.contains(&package) {
+                        // Nix profile list has various formats, try to extract version
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        for part in parts {
+                            if part.contains(&package) && part.contains('-') {
+                                if let Some(last_dash) = part.rfind('-') {
+                                    let version = part[last_dash + 1..].to_string();
+                                    if !version.is_empty() && version != package {
+                                        info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                        return Ok(Some(version));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            info!("ℹ️ Package '{}' is not installed via nix", package);
+            Ok(None)
         })
     }
 

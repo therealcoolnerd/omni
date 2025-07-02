@@ -76,11 +76,19 @@ impl SecureOmniBrainV2 {
 
                 // Record the successful installation
                 if let Some(db) = &self.db {
+                    // Try to get the actual installed version
+                    let installed_version = self.unified_manager
+                        .get_installed_version(package)
+                        .unwrap_or_else(|e| {
+                            warn!("Failed to get installed version for '{}': {}", package, e);
+                            None
+                        });
+
                     let install_record = InstallRecord {
                         id: Uuid::new_v4().to_string(),
                         package_name: package.to_string(),
                         box_type: box_type.clone(),
-                        version: Some("unknown".to_string()), // TODO: Get actual version
+                        version: installed_version,
                         source_url: None,
                         install_path: None,
                         installed_at: Utc::now(),
@@ -156,11 +164,19 @@ impl SecureOmniBrainV2 {
 
                 // Record the successful installation
                 if let Some(db) = &self.db {
+                    // Try to get the actual installed version
+                    let installed_version = self.unified_manager
+                        .get_installed_version(package)
+                        .unwrap_or_else(|e| {
+                            warn!("Failed to get installed version for '{}': {}", package, e);
+                            None
+                        });
+
                     let install_record = InstallRecord {
                         id: Uuid::new_v4().to_string(),
                         package_name: package.to_string(),
                         box_type: used_box,
-                        version: Some("unknown".to_string()),
+                        version: installed_version,
                         source_url: None,
                         install_path: None,
                         installed_at: Utc::now(),

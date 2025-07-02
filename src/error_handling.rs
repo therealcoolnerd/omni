@@ -1328,7 +1328,7 @@ mod tests {
                 attempt_count += 1;
                 async move {
                     if attempt_count < 2 {
-                        Err("temporary failure")
+                        Err("temporary failure".to_string())
                     } else {
                         Ok("success")
                     }
@@ -1357,7 +1357,7 @@ mod tests {
         let result = handler
             .execute(|| {
                 attempt_count += 1;
-                async move { Err("persistent failure") }
+                async move { Err("persistent failure".to_string()) }
             })
             .await;
 

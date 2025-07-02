@@ -1,6 +1,7 @@
 use crate::distro::PackageManager;
 use anyhow::{anyhow, Result};
 use std::process::Command;
+use tracing::warn;
 
 pub struct MasBox;
 
@@ -145,6 +146,40 @@ impl PackageManager for MasBox {
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(anyhow!("mas search failed: {}", stderr))
+        }
+    }
+
+    fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
+        info!("Getting installed version for package '{}'", package);
+
+        let output = Command::new("mas")
+            .args(&["list"])
+            .output()
+            .map_err(|e| anyhow!("Failed to execute mas command: {}", e))?;
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            
+            // Parse mas list output: appid appname (version)
+            for line in stdout.lines() {
+                if line.contains(package) {
+                    // Look for version in parentheses at the end
+                    if let Some(version_start) = line.rfind('(') {
+                        if let Some(version_end) = line.rfind(')') {
+                            if version_start < version_end {
+                                let version = line[version_start + 1..version_end].to_string();
+                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                return Ok(Some(version));
+                            }
+                        }
+                    }
+                }
+            }
+            info!("ℹ️ Package '{}' not found in mas list", package);
+            Ok(None)
+        } else {
+            info!("ℹ️ Failed to get mas list or package '{}' not installed", package);
+            Ok(None)
         }
     }
 
