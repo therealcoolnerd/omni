@@ -1,7 +1,7 @@
 use crate::distro::PackageManager;
 use anyhow::{anyhow, Result};
 use std::process::Command;
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct ScoopBox;
 

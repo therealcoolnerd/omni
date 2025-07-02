@@ -1,5 +1,6 @@
 use crate::distro::PackageManager;
 use crate::error_handling::OmniError;
+use crate::runtime::RuntimeManager;
 use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use anyhow::Result;
 use std::time::Duration;
@@ -258,7 +259,7 @@ impl PackageManager for ChocolateyBox {
 
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
         
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);

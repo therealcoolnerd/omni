@@ -35,7 +35,7 @@ impl DnfBox {
 impl PackageManager for DnfBox {
     fn install(&self, package: &str) -> Result<()> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             info!("Installing '{}' via dnf", package);
@@ -81,7 +81,7 @@ impl PackageManager for DnfBox {
 
     fn remove(&self, package: &str) -> Result<()> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             info!("Removing '{}' via dnf", package);
@@ -113,7 +113,7 @@ impl PackageManager for DnfBox {
 
     fn update(&self, package: Option<&str>) -> Result<()> {
         let package_name = package.map(|s| s.to_string());
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             let mut args = vec!["upgrade".to_string(), "-y".to_string()];
@@ -153,7 +153,7 @@ impl PackageManager for DnfBox {
 
     fn search(&self, query: &str) -> Result<Vec<String>> {
         let query = query.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             info!("Searching for '{}' via dnf", query);
@@ -199,7 +199,7 @@ impl PackageManager for DnfBox {
     }
 
     fn list_installed(&self) -> Result<Vec<String>> {
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             info!("Listing installed packages via dnf");
@@ -244,7 +244,7 @@ impl PackageManager for DnfBox {
 
     fn get_info(&self, package: &str) -> Result<String> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
 
         RuntimeManager::block_on(async move {
             info!("Getting info for package '{}'", package);
@@ -272,7 +272,7 @@ impl PackageManager for DnfBox {
 
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
         
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);

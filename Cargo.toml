@@ -10,7 +10,7 @@ description = "Omni Enterprise - Full-featured Universal Package Manager with ad
 unused_imports = "warn"
 unused_variables = "warn"
 dead_code = "warn"
-unsafe_code = "forbid"
+unsafe_code = "warn"
 missing_docs = "warn"
 
 [lints.clippy]

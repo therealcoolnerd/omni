@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use std::collections::HashMap;
+use std::fmt;
 use std::net::IpAddr;
 use tracing::{error, info, warn};
 use uuid::Uuid;
@@ -118,6 +119,73 @@ pub enum SecurityEvent {
         container_id: String,
         user: String,
     },
+}
+
+impl fmt::Display for SecurityEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SecurityEvent::LoginAttempt { success, user, .. } => {
+                write!(f, "Login attempt by {} ({})", user, if *success { "success" } else { "failed" })
+            }
+            SecurityEvent::LoginFailure { user, reason, .. } => {
+                write!(f, "Login failure for {}: {}", user, reason)
+            }
+            SecurityEvent::PrivilegeEscalation { user, command } => {
+                write!(f, "Privilege escalation by {} for command: {}", user, command)
+            }
+            SecurityEvent::PackageInstall { package, box_type, user } => {
+                write!(f, "Package install: {} via {} by {}", package, box_type, user)
+            }
+            SecurityEvent::PackageRemove { package, box_type, user } => {
+                write!(f, "Package remove: {} via {} by {}", package, box_type, user)
+            }
+            SecurityEvent::PackageUpdate { package, box_type, user } => {
+                write!(f, "Package update: {} via {} by {}", package, box_type, user)
+            }
+            SecurityEvent::PackageSearch { query, user } => {
+                write!(f, "Package search: '{}' by {}", query, user)
+            }
+            SecurityEvent::SystemAccess { user, method, .. } => {
+                write!(f, "System access by {} via {}", user, method)
+            }
+            SecurityEvent::FileAccess { path, operation, user } => {
+                write!(f, "File access: {} {} by {}", operation, path, user)
+            }
+            SecurityEvent::NetworkConnection { destination, port, user } => {
+                write!(f, "Network connection to {}:{} by {}", destination, port, user)
+            }
+            SecurityEvent::ConfigurationChange { setting, user, .. } => {
+                write!(f, "Configuration change: {} by {}", setting, user)
+            }
+            SecurityEvent::SecurityViolation { description, user, .. } => {
+                write!(f, "Security violation: {} by {}", description, user)
+            }
+            SecurityEvent::MaliciousActivity { description, .. } => {
+                write!(f, "Malicious activity detected: {}", description)
+            }
+            SecurityEvent::SuspiciousCommand { command, user, reason } => {
+                write!(f, "Suspicious command: {} by {} ({})", command, user, reason)
+            }
+            SecurityEvent::SshConnection { host, user, success } => {
+                write!(f, "SSH connection to {} by {} ({})", host, user, if *success { "success" } else { "failed" })
+            }
+            SecurityEvent::RemoteCommand { host, command, user, success } => {
+                write!(f, "Remote command on {}: {} by {} ({})", host, command, user, if *success { "success" } else { "failed" })
+            }
+            SecurityEvent::ContainerCreated { image, user, .. } => {
+                write!(f, "Container created from {} by {}", image, user)
+            }
+            SecurityEvent::ContainerStarted { container_id, user } => {
+                write!(f, "Container {} started by {}", container_id, user)
+            }
+            SecurityEvent::ContainerStopped { container_id, user } => {
+                write!(f, "Container {} stopped by {}", container_id, user)
+            }
+            SecurityEvent::ContainerDeleted { container_id, user } => {
+                write!(f, "Container {} deleted by {}", container_id, user)
+            }
+        }
+    }
 }
 
 /// Security severity levels
@@ -459,7 +527,7 @@ impl AuditManager {
             severity_str,
             entry.event,
             entry.user_id.as_deref().unwrap_or("unknown"),
-            entry.source_ip.as_deref().unwrap_or("unknown"),
+            entry.source_ip.map(|ip| ip.to_string()).as_deref().unwrap_or("unknown"),
             serde_json::to_string(&entry.metadata).unwrap_or_default()
         );
         
@@ -467,10 +535,10 @@ impl AuditManager {
         #[cfg(unix)]
         {
             let priority = match entry.severity {
-                AuditSeverity::Critical => "crit",
-                AuditSeverity::High => "err", 
-                AuditSeverity::Medium => "warning",
-                AuditSeverity::Low => "info",
+                SecuritySeverity::Critical => "crit",
+                SecuritySeverity::High => "err", 
+                SecuritySeverity::Medium => "warning",
+                SecuritySeverity::Low => "info",
             };
             
             let _ = Command::new("logger")
@@ -536,7 +604,7 @@ impl AuditManager {
             entry.event,
             entry.timestamp,
             entry.user_id.as_deref().unwrap_or("unknown"),
-            entry.source_ip.as_deref().unwrap_or("unknown"),
+            entry.source_ip.map(|ip| ip.to_string()).as_deref().unwrap_or("unknown"),
             serde_json::to_string_pretty(&entry.metadata).unwrap_or_default()
         );
         

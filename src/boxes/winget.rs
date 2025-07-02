@@ -259,7 +259,7 @@ impl PackageManager for WingetBox {
 
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
-        let executor = Arc::clone(&self.executor);
+        let executor = self.executor.clone();
         
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
