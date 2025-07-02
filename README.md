@@ -1,60 +1,58 @@
-# ⚫ **Omni** — The Universal Package Manager That Actually Works
+# 🌟 **Omni** — The Universal Package Manager Revolution
 
 <div align="center">
 
-**One CLI to rule them all. Three versions to rule them better.**
+**The dream of one package manager to rule them all — built by two people and an AI assistant.**
+
+*Tackling one of computing's oldest problems, one commit at a time.*
 
 [![Rust](https://img.shields.io/badge/Rust-1.70+-000000?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=flat&logo=gnu&logoColor=white)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-000000?style=flat&logo=linux&logoColor=white)]()
-[![Status](https://img.shields.io/badge/Status-100%25%20Complete%20✅-000000?style=flat&logo=checkmarx&logoColor=white)]()
+[![Status](https://img.shields.io/badge/Status-Work%20In%20Progress-orange?style=flat&logo=construction&logoColor=white)]()
+[![Contributors](https://img.shields.io/badge/Contributors-Wanted-green?style=flat&logo=handshake&logoColor=white)]()
 
 ```ascii
     ╔═══════════════════════════════════════════════════════════╗
-    ║  🚀 LITE     ⚖️ CORE     🏢 ENTERPRISE                   ║
-    ║  865KB      ~10MB       ~50MB                             ║
-    ║  18s build  45s build   120s build                        ║
-    ║  Daily CLI  Power User  Mission Critical                  ║
+    ║  🏗️ THE MISSION: Solve package management chaos forever   ║
+    ║  👥 THE TEAM: Just us two + AI + amazing contributors     ║
+    ║  🎯 THE GOAL: One command that works everywhere           ║
     ╚═══════════════════════════════════════════════════════════╝
 ```
 
-*Three versions. One vision. Maximum flexibility. Built different.*
+*Built with passion, powered by community, guided by necessity.*
 
-[🎯 **Choose Your Version**](#-choose-your-omni-experience) • [⚡ **Quick Start**](#-quick-start) • [🔥 **Why Omni**](#-why-omni-hits-different) • [💰 **Support**](#-support-this-project)
+[🚀 **Join the Mission**](#-our-story--the-mission) • [⚡ **Quick Start**](#-quick-start) • [🛠️ **What Works Now**](#-what-works-now) • [🤝 **Help Us Build**](#-help-us-build-the-future)
 
 </div>
 
 ---
 
-## 🎯 **Choose Your Omni Experience**
+## 🚀 **Our Story & The Mission**
 
-**Real talk**: Not everyone needs the same package manager. Some want lightning speed, others need enterprise features. We built **three versions** so you don't have to compromise.
+**The problem**: Every developer knows the pain. Windows has `winget`. macOS has `brew`. Ubuntu has `apt`. Arch has `pacman`. It's 2024 and we're still memorizing different commands for every platform.
 
-### **🚀 OMNI LITE** — *The Speed Demon*
-```bash
-# Ultra-minimal. Lightning fast. Zero bloat.
-curl -L get-omni.sh | sh
-omni install firefox git nodejs
-# Done. 865KB binary. 18s build. Pure speed. 🔥
-```
+**The dream**: What if there was just... `omni install firefox`? Everywhere. Every time. One command to rule them all.
 
-### **⚖️ OMNI CORE** — *The Sweet Spot*  
-```bash
-# Perfect balance. Useful extras. Still fast.
-omni snapshot create backup
-omni manifest install dev-setup.yaml
-omni install firefox
-# Reliable workflows. ~10MB binary. Smart choice. 📦
-```
+**The reality**: Just me and my wife, armed with Rust, caffeine, and an AI assistant, taking on one of computing's oldest unsolved problems. We're not backed by big tech. We're not promising venture capital miracles. We're just two people who got tired of the chaos and decided to do something about it.
 
-### **🏢 OMNI ENTERPRISE** — *The Powerhouse*
-```bash
-# Mission-critical. All features. Maximum control.
-omni --ssh servers install security-patch
-omni transaction begin
-omni audit generate-compliance-report
-# Enterprise-grade. ~50MB binary. Built for scale. 🏢
-```
+### **🎯 The Vision: Three Editions for Every Need**
+
+We're building this in stages, with community help driving every decision:
+
+**🚀 OMNI LITE** — *Pure simplicity*
+- One binary, minimal features, maximum speed
+- Perfect for daily CLI users who just want `apt install` everywhere
+
+**⚖️ OMNI CORE** — *The sweet spot*  
+- Snapshots, manifests, team collaboration
+- Built for power users and development teams
+
+**🏢 OMNI ENTERPRISE** — *The full vision*
+- Remote management, GUI, audit trails
+- Everything needed for mission-critical environments
+
+*Each edition builds on the last. Start simple, upgrade when you need more.*
 
 ---
 
