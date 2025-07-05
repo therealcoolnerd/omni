@@ -67,8 +67,9 @@ jobs:
       - name: Run security audit
         run: cargo audit
         
-      - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@8371184bd11e21dcf8ac82ebf8c9c9f74ebf7268
+      # cargo-deny step disabled as deny.toml was removed in cleanup
+      # - name: Run cargo-deny
+      #   uses: EmbarkStudios/cargo-deny-action@8371184bd11e21dcf8ac82ebf8c9c9f74ebf7268
 
   # Cross-platform testing matrix
   test:
@@ -129,8 +130,9 @@ jobs:
       - name: Run integration tests  
         run: cargo test --verbose --all-features integration_tests
         
-      - name: Run benchmarks (dry run)
-        run: cargo bench --no-run
+      # Benchmarks disabled as benches/ directory was removed in cleanup
+      # - name: Run benchmarks (dry run)
+      #   run: cargo bench --no-run
         
       - name: Install cargo-tarpaulin (coverage)
         if: matrix.coverage
@@ -206,43 +208,43 @@ jobs:
           ./target/release/omni --mock search firefox
           ./target/release/omni --mock history show
 
-  # Performance benchmarking
-  benchmark:
-    name: Performance Benchmarks
-    needs: [test]
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        
-      - name: Cache cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
-          
-      - name: Run benchmarks
-        run: cargo bench
-        
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
-        if: github.ref == 'refs/heads/main'
-        with:
-          tool: 'cargo'
-          output-file-path: target/criterion/base/estimates.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          comment-on-alert: true
-          alert-threshold: '200%'
-          fail-on-alert: true
+  # Performance benchmarking - disabled as benches/ directory was removed
+  # benchmark:
+  #   name: Performance Benchmarks
+  #   needs: [test]
+  #   runs-on: ubuntu-latest
+  #   
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Install Rust toolchain
+  #       uses: dtolnay/rust-toolchain@stable
+  #       
+  #     - name: Cache cargo dependencies
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cargo/bin/
+  #           ~/.cargo/registry/index/
+  #           ~/.cargo/registry/cache/
+  #           ~/.cargo/git/db/
+  #           target/
+  #         key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+  #         
+  #     - name: Run benchmarks
+  #       run: cargo bench
+  #       
+  #     - name: Store benchmark result
+  #       uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+  #       if: github.ref == 'refs/heads/main'
+  #       with:
+  #         tool: 'cargo'
+  #         output-file-path: target/criterion/base/estimates.json
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         auto-push: true
+  #         comment-on-alert: true
+  #         alert-threshold: '200%'
+  #         fail-on-alert: true
 
   # Cross-compilation build matrix
   build:
