@@ -3,6 +3,7 @@
 
 pub mod boxes;
 pub mod brain;
+pub mod branding;
 pub mod config;
 pub mod database;
 pub mod distro;

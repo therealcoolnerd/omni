@@ -2,6 +2,7 @@ mod advanced_resolver;
 mod audit;
 mod boxes;
 mod brain;
+mod branding;
 mod config;
 mod database;
 mod distro;
@@ -33,6 +34,7 @@ mod updater;
 
 use anyhow::Result;
 use brain::OmniBrain;
+use branding::{OmniBranding, Theme};
 use clap::{Parser, Subcommand};
 use config::OmniConfig;
 use manifest::OmniManifest;
@@ -257,6 +259,11 @@ enum HardwareCommands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Show welcome banner for interactive commands
+    if !cli.quiet && matches!(cli.command, Commands::Search { .. } | Commands::Install { .. } | Commands::Gui) {
+        println!("{}", OmniBranding::welcome_banner());
+    }
 
     // Load configuration
     let config = OmniConfig::load()?;
