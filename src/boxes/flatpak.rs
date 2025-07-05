@@ -251,7 +251,7 @@ impl PackageManager for FlatpakBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -262,7 +262,11 @@ impl PackageManager for FlatpakBox {
             };
 
             let result = executor
-                .execute_package_command("flatpak", &["list", "--app", "--columns=name,version", &package], config)
+                .execute_package_command(
+                    "flatpak",
+                    &["list", "--app", "--columns=name,version", &package],
+                    config,
+                )
                 .await?;
 
             if result.exit_code == 0 && !result.stdout.trim().is_empty() {
@@ -273,13 +277,20 @@ impl PackageManager for FlatpakBox {
                         if parts.len() >= 2 {
                             let version = parts[1].trim().to_string();
                             if !version.is_empty() {
-                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                info!(
+                                    "✅ Found installed version '{}' for package '{}'",
+                                    version, package
+                                );
                                 return Ok(Some(version));
                             }
                         }
                     }
                 }
-                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                info!(
+                    "ℹ️ Package '{}' output format unexpected: {}",
+                    package,
+                    result.stdout.trim()
+                );
                 Ok(None)
             } else {
                 info!("ℹ️ Package '{}' is not installed", package);

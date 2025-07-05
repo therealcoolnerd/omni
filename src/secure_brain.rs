@@ -77,7 +77,8 @@ impl SecureOmniBrainV2 {
                 // Record the successful installation
                 if let Some(db) = &self.db {
                     // Try to get the actual installed version
-                    let installed_version = self.unified_manager
+                    let installed_version = self
+                        .unified_manager
                         .get_installed_version(package)
                         .unwrap_or_else(|e| {
                             warn!("Failed to get installed version for '{}': {}", package, e);
@@ -165,7 +166,8 @@ impl SecureOmniBrainV2 {
                 // Record the successful installation
                 if let Some(db) = &self.db {
                     // Try to get the actual installed version
-                    let installed_version = self.unified_manager
+                    let installed_version = self
+                        .unified_manager
                         .get_installed_version(package)
                         .unwrap_or_else(|e| {
                             warn!("Failed to get installed version for '{}': {}", package, e);

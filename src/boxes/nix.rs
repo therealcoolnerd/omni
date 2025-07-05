@@ -337,7 +337,7 @@ impl PackageManager for NixBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -360,7 +360,10 @@ impl PackageManager for NixBox {
                         if let Some(last_dash) = line.rfind('-') {
                             let version = line[last_dash + 1..].to_string();
                             if !version.is_empty() && version != package {
-                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                info!(
+                                    "✅ Found installed version '{}' for package '{}'",
+                                    version, package
+                                );
                                 return Ok(Some(version));
                             }
                         }
@@ -383,7 +386,10 @@ impl PackageManager for NixBox {
                                 if let Some(last_dash) = part.rfind('-') {
                                     let version = part[last_dash + 1..].to_string();
                                     if !version.is_empty() && version != package {
-                                        info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                        info!(
+                                            "✅ Found installed version '{}' for package '{}'",
+                                            version, package
+                                        );
                                         return Ok(Some(version));
                                     }
                                 }

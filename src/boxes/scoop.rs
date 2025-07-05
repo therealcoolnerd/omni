@@ -153,19 +153,26 @@ impl PackageManager for ScoopBox {
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            
+
             // Parse scoop list output
             for line in stdout.lines() {
                 if line.contains(package) && !line.starts_with("Name") && !line.starts_with("-") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 2 && parts[0] == package {
                         let version = parts[1].to_string();
-                        info!("✅ Found installed version '{}' for package '{}'", version, package);
+                        info!(
+                            "✅ Found installed version '{}' for package '{}'",
+                            version, package
+                        );
                         return Ok(Some(version));
                     }
                 }
             }
-            info!("ℹ️ Package '{}' output format unexpected: {}", package, stdout.trim());
+            info!(
+                "ℹ️ Package '{}' output format unexpected: {}",
+                package,
+                stdout.trim()
+            );
             Ok(None)
         } else {
             info!("ℹ️ Package '{}' is not installed", package);

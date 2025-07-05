@@ -240,7 +240,7 @@ impl PackageManager for SnapBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -261,12 +261,19 @@ impl PackageManager for SnapBox {
                         let parts: Vec<&str> = line.split_whitespace().collect();
                         if parts.len() >= 2 && parts[0] == package {
                             let version = parts[1].to_string();
-                            info!("✅ Found installed version '{}' for package '{}'", version, package);
+                            info!(
+                                "✅ Found installed version '{}' for package '{}'",
+                                version, package
+                            );
                             return Ok(Some(version));
                         }
                     }
                 }
-                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                info!(
+                    "ℹ️ Package '{}' output format unexpected: {}",
+                    package,
+                    result.stdout.trim()
+                );
                 Ok(None)
             } else {
                 info!("ℹ️ Package '{}' is not installed", package);

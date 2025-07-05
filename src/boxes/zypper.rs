@@ -279,7 +279,7 @@ impl PackageManager for ZypperBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -290,12 +290,19 @@ impl PackageManager for ZypperBox {
             };
 
             let result = executor
-                .execute_package_command("rpm", &["-q", "--queryformat", "%{VERSION}-%{RELEASE}", &package], config)
+                .execute_package_command(
+                    "rpm",
+                    &["-q", "--queryformat", "%{VERSION}-%{RELEASE}", &package],
+                    config,
+                )
                 .await?;
 
             if result.exit_code == 0 && !result.stdout.trim().is_empty() {
                 let version = result.stdout.trim().to_string();
-                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                info!(
+                    "✅ Found installed version '{}' for package '{}'",
+                    version, package
+                );
                 Ok(Some(version))
             } else {
                 info!("ℹ️ Package '{}' is not installed", package);

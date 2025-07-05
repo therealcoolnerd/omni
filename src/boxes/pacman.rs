@@ -270,7 +270,7 @@ impl PackageManager for PacmanBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -288,10 +288,17 @@ impl PackageManager for PacmanBox {
                 // Parse "package_name version" format
                 if let Some(version_part) = result.stdout.trim().split_whitespace().nth(1) {
                     let version = version_part.to_string();
-                    info!("✅ Found installed version '{}' for package '{}'", version, package);
+                    info!(
+                        "✅ Found installed version '{}' for package '{}'",
+                        version, package
+                    );
                     Ok(Some(version))
                 } else {
-                    info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                    info!(
+                        "ℹ️ Package '{}' output format unexpected: {}",
+                        package,
+                        result.stdout.trim()
+                    );
                     Ok(None)
                 }
             } else {

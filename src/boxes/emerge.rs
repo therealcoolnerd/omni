@@ -292,7 +292,7 @@ impl PackageManager for EmergeBox {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let package = package.to_string();
         let executor = self.executor.clone();
-        
+
         RuntimeManager::block_on(async move {
             info!("Getting installed version for package '{}'", package);
 
@@ -314,13 +314,20 @@ impl PackageManager for EmergeBox {
                         if let Some(last_dash) = line.rfind('-') {
                             let version = line[last_dash + 1..].to_string();
                             if !version.is_empty() {
-                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                info!(
+                                    "✅ Found installed version '{}' for package '{}'",
+                                    version, package
+                                );
                                 return Ok(Some(version));
                             }
                         }
                     }
                 }
-                info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                info!(
+                    "ℹ️ Package '{}' output format unexpected: {}",
+                    package,
+                    result.stdout.trim()
+                );
                 Ok(None)
             } else {
                 info!("ℹ️ Package '{}' is not installed", package);

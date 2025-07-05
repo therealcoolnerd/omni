@@ -243,10 +243,10 @@ enum ConfigCommands {
 enum HardwareCommands {
     /// Detect server hardware and show information
     Detect,
-    
+
     /// Auto-detect and install recommended drivers
     Install,
-    
+
     /// Install drivers for specific vendor (Dell, HP, Supermicro, etc.)
     Vendor {
         /// Hardware vendor name
@@ -679,7 +679,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
 
         Commands::Hardware { action } => {
             let mut brain = OmniBrain::new_with_mock(cli.mock);
-            
+
             match action {
                 HardwareCommands::Detect => {
                     println!("🔍 Detecting server hardware configuration...");
@@ -695,7 +695,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                         }
                     }
                 }
-                
+
                 HardwareCommands::Install => {
                     println!("🤖 Auto-detecting hardware and installing optimal drivers...");
                     match brain.detect_and_install_drivers().await {
@@ -708,7 +708,7 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                         }
                     }
                 }
-                
+
                 HardwareCommands::Vendor { vendor } => {
                     println!("🏢 Installing {} vendor-specific drivers...", vendor);
                     match brain.install_vendor_drivers(&vendor).await {

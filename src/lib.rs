@@ -43,7 +43,7 @@ pub mod docker;
 // Re-export commonly used types for easier testing
 pub use brain::OmniBrain;
 pub use config::OmniConfig;
-pub use hardware::{HardwareDetector, HardwareInfo, detect_and_suggest_drivers};
+pub use hardware::{detect_and_suggest_drivers, HardwareDetector, HardwareInfo};
 pub use manifest::OmniManifest;
 pub use search::{SearchEngine, SearchResult};
 // SecurityManager is not implemented yet

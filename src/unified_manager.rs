@@ -309,7 +309,10 @@ impl UnifiedPackageManager {
             if let Some(manager) = self.managers.get(box_name) {
                 match manager.get_installed_version(package) {
                     Ok(Some(version)) => {
-                        info!("✅ Found version '{}' for package '{}' from {}", version, package, box_name);
+                        info!(
+                            "✅ Found version '{}' for package '{}' from {}",
+                            version, package, box_name
+                        );
                         return Ok(Some(version));
                     }
                     Ok(None) => {
@@ -317,13 +320,16 @@ impl UnifiedPackageManager {
                         continue;
                     }
                     Err(e) => {
-                        warn!("❌ Error checking version for '{}' with {}: {}", package, box_name, e);
+                        warn!(
+                            "❌ Error checking version for '{}' with {}: {}",
+                            package, box_name, e
+                        );
                         continue;
                     }
                 }
             }
         }
-        
+
         info!("ℹ️ Package '{}' not found in any package manager", package);
         Ok(None)
     }

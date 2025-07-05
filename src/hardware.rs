@@ -112,11 +112,15 @@ impl HardwareDetector {
 
     fn detect_cpu(&self) -> Result<CpuInfo> {
         let cpuinfo = fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
-        
-        let vendor = self.extract_cpu_field(&cpuinfo, "vendor_id").unwrap_or("unknown".to_string());
-        let model = self.extract_cpu_field(&cpuinfo, "model name").unwrap_or("unknown".to_string());
+
+        let vendor = self
+            .extract_cpu_field(&cpuinfo, "vendor_id")
+            .unwrap_or("unknown".to_string());
+        let model = self
+            .extract_cpu_field(&cpuinfo, "model name")
+            .unwrap_or("unknown".to_string());
         let architecture = std::env::consts::ARCH.to_string();
-        
+
         // Count cores
         let cores = cpuinfo.matches("processor").count() as u32;
 
@@ -134,7 +138,7 @@ impl HardwareDetector {
         // Use lspci to detect network devices
         if let Ok(output) = Command::new("lspci").arg("-nn").output() {
             let lspci_output = String::from_utf8_lossy(&output.stdout);
-            
+
             for line in lspci_output.lines() {
                 if line.contains("Network controller") || line.contains("Ethernet controller") {
                     if let Some(device) = self.parse_network_device(line) {
@@ -153,7 +157,7 @@ impl HardwareDetector {
         // Use lspci for storage controllers
         if let Ok(output) = Command::new("lspci").arg("-nn").output() {
             let lspci_output = String::from_utf8_lossy(&output.stdout);
-            
+
             for line in lspci_output.lines() {
                 if line.contains("RAID") || line.contains("SATA") || line.contains("NVMe") {
                     if let Some(device) = self.parse_storage_device(line) {
@@ -172,9 +176,12 @@ impl HardwareDetector {
         // Use lspci for GPU devices
         if let Ok(output) = Command::new("lspci").arg("-nn").output() {
             let lspci_output = String::from_utf8_lossy(&output.stdout);
-            
+
             for line in lspci_output.lines() {
-                if line.contains("VGA") || line.contains("3D controller") || line.contains("Display controller") {
+                if line.contains("VGA")
+                    || line.contains("3D controller")
+                    || line.contains("Display controller")
+                {
                     if let Some(device) = self.parse_gpu_device(line) {
                         devices.push(device);
                     }
@@ -186,9 +193,15 @@ impl HardwareDetector {
     }
 
     fn detect_system_info(&self) -> Result<SystemInfo> {
-        let vendor = self.read_dmi_info("sys_vendor").unwrap_or("unknown".to_string());
-        let model = self.read_dmi_info("product_name").unwrap_or("unknown".to_string());
-        let bios_version = self.read_dmi_info("bios_version").unwrap_or("unknown".to_string());
+        let vendor = self
+            .read_dmi_info("sys_vendor")
+            .unwrap_or("unknown".to_string());
+        let model = self
+            .read_dmi_info("product_name")
+            .unwrap_or("unknown".to_string());
+        let bios_version = self
+            .read_dmi_info("bios_version")
+            .unwrap_or("unknown".to_string());
 
         Ok(SystemInfo {
             vendor,
@@ -200,7 +213,7 @@ impl HardwareDetector {
     fn parse_network_device(&self, line: &str) -> Option<NetworkDevice> {
         // Parse vendor and model from lspci output
         // Example: "02:00.0 Ethernet controller [0200]: Intel Corporation 82574L Gigabit Network Connection [8086:10d3]"
-        
+
         let parts: Vec<&str> = line.split(':').collect();
         if parts.len() < 3 {
             return None;
@@ -287,9 +300,9 @@ impl HardwareDetector {
 
         // Common server hardware support
         drivers.extend(vec![
-            "firmware-misc-nonfree".to_string(),  // General firmware
-            "linux-firmware".to_string(),         // Kernel firmware
-            "microcode".to_string(),              // CPU microcode
+            "firmware-misc-nonfree".to_string(), // General firmware
+            "linux-firmware".to_string(),        // Kernel firmware
+            "microcode".to_string(),             // CPU microcode
         ]);
 
         drivers
@@ -317,11 +330,11 @@ pub fn detect_and_suggest_drivers() -> Result<Vec<String>> {
     let detector = HardwareDetector::new();
     let hardware = detector.detect_hardware()?;
     let drivers = detector.get_recommended_drivers(&hardware);
-    
+
     info!("Detected {} recommended drivers", drivers.len());
     for driver in &drivers {
         info!("  - {}", driver);
     }
-    
+
     Ok(drivers)
 }

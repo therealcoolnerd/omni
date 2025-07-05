@@ -159,7 +159,7 @@ impl PackageManager for MasBox {
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            
+
             // Parse mas list output: appid appname (version)
             for line in stdout.lines() {
                 if line.contains(package) {
@@ -168,7 +168,10 @@ impl PackageManager for MasBox {
                         if let Some(version_end) = line.rfind(')') {
                             if version_start < version_end {
                                 let version = line[version_start + 1..version_end].to_string();
-                                info!("✅ Found installed version '{}' for package '{}'", version, package);
+                                info!(
+                                    "✅ Found installed version '{}' for package '{}'",
+                                    version, package
+                                );
                                 return Ok(Some(version));
                             }
                         }
@@ -178,7 +181,10 @@ impl PackageManager for MasBox {
             info!("ℹ️ Package '{}' not found in mas list", package);
             Ok(None)
         } else {
-            info!("ℹ️ Failed to get mas list or package '{}' not installed", package);
+            info!(
+                "ℹ️ Failed to get mas list or package '{}' not installed",
+                package
+            );
             Ok(None)
         }
     }

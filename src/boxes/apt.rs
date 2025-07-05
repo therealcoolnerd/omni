@@ -1,17 +1,24 @@
 use crate::distro::PackageManager;
-use crate::error_handling::OmniError;
+use crate::error_handling::{OmniError, record_error};
+use crate::runtime::RuntimeManager;
+use crate::secure_executor::{ExecutionConfig, SecureExecutor};
 use crate::types::InstalledPackage;
 use anyhow::Result;
 use std::process::Command;
+use std::time::Duration;
 use tracing::{error, info, warn};
 
 /// APT package manager wrapper
 #[derive(Clone)]
-pub struct AptManager;
+pub struct AptManager {
+    executor: SecureExecutor,
+}
 
 impl AptManager {
     pub fn new() -> Result<Self> {
-        Ok(Self)
+        Ok(Self {
+            executor: SecureExecutor::new()?,
+        })
     }
 
     pub fn is_available() -> bool {
@@ -236,7 +243,9 @@ impl PackageManager for AptManager {
     fn get_installed_version(&self, package: &str) -> Result<Option<String>> {
         let apt_manager = self.clone();
         let package = package.to_string();
-        RuntimeManager::block_on(async move { apt_manager.get_installed_version_async(&package).await })
+        RuntimeManager::block_on(
+            async move { apt_manager.get_installed_version_async(&package).await },
+        )
     }
 
     fn needs_privilege(&self) -> bool {
@@ -290,7 +299,10 @@ impl AptManager {
 
         if result.exit_code == 0 && !result.stdout.trim().is_empty() {
             let version = result.stdout.trim().to_string();
-            info!("✅ Found installed version '{}' for package '{}'", version, package);
+            info!(
+                "✅ Found installed version '{}' for package '{}'",
+                version, package
+            );
             Ok(Some(version))
         } else {
             info!("ℹ️ Package '{}' is not installed", package);

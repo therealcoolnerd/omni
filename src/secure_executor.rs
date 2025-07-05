@@ -5,15 +5,17 @@ use std::time::Duration;
 #[derive(Clone)]
 pub struct SecureExecutor;
 
-#[derive(Default)]
 pub struct ExecutionConfig {
     pub requires_sudo: bool,
     pub timeout: Duration,
 }
 
-impl Default for Duration {
+impl Default for ExecutionConfig {
     fn default() -> Self {
-        Duration::from_secs(30)
+        Self {
+            requires_sudo: false,
+            timeout: Duration::from_secs(30),
+        }
     }
 }
 
@@ -34,9 +36,7 @@ impl SecureExecutor {
         args: &[&str],
         _config: ExecutionConfig,
     ) -> Result<ExecutionResult> {
-        let output = std::process::Command::new(command)
-            .args(args)
-            .output()?;
+        let output = std::process::Command::new(command).args(args).output()?;
 
         Ok(ExecutionResult {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),

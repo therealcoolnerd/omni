@@ -265,10 +265,17 @@ impl PackageManager for BrewBox {
                 // Parse "package_name version" format
                 if let Some(version_part) = result.stdout.trim().split_whitespace().nth(1) {
                     let version = version_part.to_string();
-                    info!("✅ Found installed version '{}' for package '{}'", version, package);
+                    info!(
+                        "✅ Found installed version '{}' for package '{}'",
+                        version, package
+                    );
                     Ok(Some(version))
                 } else {
-                    info!("ℹ️ Package '{}' output format unexpected: {}", package, result.stdout.trim());
+                    info!(
+                        "ℹ️ Package '{}' output format unexpected: {}",
+                        package,
+                        result.stdout.trim()
+                    );
                     Ok(None)
                 }
             } else {

@@ -74,7 +74,7 @@ impl Default for OmniGui {
             download_speed: 45.2,
             active_operations: 0,
         };
-        
+
         // Initialize with real data
         gui.refresh_stats();
         gui
@@ -479,9 +479,9 @@ impl OmniGui {
                     {
                         if !self.package_input.is_empty() {
                             // Use async search - for GUI we'll use block_on for now
-                            if let Ok(results) = futures::executor::block_on(
-                                self.brain.search(&self.package_input)
-                            ) {
+                            if let Ok(results) =
+                                futures::executor::block_on(self.brain.search(&self.package_input))
+                            {
                                 self.search_results = results;
                             } else {
                                 self.search_results = Vec::new();
@@ -495,9 +495,9 @@ impl OmniGui {
                     );
                     if search_btn.clicked() && !self.package_input.is_empty() {
                         // Use async search - for GUI we'll use block_on for now
-                        if let Ok(results) = futures::executor::block_on(
-                            self.brain.search(&self.package_input)
-                        ) {
+                        if let Ok(results) =
+                            futures::executor::block_on(self.brain.search(&self.package_input))
+                        {
                             self.search_results = results;
                         } else {
                             self.search_results = Vec::new();
@@ -907,8 +907,9 @@ impl OmniGui {
         match self.brain.list_installed() {
             Ok(installed_packages) => {
                 let total_installed: usize = installed_packages.values().map(|v| v.len()).sum();
-                self.package_stats.insert("Installed".to_string(), total_installed as u32);
-                
+                self.package_stats
+                    .insert("Installed".to_string(), total_installed as u32);
+
                 // Store installed packages for display
                 self.installed_packages = installed_packages
                     .into_iter()
@@ -920,17 +921,19 @@ impl OmniGui {
                 self.package_stats.insert("Installed".to_string(), 0);
             }
         }
-        
+
         // Placeholder for total available packages - would need package manager search
         // In a real implementation, this would query package repositories
-        self.package_stats.insert("Total Available".to_string(), 50000);
-        
+        self.package_stats
+            .insert("Total Available".to_string(), 50000);
+
         // Placeholder for updates - would need actual update checking
-        self.package_stats.insert("Available Updates".to_string(), 0);
-        
+        self.package_stats
+            .insert("Available Updates".to_string(), 0);
+
         // Reset failed installs - would track from actual operations
         self.package_stats.insert("Failed Installs".to_string(), 0);
-        
+
         // Reset active operations
         self.active_operations = 0;
     }

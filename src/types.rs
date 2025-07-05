@@ -221,9 +221,9 @@ mod tests {
     #[test]
     fn test_serialization() {
         let pkg = InstalledPackage::with_description(
-            "curl".to_string(), 
+            "curl".to_string(),
             "7.68.0".to_string(),
-            Some("HTTP client".to_string())
+            Some("HTTP client".to_string()),
         );
 
         // Test JSON serialization
