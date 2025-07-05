@@ -1,6 +1,7 @@
 use crate::boxes::{appimage, apt, dnf, flatpak, pacman, snap};
 use crate::database::{Database, InstallRecord, InstallStatus};
 use crate::distro;
+use crate::hardware::{HardwareDetector, detect_and_suggest_drivers};
 use crate::input_validation::InputValidator;
 use crate::manifest::OmniManifest;
 use crate::privilege_manager::PrivilegeManager;
@@ -789,5 +790,150 @@ impl OmniBrain {
         // In a real implementation, this would create a snapshot
         println!("📸 Creating system snapshot...");
         println!("✅ Snapshot created successfully");
+    }
+
+    /// Detect hardware and suggest appropriate drivers for mixed server scenarios
+    pub async fn detect_and_install_drivers(&mut self) -> Result<()> {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Detecting hardware and drivers");
+            println!("✅ [MOCK] Driver detection completed (simulated)");
+            return Ok(());
+        }
+
+        info!("🔍 Detecting server hardware configuration...");
+        
+        match detect_and_suggest_drivers() {
+            Ok(drivers) => {
+                if drivers.is_empty() {
+                    info!("✅ No additional drivers needed - all hardware supported");
+                    return Ok(());
+                }
+
+                info!("🔧 Found {} recommended drivers for optimal server performance", drivers.len());
+                
+                for driver in &drivers {
+                    info!("  📦 {}", driver);
+                }
+
+                // Ask user for confirmation
+                println!("\n🤖 Omni detected hardware that could benefit from additional drivers:");
+                for driver in &drivers {
+                    println!("  • {}", driver);
+                }
+                
+                print!("\nInstall recommended drivers? [y/N]: ");
+                use std::io::{self, Write};
+                io::stdout().flush()?;
+                
+                let mut input = String::new();
+                io::stdin().read_line(&mut input)?;
+                
+                if input.trim().to_lowercase().starts_with('y') {
+                    info!("📦 Installing {} recommended drivers...", drivers.len());
+                    
+                    let mut successful = 0;
+                    let mut failed = 0;
+                    
+                    for driver in drivers {
+                        match self.install(&driver, None).await {
+                            Ok(()) => {
+                                successful += 1;
+                                info!("✅ Successfully installed driver: {}", driver);
+                            }
+                            Err(e) => {
+                                failed += 1;
+                                warn!("❌ Failed to install driver {}: {}", driver, e);
+                            }
+                        }
+                    }
+                    
+                    if successful > 0 {
+                        info!("🎉 Successfully installed {}/{} drivers", successful, successful + failed);
+                        if failed == 0 {
+                            info!("💡 Server hardware is now optimally configured!");
+                        }
+                    }
+                    
+                    if failed > 0 {
+                        warn!("⚠️  {} drivers failed to install - check package availability", failed);
+                    }
+                } else {
+                    info!("ℹ️  Driver installation skipped by user");
+                }
+                
+                Ok(())
+            }
+            Err(e) => {
+                error!("❌ Hardware detection failed: {}", e);
+                Err(e)
+            }
+        }
+    }
+
+    /// Get hardware information for mixed server scenario analysis
+    pub fn get_hardware_info(&self) -> Result<String> {
+        if self.mock_mode {
+            return Ok("🎭 [MOCK] Hardware: Intel Xeon, NVIDIA GPU, Mellanox Network (simulated)".to_string());
+        }
+
+        let detector = HardwareDetector::new();
+        match detector.detect_hardware() {
+            Ok(hardware) => {
+                let mut info = String::new();
+                info.push_str(&format!("🖥️  System: {} {}\n", hardware.system.vendor, hardware.system.model));
+                info.push_str(&format!("⚙️  CPU: {} {} ({} cores)\n", hardware.cpu.vendor, hardware.cpu.model, hardware.cpu.cores));
+                
+                if !hardware.network.is_empty() {
+                    info.push_str("🌐 Network Devices:\n");
+                    for device in &hardware.network {
+                        info.push_str(&format!("   • {} {}\n", device.vendor, device.model));
+                    }
+                }
+                
+                if !hardware.gpu.is_empty() {
+                    info.push_str("🎮 GPU Devices:\n");
+                    for device in &hardware.gpu {
+                        info.push_str(&format!("   • {} {}\n", device.vendor, device.model));
+                    }
+                }
+                
+                Ok(info)
+            }
+            Err(e) => {
+                warn!("Hardware detection failed: {}", e);
+                Ok("Hardware information unavailable".to_string())
+            }
+        }
+    }
+
+    /// Install drivers for specific server hardware vendor (Dell, HP, Supermicro, etc.)
+    pub async fn install_vendor_drivers(&mut self, vendor: &str) -> Result<()> {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Installing {} vendor drivers", vendor);
+            return Ok(());
+        }
+
+        let drivers = match vendor.to_lowercase().as_str() {
+            "dell" => vec!["dell-smbios", "dcdbas", "dell-wmi"],
+            "hp" | "hewlett-packard" => vec!["hpilo", "hp-wmi", "hp-health"],
+            "supermicro" => vec!["ipmi_si", "ipmi_devintf", "supermicro-bmc"],
+            "lenovo" => vec!["thinkpad-acpi", "lenovo-wmi"],
+            "cisco" | "ucs" => vec!["cisco-ucs", "cisco-enic"],
+            _ => {
+                warn!("Unknown vendor: {}. Installing generic server drivers.", vendor);
+                vec!["ipmi_si", "ipmi_devintf", "firmware-misc-nonfree"]
+            }
+        };
+
+        info!("📦 Installing {} vendor-specific drivers for {}", drivers.len(), vendor);
+        
+        for driver in drivers {
+            match self.install(driver, None).await {
+                Ok(()) => info!("✅ Installed: {}", driver),
+                Err(e) => warn!("❌ Failed to install {}: {}", driver, e),
+            }
+        }
+        
+        Ok(())
     }
 }

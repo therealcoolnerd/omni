@@ -1,10 +1,10 @@
 [package]
 name = "omni"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["therealcoolnerd"]
 license = "AGPL-3.0-or-later"
-description = "Omni Enterprise - Full-featured Universal Package Manager with advanced capabilities"
+description = "Omni - Universal Package Manager for Linux, macOS, and Windows"
 
 [lints.rust]
 unused_imports = "warn"
@@ -86,29 +86,12 @@ tokio-test = "0.4"
 futures = "0.3"
 
 [features]
-default = []
+default = ["gui", "ssh"]
 
-# Main version tiers  
-lite = []
-core = ["snapshots", "manifests", "enhanced-security"]
-enterprise = ["core", "gui", "ssh", "transactions", "advanced-resolver", "audit-trails"]
-
-# Individual feature groups
+# Optional feature groups
 gui = ["eframe", "egui_extras", "rfd"]
 ssh = ["russh", "russh-keys"]
-snapshots = []
-manifests = []
-enhanced-security = []
-transactions = []
-advanced-resolver = []
-audit-trails = []
 
-# Convenience aliases
-full = ["enterprise"]
-
-[[bench]]
-name = "performance"
-harness = false
 
 [lib]
 name = "omni"

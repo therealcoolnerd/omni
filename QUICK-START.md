@@ -1,216 +1,78 @@
-# ⚡ **Omni Quick Start Guide** — *Get Running in 60 Seconds*
+# ⚡ **Omni Quick Start Guide**
 
-<div align="center">
+Get Omni running in under 5 minutes.
 
-```ascii
-┌─────────────────────────────────────────────────────────────┐
-│  🚀 LITE      ⚖️ CORE        🏢 ENTERPRISE                 │
-│  ────────     ──────────     ──────────────                │
-│  Daily CLI    Power User     Mission Critical              │
-│  18s build    45s build     120s build                     │
-│  865KB        ~10MB         ~50MB                          │
-└─────────────────────────────────────────────────────────────┘
-```
+## 🛠️ **Installation**
 
-**Choose your speed. Choose your power. Choose your Omni.**
-
-</div>
-
----
-
-## 🎯 **30-Second Decision Tree**
-
-### **🤔 Which Version Do I Need?**
-
+### **Build from Source**
 ```bash
-# ❓ Do you just want `apt install` to work on Mac/Windows?
-→ 🚀 OMNI LITE (you're 90% of users)
-
-# ❓ Do you need snapshots, manifests, and team coordination?
-→ ⚖️ OMNI CORE (perfect balance)
-
-# ❓ Do you manage infrastructure, need SSH, transactions, audits?
-→ 🏢 OMNI ENTERPRISE (full power)
+git clone https://github.com/therealcoolnerd/omni.git
+cd omni
+cargo build --release
 ```
 
----
-
-## 🚀 **OMNI LITE** — *For Speed Demons*
-
-### **⚡ Install in 10 Seconds**
+### **Copy to PATH** 
 ```bash
-curl -sSL https://get-omni.dev/lite | sh
+# Copy the binary to your PATH
+sudo cp target/release/omni /usr/local/bin/
+
+# Or add to your shell profile
+echo 'export PATH="$PATH:$(pwd)/target/release"' >> ~/.bashrc
 ```
 
-### **🎯 Basic Commands**
+## 🚀 **Basic Usage**
+
+### **Install Packages**
 ```bash
-omni install firefox        # Install packages
-omni remove firefox         # Remove packages  
-omni search browser         # Search packages
-omni list                   # List installed
-omni update                 # Update cache
+omni install firefox        # Install Firefox
+omni install git nodejs     # Install multiple packages
 ```
 
-### **✨ That's It!**
-You now have universal package management. No complexity. Just speed.
-
----
-
-## ⚖️ **OMNI CORE** — *For Power Users*
-
-### **⚡ Install in 30 Seconds**
+### **Search Packages**
 ```bash
-curl -sSL https://get-omni.dev/core | sh
+omni search browser         # Find browser packages
+omni search "video editor"  # Search with spaces
 ```
 
-### **🎯 Power User Workflow**
+### **Manage Packages**
 ```bash
-# Basic package management (same as Lite)
-omni install git nodejs docker
-
-# Snapshot workflow (your new superpower)
-omni snapshot create "clean-state"
-omni install experimental-package
-omni snapshot restore "clean-state"    # Instant rollback ⚡
-
-# Team coordination
-omni manifest install team-setup.yaml
+omni list                   # List installed packages
+omni remove firefox         # Remove a package
+omni update                 # Update all packages
+omni info docker           # Get package information
 ```
 
-### **📋 Sample Manifest (team-setup.yaml)**
-```yaml
-project: "Web Development Stack"
-packages:
-  - git
-  - nodejs  
-  - docker
-  - code
-```
+## 🎯 **Optional Features**
 
----
-
-## 🏢 **OMNI ENTERPRISE** — *For Infrastructure Teams*
-
-### **⚡ Install in 60 Seconds**
+### **GUI Interface**
 ```bash
-curl -sSL https://get-omni.dev/enterprise | sh
-```
+# Build with GUI support
+cargo build --release --features gui
 
-### **🎯 Enterprise Workflows**
-```bash
-# Everything Core has, plus:
-
-# Remote server management
-omni --ssh prod-servers install security-patch
-
-# Transaction management
-omni transaction begin "infrastructure-update"
-omni install kubernetes docker-update  
-omni transaction commit --verify
-
-# Audit and compliance
-omni audit scan --compliance sox
-omni audit generate-report --format pdf
-
-# GUI management
+# Launch GUI
 omni gui
 ```
 
----
-
-## 📦 **Universal Package Management (All Versions)**
-
-### **🔥 The Magic - Same Commands Everywhere**
-
+### **SSH Remote Management**
 ```bash
-# Instead of platform-specific chaos:
-sudo apt install firefox      # Linux only
-brew install firefox          # macOS only  
-winget install firefox        # Windows only
+# Build with SSH support
+cargo build --release --features ssh
 
-# Use this everywhere:
-omni install firefox          # Linux + macOS + Windows ⚡
+# Install on remote server
+omni ssh user@server install nginx
 ```
 
-### **🎯 Platform Detection**
+## ✅ **Verify Installation**
+
 ```bash
-# Omni automatically detects and uses:
-• Linux:   apt, dnf, snap, flatpak
-• macOS:   brew, mas  
-• Windows: winget, chocolatey
+omni --version              # Should show version
+omni list                   # Should show installed packages
 ```
 
----
+That's it! You now have universal package management across platforms.
 
-## 🚀 **Real-World Examples**
+## 📚 **Next Steps**
 
-### **🔥 Daily Developer Workflow**
-```bash
-# Set up new machine (any platform)
-omni install git nodejs docker code
-omni install firefox slack zoom
-
-# Done. Universal setup. ⚡
-```
-
-### **👥 Team Setup Workflow**
-```bash
-# Share this with your team
-echo "git clone repo && omni manifest install dev-setup.yaml"
-
-# Everyone gets identical environment
-# Linux ✓ macOS ✓ Windows ✓
-```
-
-### **🏢 Infrastructure Management**
-```bash
-# Manage multiple servers
-omni --ssh web-servers,db-servers install security-update
-omni audit generate-compliance-report
-
-# Mission-critical operations ✓
-```
-
----
-
-## 📊 **Performance Comparison**
-
-| **Metric** | **🚀 Lite** | **⚖️ Core** | **🏢 Enterprise** |
-|------------|-------------|-------------|-------------------|
-| **Build Time** | 18s ⚡ | 45s 📦 | 120s 🏢 |
-| **Binary Size** | 865KB | ~10MB | ~50MB |
-| **Memory Usage** | <10MB | <30MB | <100MB |
-| **Dependencies** | 4 | ~15 | 40+ |
-| **Target User** | Daily CLI | Power User | Enterprise |
-
----
-
-## 🎯 **Next Steps**
-
-### **✅ After Installation**
-1. **Verify**: `omni --version`
-2. **Test**: `omni search firefox`
-3. **Use**: `omni install your-favorite-app`
-
-### **📚 Learn More**
-- **Documentation**: [github.com/therealcoolnerd/omni](https://github.com/therealcoolnerd/omni)
-- **Examples**: [omni-examples](https://github.com/therealcoolnerd/omni-examples)
-- **Support**: [Discord](https://discord.gg/omni) | [GitHub Issues](https://github.com/therealcoolnerd/omni/issues)
-
-### **🚀 Share the Speed**
-```bash
-# Tell your friends
-echo "Universal package management is here: https://get-omni.dev"
-```
-
----
-
-<div align="center">
-
-**🎉 Welcome to the Universal Package Management Revolution! 🎉**
-
-*Built with ❤️ in Rust | Three versions, one vision*
-
-**[⭐ Star on GitHub](https://github.com/therealcoolnerd/omni)** • **[🐛 Report Issues](https://github.com/therealcoolnerd/omni/issues)** • **[💡 Request Features](https://github.com/therealcoolnerd/omni/discussions)**
-
-</div>
+- Read the [main README](README.md) for full documentation
+- Report issues on [GitHub](https://github.com/therealcoolnerd/omni/issues)
+- Contribute to the project

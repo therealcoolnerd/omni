@@ -1,23 +1,17 @@
 use crate::distro::PackageManager;
-use crate::error_handling::{record_error, OmniError};
-use crate::runtime::RuntimeManager;
-use crate::secure_executor::{ExecutionConfig, SecureExecutor};
+use crate::error_handling::OmniError;
 use crate::types::InstalledPackage;
 use anyhow::Result;
-use std::time::Duration;
+use std::process::Command;
 use tracing::{error, info, warn};
 
-/// Secure APT package manager wrapper
+/// APT package manager wrapper
 #[derive(Clone)]
-pub struct AptManager {
-    executor: SecureExecutor,
-}
+pub struct AptManager;
 
 impl AptManager {
     pub fn new() -> Result<Self> {
-        Ok(Self {
-            executor: SecureExecutor::new()?,
-        })
+        Ok(Self)
     }
 
     pub fn is_available() -> bool {

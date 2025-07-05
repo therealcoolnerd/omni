@@ -1,4 +1,4 @@
-mod advanced_resolver_v2;
+mod advanced_resolver;
 mod audit;
 mod boxes;
 mod brain;
@@ -9,26 +9,24 @@ mod docker;
 mod error_handling;
 #[cfg(feature = "gui")]
 mod gui;
+mod hardware;
 mod history;
 mod input_validation;
 mod interactive;
 mod logging;
 mod manifest;
 mod privilege_manager;
-mod rate_limiter;
 mod resolver;
 mod runtime;
 mod sandboxing;
 mod search;
-mod secure_brain_v2;
+mod secure_brain;
 mod secure_executor;
 mod security;
 mod snapshot;
 #[cfg(feature = "ssh")]
 mod ssh;
-#[cfg(feature = "ssh")]
-mod ssh_real;
-mod transaction_v2;
+mod transaction;
 mod types;
 mod unified_manager;
 mod updater;
@@ -186,6 +184,12 @@ enum Commands {
         #[arg(long)]
         box_type: Option<String>,
     },
+
+    /// Hardware detection and driver management
+    Hardware {
+        #[command(subcommand)]
+        action: HardwareCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -233,6 +237,21 @@ enum ConfigCommands {
 
     /// Reset to defaults
     Reset,
+}
+
+#[derive(Subcommand)]
+enum HardwareCommands {
+    /// Detect server hardware and show information
+    Detect,
+    
+    /// Auto-detect and install recommended drivers
+    Install,
+    
+    /// Install drivers for specific vendor (Dell, HP, Supermicro, etc.)
+    Vendor {
+        /// Hardware vendor name
+        vendor: String,
+    },
 }
 
 #[tokio::main]
@@ -655,6 +674,53 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                     println!("⚠️  Package is unsigned but checksum verified")
                 }
                 security::TrustLevel::Untrusted => println!("❌ Package failed verification"),
+            }
+        }
+
+        Commands::Hardware { action } => {
+            let mut brain = OmniBrain::new_with_mock(cli.mock);
+            
+            match action {
+                HardwareCommands::Detect => {
+                    println!("🔍 Detecting server hardware configuration...");
+                    match brain.get_hardware_info() {
+                        Ok(info) => {
+                            println!("\n📋 Hardware Information:");
+                            println!("{}", "─".repeat(50));
+                            println!("{}", info);
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to detect hardware: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+                
+                HardwareCommands::Install => {
+                    println!("🤖 Auto-detecting hardware and installing optimal drivers...");
+                    match brain.detect_and_install_drivers().await {
+                        Ok(()) => {
+                            println!("✅ Driver installation process completed");
+                        }
+                        Err(e) => {
+                            error!("❌ Driver installation failed: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+                
+                HardwareCommands::Vendor { vendor } => {
+                    println!("🏢 Installing {} vendor-specific drivers...", vendor);
+                    match brain.install_vendor_drivers(&vendor).await {
+                        Ok(()) => {
+                            println!("✅ {} vendor drivers installation completed", vendor);
+                        }
+                        Err(e) => {
+                            error!("❌ Vendor driver installation failed: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
             }
         }
     }

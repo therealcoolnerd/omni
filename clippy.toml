@@ -1,7 +1,0 @@
-# Clippy configuration for CI/CD compatibility
-# This allows the project to build with warnings while maintaining code quality
-
-# Temporarily allow these lints during development
-allow-unused-imports = true
-allow-dead-code = true
-allow-unused-variables = true
