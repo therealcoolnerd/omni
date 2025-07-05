@@ -1,9 +1,43 @@
 /// Branding and visual elements for Omni
+/// 
+/// This module provides both ASCII art logos for terminal use and
+/// an adaptive SVG logo (assets/logo.svg) that automatically adapts
+/// to dark/light themes for GUI and web interfaces.
 use std::fmt;
 
 pub struct OmniBranding;
 
 impl OmniBranding {
+    /// Path to the adaptive SVG logo
+    pub fn svg_logo_path() -> &'static str {
+        "assets/logo.svg"
+    }
+
+    /// Load the adaptive SVG logo content
+    /// The original logo includes embedded CSS for automatic dark/light theme adaptation
+    pub fn svg_logo() -> Result<String, std::io::Error> {
+        std::fs::read_to_string(Self::svg_logo_path())
+    }
+
+    /// Get SVG logo with theme class applied
+    /// The original adaptive logo includes embedded CSS for automatic theme detection,
+    /// but manual theme classes can be added for programmatic control
+    pub fn svg_logo_with_theme(dark_mode: bool) -> Result<String, std::io::Error> {
+        let mut svg_content = Self::svg_logo()?;
+        let theme_class = if dark_mode { "dark-theme" } else { "light-theme" };
+        
+        // The original logo already includes adaptive CSS with media queries
+        // This function adds explicit theme classes for programmatic control
+        if let Some(pos) = svg_content.find("<svg") {
+            if let Some(end_pos) = svg_content[pos..].find('>') {
+                let insert_pos = pos + end_pos;
+                svg_content.insert_str(insert_pos, &format!(" class=\"{}\"", theme_class));
+            }
+        }
+        
+        Ok(svg_content)
+    }
+
     /// Main OMNI ASCII art logo
     pub fn logo() -> &'static str {
         r#"
@@ -87,6 +121,53 @@ impl OmniBranding {
         }
     }
 
+    /// Generate HTML with embedded SVG logo
+    pub fn html_with_logo(title: &str, dark_mode: bool) -> Result<String, std::io::Error> {
+        let svg_logo = Self::svg_logo_with_theme(dark_mode)?;
+        let theme_class = if dark_mode { "dark" } else { "light" };
+        
+        Ok(format!(r#"<!DOCTYPE html>
+<html lang="en" class="{}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color, {});
+            color: var(--text-color, {});
+            margin: 0;
+            padding: 20px;
+        }}
+        .logo-container {{ 
+            text-align: center; 
+            margin: 20px 0; 
+        }}
+        .logo-container svg {{ 
+            max-width: 200px; 
+            height: auto; 
+        }}
+        .dark {{ --bg-color: #000000; --text-color: #ffffff; }}
+        .light {{ --bg-color: #ffffff; --text-color: #000000; }}
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        {}
+    </div>
+    <h1>{}</h1>
+</body>
+</html>"#, 
+            theme_class,
+            title,
+            if dark_mode { "#000000" } else { "#ffffff" },
+            if dark_mode { "#ffffff" } else { "#000000" },
+            svg_logo,
+            title
+        ))
+    }
+
     /// Color theme constants
     pub fn theme() -> Theme {
         Theme {
@@ -97,6 +178,26 @@ impl OmniBranding {
             error: "\x1b[31m",           // Red for errors
             warning: "\x1b[33m",         // Yellow for warnings
             reset: "\x1b[0m",            // Reset colors
+        }
+    }
+    
+    /// Dark theme for SVG/GUI
+    pub fn dark_theme() -> SvgTheme {
+        SvgTheme {
+            bg_color: "#000000",
+            text_color: "#ffffff", 
+            accent_color: "#00bcd4",
+            box_color: "#333333",
+        }
+    }
+    
+    /// Light theme for SVG/GUI
+    pub fn light_theme() -> SvgTheme {
+        SvgTheme {
+            bg_color: "#ffffff",
+            text_color: "#000000",
+            accent_color: "#0077aa", 
+            box_color: "#f0f0f0",
         }
     }
 }
@@ -116,6 +217,13 @@ pub struct Theme {
     pub error: &'static str,
     pub warning: &'static str,
     pub reset: &'static str,
+}
+
+pub struct SvgTheme {
+    pub bg_color: &'static str,
+    pub text_color: &'static str,
+    pub accent_color: &'static str,
+    pub box_color: &'static str,
 }
 
 impl fmt::Display for OmniBranding {
