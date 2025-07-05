@@ -2,6 +2,8 @@
 
 <div align="center">
 
+![Omni Logo](assets/logo.svg)
+
 **One command to manage packages across Linux, macOS, and Windows.**
 
 *A clean, focused solution for cross-platform package management.*
