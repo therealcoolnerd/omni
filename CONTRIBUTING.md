@@ -139,6 +139,13 @@ docs(readme): update installation instructions
 test(integration): add mock mode test coverage
 ```
 
+### Git Hooks
+
+No Git hooks are required for this project. Sample hook scripts from `.git/hooks`
+are stored in [`docs/git-hook-samples`](docs/git-hook-samples/) if you want to
+set up optional checks like running `cargo fmt` or verifying commit messages
+before commits.
+
 ### Code Organization
 ```
 src/
