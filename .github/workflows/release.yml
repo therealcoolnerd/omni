@@ -22,6 +22,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Verify upstream repository
+      run: |
+        if [ "$GITHUB_REPOSITORY" != "therealcoolnerd/omni" ]; then
+          echo "Publishing is only allowed from the upstream repository" && exit 1
+        fi
+
   build-release:
     name: Build Release
     runs-on: ${{ matrix.os }}
@@ -162,8 +168,13 @@ jobs:
     needs: build-release
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
+    - name: Verify upstream repository
+      run: |
+        if [ "$GITHUB_REPOSITORY" != "therealcoolnerd/omni" ]; then
+          echo "Publishing is only allowed from the upstream repository" && exit 1
+        fi
     - name: Update Homebrew formula
       uses: mislav/bump-homebrew-formula-action@65542ba63f8a8b4ef91a5b30d15b8e324a6bb6ff
       with:
