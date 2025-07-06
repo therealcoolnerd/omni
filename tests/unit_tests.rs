@@ -110,6 +110,41 @@ mod config_tests {
 }
 
 #[cfg(test)]
+mod hardware_gui_tests {
+    use super::*;
+    use omni::hardware::HardwareDetector;
+    use omni::gui::OmniGui;
+
+    #[test]
+    fn test_parse_network_device_basic() {
+        let detector = HardwareDetector::new();
+        let line = "02:00.0 Ethernet controller [0200]: Intel Corporation 82574L Gigabit Network Connection [8086:10d3]";
+        let dev = detector.parse_network_device(line).unwrap();
+        assert!(dev.vendor.to_lowercase().contains("intel"));
+        assert!(dev.model.contains("82574"));
+    }
+
+    #[test]
+    fn test_parse_storage_device_basic() {
+        let detector = HardwareDetector::new();
+        let line = "01:00.0 SATA controller [0106]: Samsung Electronics NVMe SSD [144d:a808]";
+        let dev = detector.parse_storage_device(line).unwrap();
+        assert!(dev.vendor.to_lowercase().contains("samsung"));
+        assert!(dev.driver_needed.is_some());
+    }
+
+    #[test]
+    fn test_gui_option_fields() {
+        let mut gui = OmniGui::default();
+        gui.ssh_host = "test.example.com".to_string();
+        gui.container_name = "my-container".to_string();
+
+        assert_eq!(gui.ssh_host, "test.example.com");
+        assert_eq!(gui.container_name, "my-container");
+    }
+}
+
+#[cfg(test)]
 mod database_tests {
     use super::*;
     use omni::database::*;

@@ -210,16 +210,12 @@ impl HardwareDetector {
         })
     }
 
-    fn parse_network_device(&self, line: &str) -> Option<NetworkDevice> {
+    pub(crate) fn parse_network_device(&self, line: &str) -> Option<NetworkDevice> {
         // Parse vendor and model from lspci output
         // Example: "02:00.0 Ethernet controller [0200]: Intel Corporation 82574L Gigabit Network Connection [8086:10d3]"
 
-        let parts: Vec<&str> = line.split(':').collect();
-        if parts.len() < 3 {
-            return None;
-        }
-
-        let vendor_model = parts[2].trim();
+        let bus = line.split_whitespace().next()?;
+        let vendor_model = line.split("]:").nth(1)?.trim();
         let (vendor, model) = if let Some(corp_pos) = vendor_model.find("Corporation") {
             let vendor = vendor_model[..corp_pos + 11].trim();
             let model = vendor_model[corp_pos + 11..].trim();
@@ -233,40 +229,75 @@ impl HardwareDetector {
         };
 
         let driver_needed = self.suggest_network_driver(&vendor, &model);
+        let driver = self.get_pci_driver(bus);
 
         Some(NetworkDevice {
             vendor,
             model,
-            driver: None, // TODO: Detect current driver
+            driver,
             driver_needed,
         })
     }
 
-    fn parse_storage_device(&self, line: &str) -> Option<StorageDevice> {
-        // Similar parsing logic for storage devices
-        // TODO: Implement storage device parsing
-        None
+    pub(crate) fn parse_storage_device(&self, line: &str) -> Option<StorageDevice> {
+        // Example line: "01:00.0 SATA controller [0106]: Intel Corporation XYZ [8086:1234]"
+        let bus = line.split_whitespace().next()?;
+        let vendor_model = line.split("]:").nth(1)?.trim();
+        let (vendor, model) = if let Some(corp_pos) = vendor_model.find("Corporation") {
+            let vendor = vendor_model[..corp_pos + 11].trim();
+            let model = vendor_model[corp_pos + 11..].trim();
+            (vendor.to_string(), model.to_string())
+        } else if let Some(space_pos) = vendor_model.find(' ') {
+            let vendor = vendor_model[..space_pos].trim();
+            let model = vendor_model[space_pos..].trim();
+            (vendor.to_string(), model.to_string())
+        } else {
+            (vendor_model.to_string(), "unknown".to_string())
+        };
+
+        let driver_needed = self.suggest_storage_driver(&vendor, &model);
+        let driver = self.get_pci_driver(bus);
+
+        Some(StorageDevice {
+            vendor,
+            model,
+            driver,
+            driver_needed,
+        })
     }
 
-    fn parse_gpu_device(&self, line: &str) -> Option<GpuDevice> {
-        // Parse GPU information
-        if line.contains("NVIDIA") {
-            Some(GpuDevice {
-                vendor: "NVIDIA".to_string(),
-                model: "GPU".to_string(), // TODO: Parse actual model
-                driver: None,
-                driver_needed: Some("nvidia-driver".to_string()),
-            })
-        } else if line.contains("AMD") || line.contains("ATI") {
-            Some(GpuDevice {
-                vendor: "AMD".to_string(),
-                model: "GPU".to_string(),
-                driver: None,
-                driver_needed: Some("amdgpu".to_string()),
-            })
+    pub(crate) fn parse_gpu_device(&self, line: &str) -> Option<GpuDevice> {
+        // Example line: "03:00.0 VGA compatible controller: NVIDIA Corporation GP102 [10de:1b06]"
+        let bus = line.split_whitespace().next()?;
+        let vendor_model = line.split("]:").nth(1)?.trim();
+
+        let (vendor, model) = if let Some(pos) = vendor_model.find("Corporation") {
+            let vendor = vendor_model[..pos + 11].trim();
+            let model = vendor_model[pos + 11..].trim();
+            (vendor.to_string(), model.to_string())
+        } else if let Some(space_pos) = vendor_model.find(' ') {
+            let vendor = vendor_model[..space_pos].trim();
+            let model = vendor_model[space_pos..].trim();
+            (vendor.to_string(), model.to_string())
+        } else {
+            (vendor_model.to_string(), "unknown".to_string())
+        };
+
+        let driver = self.get_pci_driver(bus);
+        let driver_needed = if vendor.to_lowercase().contains("nvidia") {
+            Some("nvidia-driver".to_string())
+        } else if vendor.to_lowercase().contains("amd") || vendor.to_lowercase().contains("ati") {
+            Some("amdgpu".to_string())
         } else {
             None
-        }
+        };
+
+        Some(GpuDevice {
+            vendor,
+            model,
+            driver,
+            driver_needed,
+        })
     }
 
     fn suggest_network_driver(&self, vendor: &str, model: &str) -> Option<String> {
@@ -277,6 +308,22 @@ impl HardwareDetector {
             v if v.contains("mellanox") => Some("mlx5-core".to_string()),
             _ => None,
         }
+    }
+
+    fn suggest_storage_driver(&self, vendor: &str, _model: &str) -> Option<String> {
+        match vendor.to_lowercase().as_str() {
+            v if v.contains("intel") => Some("intel-storage".to_string()),
+            v if v.contains("lsi") || v.contains("broadcom") => Some("megaraid".to_string()),
+            v if v.contains("samsung") => Some("nvme".to_string()),
+            v if v.contains("adaptec") => Some("aacraid".to_string()),
+            _ => None,
+        }
+    }
+
+    fn get_pci_driver(&self, bus: &str) -> Option<String> {
+        let addr = if bus.starts_with("0000:") { bus.to_string() } else { format!("0000:{}", bus) };
+        let path = format!("/sys/bus/pci/devices/{}/driver", addr);
+        fs::read_link(&path).ok().and_then(|p| p.file_name().map(|f| f.to_string_lossy().into()))
     }
 
     fn get_common_server_drivers(&self, system: &SystemInfo) -> Vec<String> {
