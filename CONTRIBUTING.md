@@ -17,6 +17,9 @@
 git clone https://github.com/your-username/omni.git
 cd omni
 
+# Keep the official repo handy
+git remote add upstream https://github.com/therealcoolnerd/omni.git
+
 # 2. Create your feature branch
 git checkout -b feature/game-changing-feature
 
@@ -29,6 +32,13 @@ git commit -m "feat: add feature that changes everything"
 # 5. Push & PR
 git push origin feature/game-changing-feature
 # Then open a Pull Request on GitHub
+```
+
+Maintainers preparing a release should ensure `origin` points to the
+official repository:
+
+```bash
+git remote set-url origin https://github.com/therealcoolnerd/omni.git
 ```
 
 **That's it.** No complex setup, no bureaucracy—just good code solving real problems.
@@ -128,6 +138,13 @@ fix(security): resolve GPG verification edge case
 docs(readme): update installation instructions
 test(integration): add mock mode test coverage
 ```
+
+### Git Hooks
+
+No Git hooks are required for this project. Sample hook scripts from `.git/hooks`
+are stored in [`docs/git-hook-samples`](docs/git-hook-samples/) if you want to
+set up optional checks like running `cargo fmt` or verifying commit messages
+before commits.
 
 ### Code Organization
 ```

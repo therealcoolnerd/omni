@@ -766,6 +766,19 @@ impl OmniBrain {
         ]
     }
 
+    /// Retrieve installation history records
+    pub async fn get_install_history(
+        &mut self,
+        limit: usize,
+    ) -> Result<Vec<crate::database::InstallRecord>> {
+        self.ensure_initialized().await?;
+        if let Some(db) = &self.db {
+            db.get_install_history(Some(limit as i64)).await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
     /// Update all packages
     pub fn update_all(&mut self) {
         if self.mock_mode {

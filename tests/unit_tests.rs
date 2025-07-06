@@ -110,6 +110,41 @@ mod config_tests {
 }
 
 #[cfg(test)]
+mod hardware_gui_tests {
+    use super::*;
+    use omni::hardware::HardwareDetector;
+    use omni::gui::OmniGui;
+
+    #[test]
+    fn test_parse_network_device_basic() {
+        let detector = HardwareDetector::new();
+        let line = "02:00.0 Ethernet controller [0200]: Intel Corporation 82574L Gigabit Network Connection [8086:10d3]";
+        let dev = detector.parse_network_device(line).unwrap();
+        assert!(dev.vendor.to_lowercase().contains("intel"));
+        assert!(dev.model.contains("82574"));
+    }
+
+    #[test]
+    fn test_parse_storage_device_basic() {
+        let detector = HardwareDetector::new();
+        let line = "01:00.0 SATA controller [0106]: Samsung Electronics NVMe SSD [144d:a808]";
+        let dev = detector.parse_storage_device(line).unwrap();
+        assert!(dev.vendor.to_lowercase().contains("samsung"));
+        assert!(dev.driver_needed.is_some());
+    }
+
+    #[test]
+    fn test_gui_option_fields() {
+        let mut gui = OmniGui::default();
+        gui.ssh_host = "test.example.com".to_string();
+        gui.container_name = "my-container".to_string();
+
+        assert_eq!(gui.ssh_host, "test.example.com");
+        assert_eq!(gui.container_name, "my-container");
+    }
+}
+
+#[cfg(test)]
 mod database_tests {
     use super::*;
     use omni::database::*;
@@ -572,5 +607,106 @@ mod performance_tests {
         assert_eq!(manifest.apps.len(), 100);
         // Should parse 100 apps quickly
         assert!(duration.as_millis() < 100);
+    }
+}
+#[cfg(test)]
+mod hardware_tests {
+    use super::*;
+    use omni::hardware::{
+        CpuInfo, GpuDevice, HardwareDetector, HardwareInfo, NetworkDevice, StorageDevice,
+        SystemInfo,
+    };
+
+    #[test]
+    fn test_suggest_network_driver_known_vendor() {
+        let detector = HardwareDetector::new();
+        let driver = detector.suggest_network_driver("Intel", "82574L");
+        assert_eq!(driver, Some("intel-ethernet".to_string()));
+    }
+
+    #[test]
+    fn test_suggest_network_driver_unknown_vendor() {
+        let detector = HardwareDetector::new();
+        let driver = detector.suggest_network_driver("UnknownVendor", "Foo");
+        assert!(driver.is_none());
+    }
+
+    #[test]
+    fn test_get_recommended_drivers_with_missing_driver() {
+        let detector = HardwareDetector::new();
+        let hardware = HardwareInfo {
+            cpu: CpuInfo {
+                vendor: "Intel".to_string(),
+                model: "Xeon".to_string(),
+                architecture: "x86_64".to_string(),
+                cores: 8,
+            },
+            network: vec![
+                NetworkDevice {
+                    vendor: "Intel".to_string(),
+                    model: "X520".to_string(),
+                    driver: None,
+                    driver_needed: Some("intel-ethernet".to_string()),
+                },
+                NetworkDevice {
+                    vendor: "Unknown".to_string(),
+                    model: "Foo".to_string(),
+                    driver: None,
+                    driver_needed: None,
+                },
+            ],
+            storage: vec![],
+            gpu: vec![],
+            system: SystemInfo {
+                vendor: "Dell".to_string(),
+                model: "PowerEdge".to_string(),
+                bios_version: "1.0".to_string(),
+            },
+        };
+
+        let drivers = detector.get_recommended_drivers(&hardware);
+        assert!(drivers.contains(&"intel-ethernet".to_string()));
+        assert!(drivers.contains(&"dell-smbios".to_string()));
+        assert!(!drivers.contains(&"mlx5-core".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod ssh_session_tests {
+    use super::*;
+    use omni::ssh::{RealSshConfig, RealSshSession};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_connect_fails_with_empty_host() {
+        let config = RealSshConfig {
+            host: "".to_string(),
+            connect_timeout: Duration::from_secs(1),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        assert!(session.connect().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_connect_invalid_address() {
+        let config = RealSshConfig {
+            host: "256.256.256.256".to_string(),
+            connect_timeout: Duration::from_secs(1),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        assert!(session.connect().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_without_connection() {
+        let config = RealSshConfig {
+            host: "1.2.3.4".to_string(),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        let result = session.execute_command("ls").await;
+        assert!(result.is_err());
     }
 }

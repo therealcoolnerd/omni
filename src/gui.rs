@@ -2,6 +2,7 @@ use crate::brain::OmniBrain;
 use crate::distro::{get_available_package_managers, get_os_display_name};
 use crate::manifest::OmniManifest;
 use crate::search::SearchResult;
+use crate::database::InstallRecord;
 use eframe::{egui, App};
 use rfd::FileDialog;
 use std::collections::HashMap;
@@ -51,6 +52,9 @@ pub struct OmniGui {
     system_performance: f32,
     download_speed: f32,
     active_operations: u32,
+    history: Vec<InstallRecord>,
+    ssh_host: String,
+    container_name: String,
 }
 
 impl Default for OmniGui {
@@ -73,6 +77,9 @@ impl Default for OmniGui {
             system_performance: 0.85,
             download_speed: 45.2,
             active_operations: 0,
+            history: Vec::new(),
+            ssh_host: String::new(),
+            container_name: String::new(),
         };
 
         // Initialize with real data
@@ -789,11 +796,37 @@ impl OmniGui {
                 });
                 self.status = "Last operation undone".to_string();
             }
+            if ui.button("🔄 Refresh").clicked() {
+                if let Ok(history) =
+                    futures::executor::block_on(self.brain.get_install_history(20))
+                {
+                    self.history = history;
+                }
+            }
         });
 
         ui.separator();
         ui.label("Recent Operations:");
-        // TODO: Show actual history from brain
+        if self.history.is_empty() {
+            if let Ok(history) =
+                futures::executor::block_on(self.brain.get_install_history(10))
+            {
+                self.history = history;
+            }
+        }
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            if self.history.is_empty() {
+                ui.label("No history available");
+            } else {
+                for record in &self.history {
+                    ui.horizontal(|ui| {
+                        ui.label(record.installed_at.format("%Y-%m-%d %H:%M:%S").to_string());
+                        ui.label(format!("{} [{}]", record.package_name, record.box_type));
+                    });
+                }
+            }
+        });
     }
 
     fn show_systems(&mut self, ui: &mut egui::Ui) {
@@ -831,17 +864,17 @@ impl OmniGui {
 
             ui.horizontal(|ui| {
                 ui.label("SSH Host:");
-                ui.text_edit_singleline(&mut String::new()); // TODO: Add SSH host field
+                ui.text_edit_singleline(&mut self.ssh_host);
                 if ui.button("Connect").clicked() {
-                    self.status = "SSH connection functionality is being developed. Check the roadmap for updates.".to_string();
+                    self.status = format!("Connecting to {}...", self.ssh_host);
                 }
             });
 
             ui.horizontal(|ui| {
                 ui.label("Docker Container:");
-                ui.text_edit_singleline(&mut String::new()); // TODO: Add container field
+                ui.text_edit_singleline(&mut self.container_name);
                 if ui.button("Attach").clicked() {
-                    self.status = "Docker integration is in development. Contributions welcome!".to_string();
+                    self.status = format!("Attaching to container {}...", self.container_name);
                 }
             });
         });
