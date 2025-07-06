@@ -8,3 +8,4 @@
 Cargo.lock
 # Release artifacts
 release/
+web-app/node_modules/
