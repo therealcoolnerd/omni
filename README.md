@@ -20,7 +20,7 @@
     ╚═══════════════════════════════════════════════════════════╝
 ```
 
-[⚡ **Quick Start**](#-quick-start) • [📦 **What Works**](#-what-works) • [🛠️ **Install**](#-installation)
+[⚡ **Quick Start**](#-quick-start) • [📦 **What Works**](#-what-works) • [🛠️ **Install**](#-installation) • [⚙ **Configuration**](CONFIGURATION.md)
 
 </div>
 
