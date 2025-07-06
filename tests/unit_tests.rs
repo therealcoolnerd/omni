@@ -609,3 +609,104 @@ mod performance_tests {
         assert!(duration.as_millis() < 100);
     }
 }
+#[cfg(test)]
+mod hardware_tests {
+    use super::*;
+    use omni::hardware::{
+        CpuInfo, GpuDevice, HardwareDetector, HardwareInfo, NetworkDevice, StorageDevice,
+        SystemInfo,
+    };
+
+    #[test]
+    fn test_suggest_network_driver_known_vendor() {
+        let detector = HardwareDetector::new();
+        let driver = detector.suggest_network_driver("Intel", "82574L");
+        assert_eq!(driver, Some("intel-ethernet".to_string()));
+    }
+
+    #[test]
+    fn test_suggest_network_driver_unknown_vendor() {
+        let detector = HardwareDetector::new();
+        let driver = detector.suggest_network_driver("UnknownVendor", "Foo");
+        assert!(driver.is_none());
+    }
+
+    #[test]
+    fn test_get_recommended_drivers_with_missing_driver() {
+        let detector = HardwareDetector::new();
+        let hardware = HardwareInfo {
+            cpu: CpuInfo {
+                vendor: "Intel".to_string(),
+                model: "Xeon".to_string(),
+                architecture: "x86_64".to_string(),
+                cores: 8,
+            },
+            network: vec![
+                NetworkDevice {
+                    vendor: "Intel".to_string(),
+                    model: "X520".to_string(),
+                    driver: None,
+                    driver_needed: Some("intel-ethernet".to_string()),
+                },
+                NetworkDevice {
+                    vendor: "Unknown".to_string(),
+                    model: "Foo".to_string(),
+                    driver: None,
+                    driver_needed: None,
+                },
+            ],
+            storage: vec![],
+            gpu: vec![],
+            system: SystemInfo {
+                vendor: "Dell".to_string(),
+                model: "PowerEdge".to_string(),
+                bios_version: "1.0".to_string(),
+            },
+        };
+
+        let drivers = detector.get_recommended_drivers(&hardware);
+        assert!(drivers.contains(&"intel-ethernet".to_string()));
+        assert!(drivers.contains(&"dell-smbios".to_string()));
+        assert!(!drivers.contains(&"mlx5-core".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod ssh_session_tests {
+    use super::*;
+    use omni::ssh::{RealSshConfig, RealSshSession};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn test_connect_fails_with_empty_host() {
+        let config = RealSshConfig {
+            host: "".to_string(),
+            connect_timeout: Duration::from_secs(1),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        assert!(session.connect().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_connect_invalid_address() {
+        let config = RealSshConfig {
+            host: "256.256.256.256".to_string(),
+            connect_timeout: Duration::from_secs(1),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        assert!(session.connect().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_without_connection() {
+        let config = RealSshConfig {
+            host: "1.2.3.4".to_string(),
+            ..RealSshConfig::default()
+        };
+        let mut session = RealSshSession::new(config);
+        let result = session.execute_command("ls").await;
+        assert!(result.is_err());
+    }
+}
