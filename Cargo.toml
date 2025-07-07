@@ -41,7 +41,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 
 # CLI and user interaction
-indicatif = "0.17"
+indicatif = "0.18"
 dialoguer = { version = "0.11", features = ["fuzzy-select"] }
 clap = { version = "4.0", features = ["derive"] }
 
