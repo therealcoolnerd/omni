@@ -100,7 +100,7 @@ jobs:
         sha256sum omni-${{ matrix.name }}.${{ matrix.archive }} > omni-${{ matrix.name }}.${{ matrix.archive }}.sha256
         
     - name: Upload Release Assets
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
+      uses: softprops/action-gh-release@f37a2f9143791b88da06f2c143d376e00fce81dc
       with:
         files: |
           omni-${{ matrix.name }}.${{ matrix.archive }}
