@@ -1,16 +1,17 @@
-# 🌟 **Omni** — Universal Package Manager
+# 🌟 **Omni Universal Package Manager** — One Command for All Platforms
 
 <div align="center">
 
 ![Omni Logo](assets/logo.svg)
 
-**One command to manage packages across Linux, macOS, and Windows.**
+**Universal Cross-Platform Package Manager | Linux | Windows | macOS | Package Management Made Simple**
 
-*A clean, focused solution for cross-platform package management.*
+*The only package manager you'll ever need. Install software on any operating system with one command.*
 
-[![Rust](https://img.shields.io/badge/Rust-1.70+-000000?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/Rust-1.87+-000000?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=flat&logo=gnu&logoColor=white)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-000000?style=flat&logo=linux&logoColor=white)]()
+[![GitHub](https://img.shields.io/badge/GitHub-Open%20Source-000000?style=flat&logo=github&logoColor=white)](https://github.com/therealcoolnerd/omni)
 
 ```ascii
     ╔═══════════════════════════════════════════════════════════╗
@@ -245,6 +246,14 @@ AGPL-3.0-or-later - see [LICENSE](LICENSE) for details.
 <div align="center">
 
 **[⭐ Star this repo](https://github.com/therealcoolnerd/omni)** • **[🐛 Report Issues](https://github.com/therealcoolnerd/omni/issues)** • **[💡 Request Features](https://github.com/therealcoolnerd/omni/discussions)**
+
+---
+
+## 🔍 **Keywords & Topics**
+
+**Package Manager** | **Cross Platform** | **Universal Package Manager** | **Linux Package Manager** | **Windows Package Manager** | **macOS Package Manager** | **apt wrapper** | **brew wrapper** | **winget wrapper** | **dnf wrapper** | **pacman wrapper** | **snap wrapper** | **flatpak wrapper** | **Package Management Tool** | **Software Installation** | **Command Line Tool** | **CLI Package Manager** | **Rust Package Manager** | **Open Source Package Manager** | **Multi Platform** | **System Administration** | **DevOps Tools** | **Developer Tools** | **System Package Manager** | **Package Installation** | **Software Management** | **Cross Platform Development** | **Linux Tools** | **Windows Tools** | **macOS Tools** | **System Tools** | **Package Management System**
+
+*Omni Universal Package Manager - The ultimate cross-platform package management solution for Linux, Windows, and macOS. Install software packages with one command across all operating systems. Open source Rust-based package manager that wraps apt, brew, winget, dnf, pacman, snap, flatpak and more.*
 
 ### **"One CLI to rule them all."** ⚫
 

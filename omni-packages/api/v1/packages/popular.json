@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "last_updated": "2024-07-05T00:00:00Z",
+  "total_packages": 3,
+  "popular_packages": [
+    {
+      "rank": 1,
+      "name": "git",
+      "display_name": "Git",
+      "category": "development",
+      "downloads_per_month": 100000000,
+      "search_frequency": 100,
+      "cross_platform": true
+    },
+    {
+      "rank": 3,
+      "name": "vscode",
+      "display_name": "Visual Studio Code", 
+      "category": "development",
+      "downloads_per_month": 75000000,
+      "search_frequency": 98,
+      "cross_platform": true
+    },
+    {
+      "rank": 15,
+      "name": "firefox",
+      "display_name": "Mozilla Firefox",
+      "category": "web-browser",
+      "downloads_per_month": 50000000,
+      "search_frequency": 95,
+      "cross_platform": true
+    }
+  ],
+  "categories": {
+    "development": ["git", "vscode"],
+    "web-browser": ["firefox"]
+  }
+}

@@ -80,13 +80,18 @@ impl InputValidator {
             return Err(anyhow!("Path contains null bytes"));
         }
 
+        // Check for dangerous path patterns
+        if path_str.contains("../") || path_str.contains("..\\") {
+            return Err(anyhow!("Path traversal patterns not allowed"));
+        }
+
         // Canonicalize to resolve .. and . components
         let canonical = path
             .canonicalize()
             .map_err(|_| anyhow!("Cannot resolve path"))?;
 
         // Ensure the path doesn't escape allowed directories
-        let allowed_prefixes = ["/tmp/", "/var/tmp/", "/home/", "/opt/", "/usr/local/"];
+        let allowed_prefixes = ["/tmp/", "/var/tmp/", "/home/", "/opt/", "/usr/local/", "/var/cache/"];
 
         let path_str = canonical.to_string_lossy();
         if !allowed_prefixes
@@ -99,33 +104,121 @@ impl InputValidator {
         Ok(canonical)
     }
 
-    /// Validate version strings
-    pub fn validate_version(version: &str) -> Result<()> {
+    /// Validate command line arguments to prevent injection
+    pub fn validate_command_args(args: &[&str]) -> Result<()> {
+        for arg in args {
+            // Check for dangerous characters
+            if arg.contains(';') || arg.contains('|') || arg.contains('&') || arg.contains('`') {
+                return Err(anyhow!("Dangerous shell characters found in argument: {}", arg));
+            }
+
+            // Check for command substitution
+            if arg.contains("$(") || arg.contains("${") || arg.contains("\\`") {
+                return Err(anyhow!("Command substitution not allowed in argument: {}", arg));
+            }
+
+            // Check for null bytes
+            if arg.contains('\0') {
+                return Err(anyhow!("Null bytes not allowed in argument: {}", arg));
+            }
+
+            // Limit argument length
+            if arg.len() > 1024 {
+                return Err(anyhow!("Argument too long (max 1024 characters): {}", arg));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate repository URLs for security
+    pub fn validate_repository_url(url_str: &str) -> Result<Url> {
+        let url = Self::validate_url(url_str)?;
+
+        // Additional checks for repository URLs
+        if let Some(host) = url.host_str() {
+            // Block known malicious hosts (this would be extended in production)
+            let blocked_hosts = ["malware.com", "phishing.net"];
+            if blocked_hosts.contains(&host) {
+                return Err(anyhow!("Repository host is blocked: {}", host));
+            }
+        }
+
+        // Only allow trusted schemes for repositories
+        match url.scheme() {
+            "https" => {} // Preferred
+            "http" => {} // Allowed but not preferred
+            _ => return Err(anyhow!("Only HTTP/HTTPS schemes allowed for repositories")),
+        }
+
+        Ok(url)
+    }
+
+    /// Validate version strings to prevent injection
+    pub fn validate_version_string(version: &str) -> Result<()> {
         if version.is_empty() {
-            return Ok(()); // Empty version is acceptable
+            return Err(anyhow!("Version cannot be empty"));
         }
 
-        if version.len() > 100 {
-            return Err(anyhow!("Version string too long (max 100 characters)"));
+        if version.len() > 64 {
+            return Err(anyhow!("Version string too long (max 64 characters)"));
         }
 
-        // Allow semantic versioning and common patterns
-        let valid_version = Regex::new(r"^[a-zA-Z0-9._+-]+$").unwrap();
-        if !valid_version.is_match(version) {
+        // Allow only alphanumeric, dots, hyphens, and plus signs
+        let valid_chars = Regex::new(r"^[a-zA-Z0-9._+-]+$").unwrap();
+        if !valid_chars.is_match(version) {
             return Err(anyhow!("Version contains invalid characters"));
         }
 
         Ok(())
     }
 
-    /// Validate command arguments to prevent injection
-    pub fn validate_command_args(args: &[String]) -> Result<()> {
-        for arg in args {
-            // Use the enhanced shell-safe validation for each argument
-            Self::validate_shell_safe(arg)
-                .map_err(|e| anyhow!("Command argument validation failed: {}", e))?;
+    /// Validate environment variable values
+    pub fn validate_env_var(name: &str, value: &str) -> Result<()> {
+        // Validate variable name
+        if name.is_empty() || name.len() > 128 {
+            return Err(anyhow!("Invalid environment variable name length"));
         }
+        
+        let name_regex = Regex::new(r"^[A-Z_][A-Z0-9_]*$").unwrap();
+        if !name_regex.is_match(name) {
+            return Err(anyhow!("Invalid environment variable name format"));
+        }
+        
+        // Validate variable value
+        if value.len() > 4096 {
+            return Err(anyhow!("Environment variable value too long"));
+        }
+        
+        // Check for dangerous patterns
+        if value.contains('\0') || value.contains("$(") || value.contains("${") {
+            return Err(anyhow!("Dangerous patterns in environment variable value"));
+        }
+        
+        Ok(())
+    }
 
+    /// Validate checksums
+    pub fn validate_checksum(checksum: &str) -> Result<()> {
+        if checksum.is_empty() {
+            return Err(anyhow!("Checksum cannot be empty"));
+        }
+        
+        // Check for valid hex characters and length
+        let hex_regex = Regex::new(r"^[a-fA-F0-9]+$").unwrap();
+        if !hex_regex.is_match(checksum) {
+            return Err(anyhow!("Checksum contains invalid characters"));
+        }
+        
+        // Check common hash lengths
+        match checksum.len() {
+            32 => {}, // MD5
+            40 => {}, // SHA-1
+            64 => {}, // SHA-256
+            128 => {}, // SHA-512
+            _ => return Err(anyhow!("Checksum has invalid length")),
+        }
+        
         Ok(())
     }
 

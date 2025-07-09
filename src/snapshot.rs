@@ -1,6 +1,11 @@
-use crate::boxes::{appimage, apt, dnf, flatpak, pacman, snap};
+use crate::boxes::appimage;
+use crate::boxes::apt::AptManager;
+use crate::boxes::dnf::DnfBox;
+use crate::boxes::flatpak::FlatpakBox;
+use crate::boxes::pacman::PacmanBox;
+use crate::boxes::snap::SnapBox;
 use crate::database::{Database, InstallRecord, InstallStatus, Snapshot};
-use crate::distro;
+use crate::distro::{self, PackageManager};
 use anyhow::Result;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -132,23 +137,43 @@ impl SnapshotManager {
 
         match package.box_type.as_str() {
             "apt" if distro::command_exists("apt") => {
-                apt::install_with_apt(&package.package_name);
+                if let Ok(apt_manager) = AptManager::new() {
+                    apt_manager.install(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create apt manager"));
+                }
             }
             "dnf" if distro::command_exists("dnf") => {
-                dnf::install_with_dnf(&package.package_name);
+                if let Ok(dnf_manager) = DnfBox::new() {
+                    dnf_manager.install(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create dnf manager"));
+                }
             }
             "pacman" if distro::command_exists("pacman") => {
-                pacman::install_with_pacman(&package.package_name);
+                if let Ok(pacman_manager) = PacmanBox::new() {
+                    pacman_manager.install(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create pacman manager"));
+                }
             }
             "flatpak" if distro::command_exists("flatpak") => {
-                let name = package
-                    .source_url
-                    .as_deref()
-                    .unwrap_or(&package.package_name);
-                flatpak::install_with_flatpak(name);
+                if let Ok(flatpak_manager) = FlatpakBox::new() {
+                    let name = package
+                        .source_url
+                        .as_deref()
+                        .unwrap_or(&package.package_name);
+                    flatpak_manager.install(name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create flatpak manager"));
+                }
             }
             "snap" if distro::command_exists("snap") => {
-                snap::install_with_snap(&package.package_name)?;
+                if let Ok(snap_manager) = SnapBox::new() {
+                    snap_manager.install(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create snap manager"));
+                }
             }
             "appimage" => {
                 if let Some(url) = &package.source_url {
@@ -191,51 +216,39 @@ impl SnapshotManager {
 
         match package.box_type.as_str() {
             "apt" if distro::command_exists("apt") => {
-                let output = std::process::Command::new("apt")
-                    .arg("remove")
-                    .arg("-y")
-                    .arg(&package.package_name)
-                    .output()?;
-
-                if !output.status.success() {
-                    return Err(anyhow::anyhow!("Failed to remove package via apt"));
+                if let Ok(apt_manager) = AptManager::new() {
+                    apt_manager.remove(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create apt manager"));
                 }
             }
             "dnf" if distro::command_exists("dnf") => {
-                let output = std::process::Command::new("dnf")
-                    .arg("remove")
-                    .arg("-y")
-                    .arg(&package.package_name)
-                    .output()?;
-
-                if !output.status.success() {
-                    return Err(anyhow::anyhow!("Failed to remove package via dnf"));
+                if let Ok(dnf_manager) = DnfBox::new() {
+                    dnf_manager.remove(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create dnf manager"));
                 }
             }
             "pacman" if distro::command_exists("pacman") => {
-                let output = std::process::Command::new("pacman")
-                    .arg("-Rs")
-                    .arg("--noconfirm")
-                    .arg(&package.package_name)
-                    .output()?;
-
-                if !output.status.success() {
-                    return Err(anyhow::anyhow!("Failed to remove package via pacman"));
+                if let Ok(pacman_manager) = PacmanBox::new() {
+                    pacman_manager.remove(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create pacman manager"));
                 }
             }
             "flatpak" if distro::command_exists("flatpak") => {
-                let output = std::process::Command::new("flatpak")
-                    .arg("uninstall")
-                    .arg("-y")
-                    .arg(&package.package_name)
-                    .output()?;
-
-                if !output.status.success() {
-                    return Err(anyhow::anyhow!("Failed to remove package via flatpak"));
+                if let Ok(flatpak_manager) = FlatpakBox::new() {
+                    flatpak_manager.remove(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create flatpak manager"));
                 }
             }
             "snap" if distro::command_exists("snap") => {
-                snap::remove_snap(&package.package_name)?;
+                if let Ok(snap_manager) = SnapBox::new() {
+                    snap_manager.remove(&package.package_name)?;
+                } else {
+                    return Err(anyhow::anyhow!("Failed to create snap manager"));
+                }
             }
             "appimage" => {
                 appimage::remove_appimage(&package.package_name)?;

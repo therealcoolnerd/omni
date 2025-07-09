@@ -1,6 +1,11 @@
-use crate::boxes::{appimage, apt, dnf, flatpak, pacman, snap};
+use crate::boxes::appimage;
+use crate::boxes::apt::AptManager;
+use crate::boxes::dnf::DnfBox;
+use crate::boxes::flatpak::FlatpakBox;
+use crate::boxes::pacman::PacmanBox;
+use crate::boxes::snap::SnapBox;
 use crate::database::{Database, InstallRecord, InstallStatus};
-use crate::distro;
+use crate::distro::{self, PackageManager};
 use crate::hardware::{detect_and_suggest_drivers, HardwareDetector};
 use crate::input_validation::InputValidator;
 use crate::manifest::OmniManifest;
@@ -302,32 +307,46 @@ impl OmniBrain {
         info!("🔥 Installing '{}'", app);
 
         // Try boxes in order of preference
-        let boxes = [
-            ("apt", apt::install_with_apt as fn(&str)),
-            ("dnf", dnf::install_with_dnf as fn(&str)),
-            ("pacman", pacman::install_with_pacman as fn(&str)),
-        ];
+        if distro::command_exists("apt") {
+            info!("Trying to install {} with apt", app);
+            if let Ok(apt_manager) = AptManager::new() {
+                apt_manager.install(app)?;
+                return Ok(("apt".to_string(), self.get_package_version(app, "apt").await?));
+            }
+        }
 
-        for (box_name, install_fn) in &boxes {
-            if distro::command_exists(box_name) {
-                info!("Trying to install {} with {}", app, box_name);
-                install_fn(app);
-                return Ok((box_name.to_string(), "unknown".to_string()));
+        if distro::command_exists("dnf") {
+            info!("Trying to install {} with dnf", app);
+            if let Ok(dnf_manager) = DnfBox::new() {
+                dnf_manager.install(app)?;
+                return Ok(("dnf".to_string(), self.get_package_version(app, "dnf").await?));
+            }
+        }
+
+        if distro::command_exists("pacman") {
+            info!("Trying to install {} with pacman", app);
+            if let Ok(pacman_manager) = PacmanBox::new() {
+                pacman_manager.install(app)?;
+                return Ok(("pacman".to_string(), self.get_package_version(app, "pacman").await?));
             }
         }
 
         // Try snap
         if distro::command_exists("snap") {
             info!("Trying to install {} with snap", app);
-            snap::install_with_snap(app)?;
-            return Ok(("snap".to_string(), "unknown".to_string()));
+            if let Ok(snap_manager) = SnapBox::new() {
+                snap_manager.install(app)?;
+                return Ok(("snap".to_string(), self.get_package_version(app, "snap").await?));
+            }
         }
 
         // Try flatpak
         if distro::command_exists("flatpak") {
             info!("Trying to install {} with flatpak", app);
-            flatpak::install_with_flatpak(app);
-            return Ok(("flatpak".to_string(), "unknown".to_string()));
+            if let Ok(flatpak_manager) = FlatpakBox::new() {
+                flatpak_manager.install(app)?;
+                return Ok(("flatpak".to_string(), self.get_package_version(app, "flatpak").await?));
+            }
         }
 
         Err(anyhow::anyhow!("No supported package managers found"))
@@ -378,42 +397,74 @@ impl OmniBrain {
 
             let handled = match app.box_type.as_str() {
                 "apt" if distro::command_exists("apt") => {
-                    apt::install_with_apt(&app.name);
-                    self.record_manifest_install(&app.name, "apt", app.source.as_deref())
-                        .await;
-                    true
+                    if let Ok(apt_manager) = AptManager::new() {
+                        if apt_manager.install(&app.name).is_ok() {
+                            self.record_manifest_install(&app.name, "apt", app.source.as_deref())
+                                .await;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 }
                 "pacman" if distro::command_exists("pacman") => {
-                    pacman::install_with_pacman(&app.name);
-                    self.record_manifest_install(&app.name, "pacman", app.source.as_deref())
-                        .await;
-                    true
+                    if let Ok(pacman_manager) = PacmanBox::new() {
+                        if pacman_manager.install(&app.name).is_ok() {
+                            self.record_manifest_install(&app.name, "pacman", app.source.as_deref())
+                                .await;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 }
                 "dnf" if distro::command_exists("dnf") => {
-                    dnf::install_with_dnf(&app.name);
-                    self.record_manifest_install(&app.name, "dnf", app.source.as_deref())
-                        .await;
-                    true
+                    if let Ok(dnf_manager) = DnfBox::new() {
+                        if dnf_manager.install(&app.name).is_ok() {
+                            self.record_manifest_install(&app.name, "dnf", app.source.as_deref())
+                                .await;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 }
                 "flatpak" if distro::command_exists("flatpak") => {
-                    let name = app.source.as_deref().unwrap_or(&app.name);
-                    flatpak::install_with_flatpak(name);
-                    self.record_manifest_install(&app.name, "flatpak", app.source.as_deref())
-                        .await;
-                    true
+                    if let Ok(flatpak_manager) = FlatpakBox::new() {
+                        let name = app.source.as_deref().unwrap_or(&app.name);
+                        if flatpak_manager.install(name).is_ok() {
+                            self.record_manifest_install(&app.name, "flatpak", app.source.as_deref())
+                                .await;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 }
                 "snap" if distro::command_exists("snap") => {
-                    if let Ok(_) = snap::install_with_snap(&app.name) {
-                        self.record_manifest_install(&app.name, "snap", app.source.as_deref())
-                            .await;
-                        true
+                    if let Ok(snap_manager) = SnapBox::new() {
+                        if snap_manager.install(&app.name).is_ok() {
+                            self.record_manifest_install(&app.name, "snap", app.source.as_deref())
+                                .await;
+                            true
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }
                 }
                 "appimage" => {
                     if let Some(url) = &app.source {
-                        if let Ok(_) = appimage::install_appimage(url, &app.name).await {
+                        if appimage::install_appimage(url, &app.name).await.is_ok() {
                             self.record_manifest_install(
                                 &app.name,
                                 "appimage",
@@ -436,17 +487,38 @@ impl OmniBrain {
                 if fallback {
                     match distro::detect_distro().as_str() {
                         "apt" if distro::command_exists("apt") => {
-                            apt::install_with_apt(&app.name);
-                            self.record_manifest_install(&app.name, "apt", None).await;
+                            if let Ok(apt_manager) = AptManager::new() {
+                                if apt_manager.install(&app.name).is_ok() {
+                                    self.record_manifest_install(&app.name, "apt", None).await;
+                                } else {
+                                    eprintln!("❌ Failed to install {} with apt", app.name);
+                                }
+                            } else {
+                                eprintln!("❌ Failed to create apt manager for {}", app.name);
+                            }
                         }
                         "pacman" if distro::command_exists("pacman") => {
-                            pacman::install_with_pacman(&app.name);
-                            self.record_manifest_install(&app.name, "pacman", None)
-                                .await;
+                            if let Ok(pacman_manager) = PacmanBox::new() {
+                                if pacman_manager.install(&app.name).is_ok() {
+                                    self.record_manifest_install(&app.name, "pacman", None)
+                                        .await;
+                                } else {
+                                    eprintln!("❌ Failed to install {} with pacman", app.name);
+                                }
+                            } else {
+                                eprintln!("❌ Failed to create pacman manager for {}", app.name);
+                            }
                         }
                         "dnf" if distro::command_exists("dnf") => {
-                            dnf::install_with_dnf(&app.name);
-                            self.record_manifest_install(&app.name, "dnf", None).await;
+                            if let Ok(dnf_manager) = DnfBox::new() {
+                                if dnf_manager.install(&app.name).is_ok() {
+                                    self.record_manifest_install(&app.name, "dnf", None).await;
+                                } else {
+                                    eprintln!("❌ Failed to install {} with dnf", app.name);
+                                }
+                            } else {
+                                eprintln!("❌ Failed to create dnf manager for {}", app.name);
+                            }
                         }
                         other => eprintln!("❌ Unsupported distro: {}", other),
                     }
@@ -592,8 +664,12 @@ impl OmniBrain {
                 }
             }
             "snap" if distro::command_exists("snap") => {
-                snap::remove_snap(app)?;
-                Ok(box_type.to_string())
+                if let Ok(snap_manager) = SnapBox::new() {
+                    snap_manager.remove(app)?;
+                    Ok(box_type.to_string())
+                } else {
+                    Err(anyhow::anyhow!("Failed to create snap manager"))
+                }
             }
             "flatpak" if distro::command_exists("flatpak") => {
                 let output = std::process::Command::new("flatpak")
@@ -974,5 +1050,253 @@ impl OmniBrain {
         }
 
         Ok(())
+    }
+
+    /// Add a repository to the system
+    pub async fn add_repository(
+        &mut self,
+        repository: &str,
+        repo_type: Option<&str>,
+        key_url: Option<&str>,
+    ) -> Result<()> {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Would add repository: {}", repository);
+            return Ok(());
+        }
+
+        info!("Adding repository: {}", repository);
+
+        // Detect the appropriate package manager and repository type
+        if repository.starts_with("ppa:") || repo_type == Some("ppa") {
+            self.add_ppa_repository(repository).await
+        } else if distro::command_exists("apt") && (repository.contains("deb ") || repo_type == Some("deb")) {
+            self.add_apt_repository(repository, key_url).await
+        } else if distro::command_exists("dnf") && (repository.ends_with(".repo") || repo_type == Some("rpm")) {
+            self.add_dnf_repository(repository).await
+        } else if distro::command_exists("pacman") && repo_type == Some("arch") {
+            self.add_pacman_repository(repository).await
+        } else if distro::command_exists("flatpak") && repo_type == Some("flatpak") {
+            self.add_flatpak_repository(repository).await
+        } else {
+            Err(anyhow!("Unsupported repository type or package manager not available"))
+        }
+    }
+
+    /// Remove a repository from the system
+    pub async fn remove_repository(&mut self, repository: &str) -> Result<()> {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Would remove repository: {}", repository);
+            return Ok(());
+        }
+
+        info!("Removing repository: {}", repository);
+
+        // Try different package managers
+        if repository.starts_with("ppa:") && distro::command_exists("add-apt-repository") {
+            self.remove_ppa_repository(repository).await
+        } else if distro::command_exists("apt") {
+            self.remove_apt_repository(repository).await
+        } else if distro::command_exists("dnf") {
+            self.remove_dnf_repository(repository).await
+        } else if distro::command_exists("flatpak") {
+            self.remove_flatpak_repository(repository).await
+        } else {
+            Err(anyhow!("Repository not found or package manager not available"))
+        }
+    }
+
+    /// List configured repositories
+    pub async fn list_repositories(&self) -> Result<Vec<String>> {
+        if self.mock_mode {
+            println!("🎭 [MOCK] Would list repositories");
+            return Ok(vec![
+                "mock://example.com/repo1".to_string(),
+                "mock://example.com/repo2".to_string(),
+            ]);
+        }
+
+        let mut repositories = Vec::new();
+
+        // List APT repositories
+        if distro::command_exists("apt") {
+            repositories.extend(self.list_apt_repositories().await?);
+        }
+
+        // List DNF repositories
+        if distro::command_exists("dnf") {
+            repositories.extend(self.list_dnf_repositories().await?);
+        }
+
+        // List Flatpak repositories
+        if distro::command_exists("flatpak") {
+            repositories.extend(self.list_flatpak_repositories().await?);
+        }
+
+        Ok(repositories)
+    }
+
+    // Private helper methods for specific package managers
+
+    async fn add_ppa_repository(&mut self, ppa: &str) -> Result<()> {
+        info!("Adding PPA: {}", ppa);
+        let args = vec!["-y", ppa];
+        self.privilege_manager.execute_with_sudo("add-apt-repository", &args)?;
+        
+        // Update package lists
+        let update_args = vec!["update"];
+        self.privilege_manager.execute_with_sudo("apt", &update_args)?;
+        
+        Ok(())
+    }
+
+    async fn add_apt_repository(&mut self, repository: &str, key_url: Option<&str>) -> Result<()> {
+        info!("Adding APT repository: {}", repository);
+        
+        // Add GPG key if provided
+        if let Some(key) = key_url {
+            info!("Adding repository key: {}", key);
+            let key_args = vec!["wget", "-qO", "-", key, "|", "apt-key", "add", "-"];
+            self.privilege_manager.execute_with_sudo("bash", &["-c", &key_args.join(" ")])?;
+        }
+        
+        // Add repository to sources.list.d
+        let sources_file = format!("/etc/apt/sources.list.d/omni-added-repo.list");
+        std::fs::write(&sources_file, format!("{}\n", repository))?;
+        
+        // Update package lists
+        let update_args = vec!["update"];
+        self.privilege_manager.execute_with_sudo("apt", &update_args)?;
+        
+        Ok(())
+    }
+
+    async fn add_dnf_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Adding DNF repository: {}", repository);
+        
+        if repository.ends_with(".repo") {
+            // Add repository file
+            let args = vec!["config-manager", "--add-repo", repository];
+            self.privilege_manager.execute_with_sudo("dnf", &args)?;
+        } else {
+            // Add repository URL
+            let args = vec!["config-manager", "--add-repo", repository];
+            self.privilege_manager.execute_with_sudo("dnf", &args)?;
+        }
+        
+        Ok(())
+    }
+
+    async fn add_pacman_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Adding Pacman repository: {}", repository);
+        warn!("Pacman repository addition requires manual configuration of /etc/pacman.conf");
+        Err(anyhow!("Pacman repository addition not implemented - requires manual configuration"))
+    }
+
+    async fn add_flatpak_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Adding Flatpak repository: {}", repository);
+        let args = vec!["remote-add", "--if-not-exists", "omni-added-repo", repository];
+        std::process::Command::new("flatpak")
+            .args(&args)
+            .status()?;
+        Ok(())
+    }
+
+    async fn remove_ppa_repository(&mut self, ppa: &str) -> Result<()> {
+        info!("Removing PPA: {}", ppa);
+        let args = vec!["-y", "-r", ppa];
+        self.privilege_manager.execute_with_sudo("add-apt-repository", &args)?;
+        Ok(())
+    }
+
+    async fn remove_apt_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Removing APT repository: {}", repository);
+        // This is a simplified implementation - would need more sophisticated logic
+        warn!("APT repository removal requires manual configuration");
+        Err(anyhow!("APT repository removal not fully implemented"))
+    }
+
+    async fn remove_dnf_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Removing DNF repository: {}", repository);
+        let args = vec!["config-manager", "--set-disabled", repository];
+        self.privilege_manager.execute_with_sudo("dnf", &args)?;
+        Ok(())
+    }
+
+    async fn remove_flatpak_repository(&mut self, repository: &str) -> Result<()> {
+        info!("Removing Flatpak repository: {}", repository);
+        let args = vec!["remote-delete", repository];
+        std::process::Command::new("flatpak")
+            .args(&args)
+            .status()?;
+        Ok(())
+    }
+
+    async fn list_apt_repositories(&self) -> Result<Vec<String>> {
+        let mut repos = Vec::new();
+        
+        // Read from sources.list and sources.list.d
+        if let Ok(contents) = std::fs::read_to_string("/etc/apt/sources.list") {
+            for line in contents.lines() {
+                if line.starts_with("deb ") && !line.starts_with("#") {
+                    repos.push(format!("apt: {}", line));
+                }
+            }
+        }
+        
+        // Read from sources.list.d directory
+        if let Ok(entries) = std::fs::read_dir("/etc/apt/sources.list.d") {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    if let Some(filename) = entry.file_name().to_str() {
+                        if filename.ends_with(".list") {
+                            if let Ok(contents) = std::fs::read_to_string(entry.path()) {
+                                for line in contents.lines() {
+                                    if line.starts_with("deb ") && !line.starts_with("#") {
+                                        repos.push(format!("apt: {}", line));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(repos)
+    }
+
+    async fn list_dnf_repositories(&self) -> Result<Vec<String>> {
+        let output = std::process::Command::new("dnf")
+            .args(&["repolist", "--enabled"])
+            .output()?;
+        
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let repos: Vec<String> = stdout
+            .lines()
+            .skip(1) // Skip header
+            .filter_map(|line| {
+                if !line.is_empty() {
+                    Some(format!("dnf: {}", line))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        Ok(repos)
+    }
+
+    async fn list_flatpak_repositories(&self) -> Result<Vec<String>> {
+        let output = std::process::Command::new("flatpak")
+            .args(&["remotes"])
+            .output()?;
+        
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let repos: Vec<String> = stdout
+            .lines()
+            .map(|line| format!("flatpak: {}", line))
+            .collect();
+        
+        Ok(repos)
     }
 }

@@ -1,6 +1,6 @@
-use crate::boxes::snap::SnapBox;
+use crate::boxes::snap;
 use crate::database::{Database, PackageCache};
-use crate::distro::{self, PackageManager};
+use crate::distro;
 use crate::package_discovery::{PackageDiscoveryService, PackageMetadata};
 use anyhow::Result;
 use chrono::Utc;
@@ -167,6 +167,12 @@ impl SearchEngine {
                             cross_platform_available: false,
                             category: None,
                             homepage: None,
+                            popularity_rank: None,
+                            security_score: None,
+                            similar_packages: Vec::new(),
+                            cross_platform_available: false,
+                            category: None,
+                            homepage: None,
                         });
                     }
                 }
@@ -277,33 +283,28 @@ impl SearchEngine {
     }
 
     async fn search_snap(&self, query: &str) -> Result<Vec<SearchResult>> {
-        if let Ok(snap_manager) = SnapBox::new() {
-            match snap_manager.search(query) {
-                Ok(packages) => {
-                    let mut results = Vec::new();
-                    for package in packages {
-                        results.push(SearchResult {
-                            name: package,
-                            description: None,
-                            version: None,
-                            box_type: "snap".to_string(),
-                            source: None,
-                            installed: false,
+        match snap::search_snap(query) {
+            Ok(packages) => {
+                let mut results = Vec::new();
+                for package in packages {
+                    results.push(SearchResult {
+                        name: package,
+                        description: None,
+                        version: None,
+                        box_type: "snap".to_string(),
+                        source: None,
+                        installed: false,
                             popularity_rank: None,
                             security_score: None,
                             similar_packages: Vec::new(),
                             cross_platform_available: false,
                             category: None,
                             homepage: None,
-                        });
-                    }
-                    Ok(results)
+                    });
                 }
-                Err(_) => Ok(vec![]),
+                Ok(results)
             }
-        } else {
-            warn!("Failed to create snap manager");
-            Ok(Vec::new())
+            Err(_) => Ok(vec![]),
         }
     }
 
@@ -332,12 +333,12 @@ impl SearchEngine {
                     box_type: "flatpak".to_string(),
                     source: Some(app_id.to_string()),
                     installed: false,
-                    popularity_rank: None,
-                    security_score: None,
-                    similar_packages: Vec::new(),
-                    cross_platform_available: false,
-                    category: None,
-                    homepage: None,
+                            popularity_rank: None,
+                            security_score: None,
+                            similar_packages: Vec::new(),
+                            cross_platform_available: false,
+                            category: None,
+                            homepage: None,
                 });
             }
         }
@@ -360,10 +361,7 @@ impl SearchEngine {
             let age = Utc::now().signed_duration_since(cached.cached_at);
             if age.num_hours() < 1 {
                 return Ok(Some(format!(
-                    "Package: {}
-Version: {}
-Description: {}
-Dependencies: {}",
+                    "Package: {}\nVersion: {}\nDescription: {}\nDependencies: {}",
                     cached.package_name,
                     cached.version,
                     cached.description.unwrap_or("Not available".to_string()),
@@ -377,13 +375,7 @@ Dependencies: {}",
             "apt" => self.get_apt_info(package_name).await,
             "dnf" => self.get_dnf_info(package_name).await,
             "pacman" => self.get_pacman_info(package_name).await,
-            "snap" => {
-                if let Ok(snap_manager) = SnapBox::new() {
-                    snap_manager.get_info(package_name)
-                } else {
-                    Err(anyhow::anyhow!("Failed to create snap manager"))
-                }
-            }
+            "snap" => snap::get_snap_info(package_name).map_err(|e| anyhow::anyhow!(e)),
             "flatpak" => self.get_flatpak_info(package_name).await,
             _ => Err(anyhow::anyhow!("Unsupported box type")),
         };
@@ -493,6 +485,12 @@ Dependencies: {}",
                     box_type: "discovery".to_string(),
                     source: None,
                     installed: false,
+                            popularity_rank: None,
+                            security_score: None,
+                            similar_packages: Vec::new(),
+                            cross_platform_available: false,
+                            category: None,
+                            homepage: None,
                     popularity_rank: Some(popular_pkg.rank),
                     security_score: self.discovery.get_security_score(&popular_pkg.name).await,
                     similar_packages: self.discovery.get_similar_packages(&popular_pkg.name).await,
@@ -525,6 +523,12 @@ Dependencies: {}",
                 box_type: "discovery".to_string(),
                 source: None,
                 installed: false,
+                            popularity_rank: None,
+                            security_score: None,
+                            similar_packages: Vec::new(),
+                            cross_platform_available: false,
+                            category: None,
+                            homepage: None,
                 popularity_rank: Some(pkg.rank),
                 security_score: self.discovery.get_security_score(&pkg.name).await,
                 similar_packages: self.discovery.get_similar_packages(&pkg.name).await,
@@ -564,6 +568,12 @@ Dependencies: {}",
                         box_type: "discovery".to_string(),
                         source: None,
                         installed: false,
+                            popularity_rank: None,
+                            security_score: None,
+                            similar_packages: Vec::new(),
+                            cross_platform_available: false,
+                            category: None,
+                            homepage: None,
                         popularity_rank: metadata.popularity.as_ref().and_then(|p| p.rank),
                         security_score: metadata.security.as_ref().and_then(|s| s.score),
                         similar_packages: metadata.similar_packages,

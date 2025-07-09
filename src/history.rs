@@ -1,4 +1,8 @@
-use crate::boxes::{apt, dnf, flatpak, pacman};
+use crate::boxes::apt::AptManager;
+use crate::boxes::dnf::DnfBox;
+use crate::boxes::flatpak::FlatpakBox;
+use crate::boxes::pacman::PacmanBox;
+use crate::distro::PackageManager;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::BufReader;
@@ -49,10 +53,42 @@ pub fn undo_last_install() {
     if let Some(last) = history.pop() {
         println!("🧹 Undoing '{}' via '{}'", last.package, last.box_type);
         match last.box_type.as_str() {
-            "apt" => apt::uninstall_with_apt(&last.package),
-            "pacman" => pacman::uninstall_with_pacman(&last.package),
-            "dnf" => dnf::uninstall_with_dnf(&last.package),
-            "flatpak" => flatpak::uninstall_with_flatpak(&last.package),
+            "apt" => {
+                if let Ok(apt_manager) = AptManager::new() {
+                    if let Err(e) = apt_manager.remove(&last.package) {
+                        eprintln!("❌ Failed to remove {} via apt: {}", last.package, e);
+                    }
+                } else {
+                    eprintln!("❌ Failed to create apt manager");
+                }
+            }
+            "pacman" => {
+                if let Ok(pacman_manager) = PacmanBox::new() {
+                    if let Err(e) = pacman_manager.remove(&last.package) {
+                        eprintln!("❌ Failed to remove {} via pacman: {}", last.package, e);
+                    }
+                } else {
+                    eprintln!("❌ Failed to create pacman manager");
+                }
+            }
+            "dnf" => {
+                if let Ok(dnf_manager) = DnfBox::new() {
+                    if let Err(e) = dnf_manager.remove(&last.package) {
+                        eprintln!("❌ Failed to remove {} via dnf: {}", last.package, e);
+                    }
+                } else {
+                    eprintln!("❌ Failed to create dnf manager");
+                }
+            }
+            "flatpak" => {
+                if let Ok(flatpak_manager) = FlatpakBox::new() {
+                    if let Err(e) = flatpak_manager.remove(&last.package) {
+                        eprintln!("❌ Failed to remove {} via flatpak: {}", last.package, e);
+                    }
+                } else {
+                    eprintln!("❌ Failed to create flatpak manager");
+                }
+            }
             other => eprintln!("❌ Unknown box type: {}", other),
         }
         let file = OpenOptions::new()

@@ -295,28 +295,3 @@ impl PackageManager for SnapBox {
     }
 }
 
-// Backward compatibility functions
-pub fn install_with_snap(app: &str) -> anyhow::Result<()> {
-    let snap_box = SnapBox::new()?;
-    snap_box.install(app)
-}
-
-pub fn search_snap(query: &str) -> anyhow::Result<Vec<String>> {
-    let snap_box = SnapBox::new()?;
-    snap_box.search(query)
-}
-
-pub fn get_snap_info(app: &str) -> anyhow::Result<String> {
-    let snap_box = SnapBox::new()?;
-    snap_box.get_info(app)
-}
-
-pub fn remove_snap(app: &str) -> anyhow::Result<()> {
-    let snap_box = SnapBox::new()?;
-    snap_box.remove(app)
-}
-
-pub fn update_snap(app: &str) -> anyhow::Result<()> {
-    let snap_box = SnapBox::new()?;
-    snap_box.update(Some(app))
-}

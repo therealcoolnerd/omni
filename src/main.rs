@@ -1,19 +1,12 @@
-mod advanced_resolver;
-mod audit;
 mod boxes;
 mod brain;
 mod branding;
 mod config;
 mod database;
 mod distro;
-mod docker;
-mod error_handling;
 #[cfg(feature = "gui")]
 mod gui;
-mod hardware;
-mod history;
 mod input_validation;
-mod interactive;
 mod logging;
 mod manifest;
 mod privilege_manager;
@@ -21,26 +14,23 @@ mod resolver;
 mod runtime;
 mod sandboxing;
 mod search;
-mod secure_brain;
-mod secure_executor;
 mod security;
 mod snapshot;
 #[cfg(feature = "ssh")]
 mod ssh;
-mod transaction;
-mod types;
-mod unified_manager;
+#[cfg(test)]
+mod testing;
 mod updater;
 
 use anyhow::Result;
 use brain::OmniBrain;
-use branding::{OmniBranding, Theme};
+use branding::OmniBranding;
 use clap::{Parser, Subcommand};
 use config::OmniConfig;
 use manifest::OmniManifest;
 use search::SearchEngine;
 use snapshot::SnapshotManager;
-use tracing::{error, info, warn};
+use tracing::error;
 use updater::UpdateManager;
 
 #[derive(Parser)]
@@ -192,6 +182,12 @@ enum Commands {
         #[command(subcommand)]
         action: HardwareCommands,
     },
+
+    /// Repository management
+    Repository {
+        #[command(subcommand)]
+        action: RepositoryCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -256,12 +252,41 @@ enum HardwareCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum RepositoryCommands {
+    /// Add a new repository
+    Add {
+        /// Repository URL or identifier
+        repository: String,
+
+        /// Repository type (ppa, rpm, deb, etc.)
+        #[arg(long)]
+        repo_type: Option<String>,
+
+        /// Repository key URL for verification
+        #[arg(long)]
+        key_url: Option<String>,
+    },
+
+    /// Remove a repository
+    Remove {
+        /// Repository identifier
+        repository: String,
+    },
+
+    /// List configured repositories
+    List,
+
+    /// Refresh repository metadata
+    Refresh,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Show welcome banner for interactive commands
-    if !cli.quiet && matches!(cli.command, Commands::Search { .. } | Commands::Install { .. } | Commands::Gui) {
+    if !cli.verbose && matches!(cli.command, Commands::Search { .. } | Commands::Install { .. } | Commands::Gui) {
         println!("{}", OmniBranding::welcome_banner());
     }
 
@@ -724,6 +749,78 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                         }
                         Err(e) => {
                             error!("❌ Vendor driver installation failed: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+        }
+
+        Commands::Repository { action } => {
+            let mut brain = OmniBrain::new_with_mock(cli.mock);
+
+            match action {
+                RepositoryCommands::Add {
+                    repository,
+                    repo_type,
+                    key_url,
+                } => {
+                    println!("➕ Adding repository: {}", repository);
+                    match brain
+                        .add_repository(&repository, repo_type.as_deref(), key_url.as_deref())
+                        .await
+                    {
+                        Ok(()) => {
+                            println!("✅ Repository added successfully");
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to add repository: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+
+                RepositoryCommands::Remove { repository } => {
+                    println!("➖ Removing repository: {}", repository);
+                    match brain.remove_repository(&repository).await {
+                        Ok(()) => {
+                            println!("✅ Repository removed successfully");
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to remove repository: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+
+                RepositoryCommands::List => {
+                    println!("📦 Configured repositories:");
+                    match brain.list_repositories().await {
+                        Ok(repositories) => {
+                            if repositories.is_empty() {
+                                println!("No repositories configured");
+                            } else {
+                                for (i, repo) in repositories.iter().enumerate() {
+                                    println!("{}. {}", i + 1, repo);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to list repositories: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+
+                RepositoryCommands::Refresh => {
+                    println!("🔄 Refreshing repository metadata...");
+                    let update_manager = UpdateManager::new(config).await?;
+                    match update_manager.refresh_repositories().await {
+                        Ok(()) => {
+                            println!("✅ Repository refresh completed");
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to refresh repositories: {}", e);
                             return Err(e);
                         }
                     }

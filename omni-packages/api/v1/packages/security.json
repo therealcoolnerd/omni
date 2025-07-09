@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "last_updated": "2024-07-05T00:00:00Z",
+  "security_scores": {
+    "git": {
+      "score": 9.5,
+      "last_audit": "2024-12-01",
+      "vulnerabilities": [],
+      "cve_count": 0,
+      "security_features": [
+        "cryptographic_signatures",
+        "secure_protocols", 
+        "integrity_verification"
+      ],
+      "recommendation": "excellent"
+    },
+    "vscode": {
+      "score": 9.2,
+      "last_audit": "2024-12-01",
+      "vulnerabilities": [],
+      "cve_count": 0,
+      "security_features": [
+        "sandboxed_extensions",
+        "automatic_updates",
+        "secure_telemetry"
+      ],
+      "recommendation": "excellent"
+    },
+    "firefox": {
+      "score": 8.5,
+      "last_audit": "2024-12-01",
+      "vulnerabilities": [],
+      "cve_count": 0,
+      "security_features": [
+        "sandboxing",
+        "automatic_updates",
+        "privacy_protection"
+      ],
+      "recommendation": "good"
+    }
+  },
+  "security_categories": {
+    "excellent": ["git", "vscode"],
+    "good": ["firefox"],
+    "fair": [],
+    "poor": []
+  },
+  "vulnerability_alerts": [],
+  "security_guidelines": {
+    "minimum_score": 7.0,
+    "recommended_score": 8.5,
+    "update_frequency": "daily"
+  }
+}

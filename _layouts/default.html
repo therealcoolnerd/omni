@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    <meta name="keywords" content="universal package manager, cross-platform package manager, Linux package manager, Windows package manager, macOS package manager, apt wrapper, brew wrapper, winget wrapper, command line tool, rust, open source">
+    <meta name="author" content="therealcoolnerd">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ page.url | absolute_url }}">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ page.url | absolute_url }}">
+    <meta property="og:title" content="{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}">
+    <meta property="og:description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    <meta property="og:image" content="{{ '/assets/logo.svg' | absolute_url }}">
+    <meta property="og:site_name" content="Omni Universal Package Manager">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{{ page.url | absolute_url }}">
+    <meta property="twitter:title" content="{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}">
+    <meta property="twitter:description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    <meta property="twitter:image" content="{{ '/assets/logo.svg' | absolute_url }}">
+    <meta property="twitter:creator" content="@therealcoolnerd">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ '/assets/logo.svg' | relative_url }}">
+    <link rel="icon" type="image/png" href="{{ '/assets/favicon.png' | relative_url }}">
+    
+    <!-- Schema.org markup for Google+ -->
+    <meta itemprop="name" content="{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}">
+    <meta itemprop="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+    <meta itemprop="image" content="{{ '/assets/logo.svg' | absolute_url }}">
+    
+    <!-- JSON-LD structured data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Omni Universal Package Manager",
+        "description": "Universal Cross-Platform Package Manager for Linux, Windows, and macOS",
+        "url": "https://therealcoolnerd.github.io/omni",
+        "author": {
+            "@type": "Person",
+            "name": "therealcoolnerd",
+            "url": "https://github.com/therealcoolnerd"
+        },
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": ["Linux", "Windows", "macOS"],
+        "programmingLanguage": "Rust",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        "downloadUrl": "https://github.com/therealcoolnerd/omni/releases",
+        "codeRepository": "https://github.com/therealcoolnerd/omni",
+        "keywords": "package manager, cross-platform, Linux, Windows, macOS, apt, brew, winget, command line"
+    }
+    </script>
+    
+    <!-- Google Analytics (replace with your GA4 measurement ID) -->
+    <!-- 
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');
+    </script>
+    -->
+    
+    <!-- CSS -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .badges {
+            margin: 20px 0;
+        }
+        
+        .badges img {
+            margin: 0 5px;
+        }
+        
+        .cta-buttons {
+            margin: 30px 0;
+        }
+        
+        .cta-buttons a {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px;
+            background: #000;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .cta-buttons a:hover {
+            background: #333;
+        }
+        
+        code {
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+        
+        pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e4e8;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ '/assets/logo.svg' | relative_url }}" alt="Omni Universal Package Manager Logo" class="logo">
+    </div>
+    
+    <main>
+        {{ content }}
+    </main>
+    
+    <footer class="footer">
+        <p>
+            Made with ❤️ by <a href="https://github.com/therealcoolnerd">therealcoolnerd</a> • 
+            <a href="https://github.com/therealcoolnerd/omni">GitHub</a> • 
+            <a href="https://github.com/therealcoolnerd/omni/issues">Issues</a> • 
+            <a href="mailto:arealcoolcompany@gmail.com">Contact</a>
+        </p>
+        <p>
+            <small>
+                Universal Package Manager • Cross-Platform • Linux • Windows • macOS • Open Source • Rust
+            </small>
+        </p>
+    </footer>
+</body>
+</html>

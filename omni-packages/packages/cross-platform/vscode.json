@@ -1,0 +1,79 @@
+{
+  "name": "vscode",
+  "display_name": "Visual Studio Code",
+  "category": "development",
+  "description": "Lightweight but powerful source code editor",
+  "homepage": "https://code.visualstudio.com",
+  "license": "MIT",
+  "cross_platform": {
+    "linux": {
+      "apt": ["code"],
+      "snap": ["code"],
+      "flatpak": ["com.visualstudio.code"],
+      "dnf": ["code"],
+      "pacman": ["visual-studio-code-bin"],
+      "zypper": ["code"]
+    },
+    "macos": {
+      "brew": ["visual-studio-code"]
+    },
+    "windows": {
+      "winget": ["Microsoft.VisualStudioCode"],
+      "chocolatey": ["vscode"],
+      "scoop": ["vscode"]
+    }
+  },
+  "popularity": {
+    "rank": 3,
+    "downloads_per_month": 75000000,
+    "github_stars": 156000,
+    "search_frequency": 98
+  },
+  "security": {
+    "score": 9.2,
+    "last_audit": "2024-12-01",
+    "vulnerabilities": [],
+    "cve_count": 0,
+    "security_features": [
+      "sandboxed_extensions",
+      "automatic_updates",
+      "secure_telemetry"
+    ]
+  },
+  "metadata": {
+    "install_size_mb": 300,
+    "dependencies_count": 120,
+    "supported_architectures": ["x86_64", "arm64"],
+    "supported_os_versions": {
+      "windows": ">=10",
+      "macos": ">=10.15",
+      "linux": "all"
+    },
+    "first_release": "2015-04-29",
+    "latest_version": "1.85"
+  },
+  "similar_packages": [
+    "vim",
+    "neovim", 
+    "sublime-text",
+    "atom",
+    "intellij-idea",
+    "codium"
+  ],
+  "alternatives": [
+    {
+      "name": "codium",
+      "reason": "Open source VS Code without Microsoft telemetry"
+    },
+    {
+      "name": "neovim",
+      "reason": "Terminal-based, highly customizable"
+    },
+    {
+      "name": "sublime-text", 
+      "reason": "Lightweight with excellent performance"
+    }
+  ],
+  "tags": ["editor", "ide", "development", "microsoft", "typescript"],
+  "updated_at": "2024-07-05T00:00:00Z"
+}

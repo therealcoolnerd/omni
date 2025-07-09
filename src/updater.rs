@@ -1,7 +1,11 @@
-use crate::boxes::{apt, dnf, flatpak, pacman, snap};
+use crate::boxes::apt::AptManager;
+use crate::boxes::dnf::DnfBox;
+use crate::boxes::flatpak::FlatpakBox;
+use crate::boxes::pacman::PacmanBox;
+use crate::boxes::snap::SnapBox;
 use crate::config::OmniConfig;
 use crate::database::{Database, InstallRecord, InstallStatus};
-use crate::distro;
+use crate::distro::{self, PackageManager};
 use anyhow::Result;
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -307,7 +311,11 @@ impl UpdateManager {
     }
 
     async fn update_snap_package(&self, package_name: &str) -> Result<()> {
-        snap::update_snap(package_name)
+        if let Ok(snap_manager) = SnapBox::new() {
+            snap_manager.update(Some(package_name))
+        } else {
+            Err(anyhow::anyhow!("Failed to create snap manager"))
+        }
     }
 
     async fn update_flatpak_package(&self, candidate: &UpdateCandidate) -> Result<()> {

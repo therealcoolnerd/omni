@@ -321,29 +321,3 @@ impl PackageManager for PacmanBox {
     }
 }
 
-// Legacy functions for backward compatibility
-pub fn install_with_pacman(package: &str) {
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        match PacmanBox::new() {
-            Ok(manager) => {
-                if let Err(e) = manager.install(package) {
-                    error!("Pacman installation failed: {}", e);
-                }
-            }
-            Err(e) => error!("Failed to create Pacman manager: {}", e),
-        }
-    });
-}
-
-pub fn uninstall_with_pacman(package: &str) {
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        match PacmanBox::new() {
-            Ok(manager) => {
-                if let Err(e) = manager.remove(package) {
-                    error!("Pacman removal failed: {}", e);
-                }
-            }
-            Err(e) => error!("Failed to create Pacman manager: {}", e),
-        }
-    });
-}

@@ -1,0 +1,30 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://therealcoolnerd.github.io/omni/sitemap.xml
+
+# Allow all search engines to index
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Disallow build artifacts and private files
+Disallow: /target/
+Disallow: /.git/
+Disallow: /.github/
+Disallow: /scripts/
+Disallow: /tests/
+Disallow: /Cargo.lock
+Disallow: /Cargo.toml
+
+# Crawl delay (optional)
+Crawl-delay: 1

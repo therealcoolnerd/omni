@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "last_updated": "2024-07-05T00:00:00Z",
+  "mappings": {
+    "firefox": {
+      "linux": {
+        "apt": ["firefox", "firefox-esr"],
+        "snap": ["firefox"],
+        "flatpak": ["org.mozilla.firefox"],
+        "dnf": ["firefox"],
+        "pacman": ["firefox"],
+        "zypper": ["MozillaFirefox"]
+      },
+      "macos": {
+        "brew": ["firefox", "firefox@esr"]
+      },
+      "windows": {
+        "winget": ["Mozilla.Firefox"],
+        "chocolatey": ["firefox"],
+        "scoop": ["firefox"]
+      }
+    },
+    "vscode": {
+      "linux": {
+        "apt": ["code"],
+        "snap": ["code"],
+        "flatpak": ["com.visualstudio.code"],
+        "dnf": ["code"],
+        "pacman": ["visual-studio-code-bin"],
+        "zypper": ["code"]
+      },
+      "macos": {
+        "brew": ["visual-studio-code"]
+      },
+      "windows": {
+        "winget": ["Microsoft.VisualStudioCode"],
+        "chocolatey": ["vscode"],
+        "scoop": ["vscode"]
+      }
+    },
+    "git": {
+      "linux": {
+        "apt": ["git"],
+        "snap": ["git"],
+        "flatpak": ["org.git_scm.Git"],
+        "dnf": ["git"],
+        "pacman": ["git"],
+        "zypper": ["git"]
+      },
+      "macos": {
+        "brew": ["git"]
+      },
+      "windows": {
+        "winget": ["Git.Git"],
+        "chocolatey": ["git"],
+        "scoop": ["git"]
+      }
+    }
+  },
+  "reverse_mappings": {
+    "linux": {
+      "apt": {
+        "firefox": "firefox",
+        "firefox-esr": "firefox",
+        "code": "vscode",
+        "git": "git"
+      },
+      "snap": {
+        "firefox": "firefox", 
+        "code": "vscode",
+        "git": "git"
+      }
+    },
+    "windows": {
+      "winget": {
+        "Mozilla.Firefox": "firefox",
+        "Microsoft.VisualStudioCode": "vscode",
+        "Git.Git": "git"
+      }
+    },
+    "macos": {
+      "brew": {
+        "firefox": "firefox",
+        "visual-studio-code": "vscode",
+        "git": "git"
+      }
+    }
+  }
+}

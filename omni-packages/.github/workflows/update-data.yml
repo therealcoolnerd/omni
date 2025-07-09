@@ -1,0 +1,87 @@
+name: Update Package Database
+
+on:
+  schedule:
+    # Update daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'packages/**'
+      - 'scripts/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  validate-and-generate:
+    name: Validate Packages and Generate API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install jsonschema requests pyyaml
+          
+      - name: Validate package metadata
+        run: |
+          python scripts/validate.py
+          
+      - name: Update popularity rankings
+        run: |
+          python scripts/update-popularity.py
+          
+      - name: Update security scores
+        run: |
+          python scripts/update-security.py
+          
+      - name: Generate API endpoints
+        run: |
+          python scripts/generate-api.py
+          
+      - name: Commit updated data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Automated data update $(date)"
+            git push
+          fi
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: validate-and-generate
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+        
+      - name: Upload API artifacts
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: './api'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2

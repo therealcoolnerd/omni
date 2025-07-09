@@ -312,15 +312,3 @@ impl PackageManager for FlatpakBox {
     }
 }
 
-// Backward compatibility functions
-pub fn install_with_flatpak(package: &str) {
-    if let Ok(flatpak_box) = FlatpakBox::new() {
-        let _ = flatpak_box.install(package);
-    }
-}
-
-pub fn uninstall_with_flatpak(package: &str) {
-    if let Ok(flatpak_box) = FlatpakBox::new() {
-        let _ = flatpak_box.remove(package);
-    }
-}

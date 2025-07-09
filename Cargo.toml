@@ -2,9 +2,22 @@
 name = "omni"
 version = "1.0.0"
 edition = "2021"
-authors = ["therealcoolnerd"]
+authors = ["therealcoolnerd <arealcoolcompany@gmail.com>"]
 license = "AGPL-3.0-or-later"
-description = "Omni - Universal Package Manager for Linux, macOS, and Windows"
+description = "Universal Cross-Platform Package Manager for Linux, Windows, and macOS. One command to install software anywhere."
+homepage = "https://therealcoolnerd.github.io/omni"
+repository = "https://github.com/therealcoolnerd/omni"
+documentation = "https://therealcoolnerd.github.io/omni/docs/"
+readme = "README.md"
+keywords = ["package-manager", "cross-platform", "cli", "linux", "windows"]
+categories = ["command-line-utilities", "development-tools", "os"]
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "assets/logo.svg"
+]
 
 [lints.rust]
 unused_imports = "warn"

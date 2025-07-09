@@ -360,25 +360,3 @@ impl AptManager {
     }
 }
 
-// Legacy functions for backward compatibility
-pub fn install_with_apt(package: &str) {
-    match AptManager::new() {
-        Ok(manager) => {
-            if let Err(e) = manager.install(package) {
-                error!("APT installation failed: {}", e);
-            }
-        }
-        Err(e) => error!("Failed to create APT manager: {}", e),
-    }
-}
-
-pub fn uninstall_with_apt(package: &str) {
-    match AptManager::new() {
-        Ok(manager) => {
-            if let Err(e) = manager.remove(package) {
-                error!("APT removal failed: {}", e);
-            }
-        }
-        Err(e) => error!("Failed to create APT manager: {}", e),
-    }
-}

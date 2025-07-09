@@ -1,0 +1,55 @@
+name: Update Repository Topics
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  update-topics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update repository topics
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const topics = [
+              'package-manager',
+              'universal-package-manager', 
+              'cross-platform',
+              'linux-package-manager',
+              'windows-package-manager',
+              'macos-package-manager',
+              'apt-wrapper',
+              'brew-wrapper',
+              'winget-wrapper',
+              'dnf-wrapper',
+              'pacman-wrapper',
+              'snap-wrapper',
+              'flatpak-wrapper',
+              'command-line-tool',
+              'cli',
+              'rust',
+              'open-source',
+              'system-administration',
+              'devops',
+              'software-installation',
+              'package-management',
+              'system-tools',
+              'developer-tools',
+              'automation',
+              'linux',
+              'windows',
+              'macos',
+              'ubuntu',
+              'debian',
+              'fedora',
+              'arch-linux',
+              'rust-lang'
+            ];
+            
+            await github.rest.repos.replaceAllTopics({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              names: topics
+            });

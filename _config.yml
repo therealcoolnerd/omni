@@ -1,0 +1,84 @@
+# Omni Universal Package Manager - GitHub Pages Configuration
+
+# Site settings
+title: "Omni Universal Package Manager"
+description: "Universal Cross-Platform Package Manager for Linux, Windows, and macOS. One command to install software anywhere."
+baseurl: ""
+url: "https://therealcoolnerd.github.io/omni"
+github_username: therealcoolnerd
+repository: "therealcoolnerd/omni"
+
+# SEO settings
+author: therealcoolnerd
+twitter_username: therealcoolnerd
+social:
+  name: Omni Universal Package Manager
+  links:
+    - https://github.com/therealcoolnerd/omni
+    - https://github.com/therealcoolnerd
+
+# Build settings
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# SEO tag settings
+tagline: "One Command for All Platforms"
+logo: /assets/logo.svg
+
+# Navigation
+header_pages:
+  - docs/installation-guide.md
+  - docs/user-guide.md
+  - CONTRIBUTING.md
+  - LICENSE
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:name/
+
+# Default front matter
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      author: "therealcoolnerd"
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "page"
+  - scope:
+      path: ""
+    values:
+      image: /assets/logo.svg
+
+# Markdown settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Sass settings
+sass:
+  style: compressed
+
+# Exclude from processing
+exclude:
+  - target/
+  - Cargo.toml
+  - Cargo.lock
+  - .gitignore
+  - README.md
+  - scripts/
+  - tests/
+  - .github/
+  - omni-packages/
+  - web-app/

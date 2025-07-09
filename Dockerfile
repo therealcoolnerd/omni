@@ -1,5 +1,5 @@
 # Multi-stage build for optimal image size
-FROM rust:1.70-slim as builder
+FROM rust:1.87-slim as builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
@@ -19,13 +19,13 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
 # Build dependencies - this layer will be cached unless Cargo.toml changes
-RUN cargo build --release && rm -rf src target/release/deps/omni*
+RUN cargo build --release --no-default-features && rm -rf src target/release/deps/omni*
 
 # Copy source code
 COPY src ./src
 
 # Build the application
-RUN cargo build --release
+RUN cargo build --release --no-default-features
 
 # Runtime stage
 FROM debian:bookworm-slim

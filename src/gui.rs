@@ -1,4 +1,5 @@
 use crate::brain::OmniBrain;
+use crate::branding::OmniBranding;
 use crate::distro::{get_available_package_managers, get_os_display_name};
 use crate::manifest::OmniManifest;
 use crate::search::SearchResult;
@@ -122,14 +123,21 @@ impl App for OmniGui {
                     let pulse = (time * 2.0).sin() * 0.1 + 1.0;
                     let logo_size = 32.0 * pulse;
 
+                    // TODO: Load and display the adaptive SVG logo from assets/logo.svg
+                    // For now using emoji placeholder - SVG integration requires image loading
+                    // The adaptive SVG supports dark/light themes automatically
                     ui.add_sized(
                         [logo_size, logo_size],
                         egui::Label::new(
-                            egui::RichText::new("🚀")
+                            egui::RichText::new("📦")
                                 .size(logo_size)
-                                .color(egui::Color32::from_rgb(100, 150, 255)),
+                                .color(if self.dark_mode {
+                                    egui::Color32::from_rgb(0, 188, 212) // Cyan for dark mode
+                                } else {
+                                    egui::Color32::from_rgb(0, 119, 170) // Blue for light mode
+                                }),
                         ),
-                    );
+                    ).on_hover_text("Omni Logo - Adaptive SVG available at assets/logo.svg");
 
                     ui.add_space(12.0);
                     ui.vertical(|ui| {

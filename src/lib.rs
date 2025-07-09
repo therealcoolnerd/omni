@@ -14,6 +14,7 @@ pub mod history;
 pub mod interactive;
 pub mod logging;
 pub mod manifest;
+pub mod package_discovery;
 pub mod resolver;
 pub mod search;
 pub mod security;
@@ -66,3 +67,7 @@ pub use types::InstalledPackage;
 
 // Re-export package managers
 pub use boxes::apt::AptManager;
+
+// Testing utilities - only available in test builds
+#[cfg(test)]
+pub mod testing;

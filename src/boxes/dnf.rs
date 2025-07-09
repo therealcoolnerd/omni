@@ -518,25 +518,3 @@ impl DnfBox {
     }
 }
 
-// Legacy functions for backward compatibility
-pub fn install_with_dnf(package: &str) {
-    match DnfBox::new() {
-        Ok(manager) => {
-            if let Err(e) = manager.install(package) {
-                error!("DNF installation failed: {}", e);
-            }
-        }
-        Err(e) => error!("Failed to create DNF manager: {}", e),
-    }
-}
-
-pub fn uninstall_with_dnf(package: &str) {
-    match DnfBox::new() {
-        Ok(manager) => {
-            if let Err(e) = manager.remove(package) {
-                error!("DNF removal failed: {}", e);
-            }
-        }
-        Err(e) => error!("Failed to create DNF manager: {}", e),
-    }
-}

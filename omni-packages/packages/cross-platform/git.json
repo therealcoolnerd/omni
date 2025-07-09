@@ -1,0 +1,73 @@
+{
+  "name": "git",
+  "display_name": "Git",
+  "category": "development",
+  "description": "Distributed version control system",
+  "homepage": "https://git-scm.com",
+  "license": "GPL-2.0",
+  "cross_platform": {
+    "linux": {
+      "apt": ["git"],
+      "snap": ["git"],
+      "flatpak": ["org.git_scm.Git"],
+      "dnf": ["git"],
+      "pacman": ["git"],
+      "zypper": ["git"]
+    },
+    "macos": {
+      "brew": ["git"]
+    },
+    "windows": {
+      "winget": ["Git.Git"],
+      "chocolatey": ["git"],
+      "scoop": ["git"]
+    }
+  },
+  "popularity": {
+    "rank": 1,
+    "downloads_per_month": 100000000,
+    "github_stars": 50000,
+    "search_frequency": 100
+  },
+  "security": {
+    "score": 9.5,
+    "last_audit": "2024-12-01",
+    "vulnerabilities": [],
+    "cve_count": 0,
+    "security_features": [
+      "cryptographic_signatures",
+      "secure_protocols",
+      "integrity_verification"
+    ]
+  },
+  "metadata": {
+    "install_size_mb": 50,
+    "dependencies_count": 15,
+    "supported_architectures": ["x86_64", "arm64", "i386"],
+    "supported_os_versions": {
+      "windows": ">=7",
+      "macos": ">=10.9",
+      "linux": "all"
+    },
+    "first_release": "2005-04-07",
+    "latest_version": "2.43"
+  },
+  "similar_packages": [
+    "mercurial",
+    "subversion",
+    "bazaar",
+    "fossil"
+  ],
+  "alternatives": [
+    {
+      "name": "mercurial",
+      "reason": "Simpler distributed VCS"
+    },
+    {
+      "name": "subversion",
+      "reason": "Centralized version control"
+    }
+  ],
+  "tags": ["vcs", "version-control", "development", "git", "scm"],
+  "updated_at": "2024-07-05T00:00:00Z"
+}

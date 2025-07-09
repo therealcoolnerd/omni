@@ -1,0 +1,78 @@
+{
+  "name": "firefox",
+  "display_name": "Mozilla Firefox",
+  "category": "web-browser",
+  "description": "Fast, private & safe web browser from Mozilla",
+  "homepage": "https://firefox.com",
+  "license": "MPL-2.0",
+  "cross_platform": {
+    "linux": {
+      "apt": ["firefox", "firefox-esr"],
+      "snap": ["firefox"],
+      "flatpak": ["org.mozilla.firefox"],
+      "dnf": ["firefox"],
+      "pacman": ["firefox"],
+      "zypper": ["MozillaFirefox"]
+    },
+    "macos": {
+      "brew": ["firefox", "firefox@esr"]
+    },
+    "windows": {
+      "winget": ["Mozilla.Firefox"],
+      "chocolatey": ["firefox"],
+      "scoop": ["firefox"]
+    }
+  },
+  "popularity": {
+    "rank": 15,
+    "downloads_per_month": 50000000,
+    "github_stars": 8500,
+    "search_frequency": 95
+  },
+  "security": {
+    "score": 8.5,
+    "last_audit": "2024-12-01",
+    "vulnerabilities": [],
+    "cve_count": 0,
+    "security_features": [
+      "sandboxing",
+      "automatic_updates",
+      "privacy_protection"
+    ]
+  },
+  "metadata": {
+    "install_size_mb": 200,
+    "dependencies_count": 45,
+    "supported_architectures": ["x86_64", "arm64"],
+    "supported_os_versions": {
+      "windows": ">=10",
+      "macos": ">=10.15",
+      "linux": "all"
+    },
+    "first_release": "2004-11-09",
+    "latest_version": "121.0"
+  },
+  "similar_packages": [
+    "chromium",
+    "brave",
+    "opera",
+    "vivaldi",
+    "microsoft-edge"
+  ],
+  "alternatives": [
+    {
+      "name": "chromium",
+      "reason": "Open source alternative to Chrome"
+    },
+    {
+      "name": "brave",
+      "reason": "Privacy-focused browser with ad blocking"
+    },
+    {
+      "name": "tor-browser",
+      "reason": "Maximum privacy and anonymity"
+    }
+  ],
+  "tags": ["browser", "web", "privacy", "open-source", "mozilla"],
+  "updated_at": "2024-07-05T00:00:00Z"
+}

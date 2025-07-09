@@ -1,0 +1,223 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Run tests
+      run: cargo test --verbose --no-default-features
+
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: omni-linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: omni-linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: omni-macos-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: omni-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: omni-windows-amd64.exe
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ matrix.target }}
+    
+    - name: Install cross-compilation tools (Linux ARM64)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+    
+    - name: Build
+      run: cargo build --release --target ${{ matrix.target }} --no-default-features
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.name }}
+        path: |
+          target/${{ matrix.target }}/release/omni${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+  package:
+    name: Create packages
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Create Debian package
+      run: |
+        mkdir -p package/DEBIAN
+        mkdir -p package/usr/bin
+        mkdir -p package/usr/share/doc/omni
+        
+        # Control file
+        cat > package/DEBIAN/control << EOF
+        Package: omni
+        Version: ${GITHUB_REF#refs/tags/}
+        Section: utils
+        Priority: optional
+        Architecture: amd64
+        Depends: libc6, libssl3
+        Maintainer: Omni Team <team@omni.dev>
+        Description: Universal Cross-Platform Package Manager
+         Omni is a universal package manager that wraps native package managers
+         on Linux, macOS, and Windows to provide a consistent interface.
+        EOF
+        
+        # Copy binary
+        cp omni-linux-amd64/omni package/usr/bin/
+        chmod +x package/usr/bin/omni
+        
+        # Create package
+        dpkg-deb --build package omni_${GITHUB_REF#refs/tags/}_amd64.deb
+    
+    - name: Create RPM spec
+      run: |
+        mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+        
+        cat > ~/rpmbuild/SPECS/omni.spec << EOF
+        Name: omni
+        Version: ${GITHUB_REF#refs/tags/v}
+        Release: 1%{?dist}
+        Summary: Universal Cross-Platform Package Manager
+        License: AGPL-3.0
+        URL: https://github.com/omni-project/omni
+        
+        %description
+        Omni is a universal package manager that wraps native package managers
+        on Linux, macOS, and Windows to provide a consistent interface.
+        
+        %prep
+        
+        %build
+        
+        %install
+        mkdir -p %{buildroot}/usr/bin
+        cp ${GITHUB_WORKSPACE}/omni-linux-amd64/omni %{buildroot}/usr/bin/
+        
+        %files
+        /usr/bin/omni
+        
+        %changelog
+        * $(date "+%a %b %d %Y") GitHub Actions <noreply@github.com> - ${GITHUB_REF#refs/tags/v}-1
+        - Automated build from tag ${GITHUB_REF#refs/tags/}
+        EOF
+    
+    - name: Create Windows installer script
+      run: |
+        cat > install.ps1 << 'EOF'
+        # Omni Windows Installer
+        param(
+            [string]$InstallPath = "$env:ProgramFiles\Omni"
+        )
+        
+        Write-Host "Installing Omni Universal Package Manager..." -ForegroundColor Green
+        
+        # Create installation directory
+        if (!(Test-Path $InstallPath)) {
+            New-Item -ItemType Directory -Path $InstallPath -Force | Out-Null
+        }
+        
+        # Copy binary
+        Copy-Item "omni.exe" -Destination "$InstallPath\omni.exe" -Force
+        
+        # Add to PATH
+        $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+        if ($envPath -notlike "*$InstallPath*") {
+            [Environment]::SetEnvironmentVariable("PATH", "$envPath;$InstallPath", "Machine")
+        }
+        
+        Write-Host "Omni installed successfully to $InstallPath" -ForegroundColor Green
+        Write-Host "Please restart your terminal to use the 'omni' command." -ForegroundColor Yellow
+        EOF
+    
+    - name: Create macOS package structure
+      run: |
+        mkdir -p macos-package/usr/local/bin
+        cp omni-macos-amd64/omni macos-package/usr/local/bin/
+        chmod +x macos-package/usr/local/bin/omni
+        
+        # Create package info
+        mkdir -p macos-package/Package_Contents
+        cat > macos-package/Package_Contents/PackageInfo << EOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <pkg-info format-version="2" identifier="dev.omni.pkg" version="${GITHUB_REF#refs/tags/}" install-location="/" auth="root">
+          <payload numberOfFiles="1" installKBytes="$(du -k omni-macos-amd64/omni | cut -f1)" />
+        </pkg-info>
+        EOF
+    
+    - name: Upload release packages
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-packages
+        path: |
+          *.deb
+          install.ps1
+          macos-package/
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@v2
+    - name: Run rustfmt
+      run: cargo fmt --all -- --check
+    - name: Run clippy
+      run: cargo clippy --all-targets --no-default-features -- -D warnings
+
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: Swatinem/rust-cache@v2
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    - name: Run security audit
+      run: cargo audit
