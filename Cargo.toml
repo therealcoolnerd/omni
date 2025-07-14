@@ -40,7 +40,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # GUI dependencies - only when needed
 eframe = { version = "0.31", features = ["default"], optional = true }
-egui_extras = { version = "0.31", features = ["default"], optional = true }
+egui_extras = { version = "0.32", features = ["default"], optional = true }
 rfd = { version = "0.15", optional = true }
 
 # Core async runtime - minimal features for faster compile
