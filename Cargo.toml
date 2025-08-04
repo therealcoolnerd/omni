@@ -81,7 +81,7 @@ libc = "0.2"
 rand = "0.9"
 
 # SSH support - only when needed
-russh = { version = "0.53", optional = true }
+russh = { version = "0.54", optional = true }
 russh-keys = { version = "0.44", optional = true }
 
 # Async utilities
