@@ -55,7 +55,7 @@ tracing-appender = "0.2"
 
 # CLI and user interaction
 indicatif = "0.17"
-dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+dialoguer = { version = "0.12", features = ["fuzzy-select"] }
 clap = { version = "4.0", features = ["derive"] }
 
 # Cryptography and security
