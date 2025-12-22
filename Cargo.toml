@@ -64,7 +64,10 @@ hex = "0.4"
 base64 = "0.22"
 
 # Network and HTTP
+# Network and HTTP
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+axum = { version = "0.7", features = ["macros"] }
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
 
 # File handling
 tempfile = "3.0" 
@@ -79,6 +82,7 @@ regex = "1.10"
 url = "2.5"
 libc = "0.2"
 rand = "0.9"
+hostname = "0.3"
 
 # SSH support - only when needed
 russh = { version = "0.53", optional = true }

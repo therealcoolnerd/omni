@@ -1,55 +1,32 @@
 import React, { useState } from 'react';
-import TimelinePage from './pages/TimelinePage';
-import ProfilePage from './pages/ProfilePage';
+import Sidebar from './components/Sidebar';
+import Dashboard from './pages/Dashboard';
 import './App.css';
 
-/**
- * Main App Component with Security Headers and Routing
- */
 function App() {
-  const [currentPage, setCurrentPage] = useState('timeline');
-  const [currentUserId, setCurrentUserId] = useState('user123');
+  const [activePage, setActivePage] = useState('dashboard');
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'profile':
-        return <ProfilePage userId={currentUserId} />;
-      case 'timeline':
+  const renderContent = () => {
+    switch (activePage) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'packages':
+        return <div className="p-8"><h1>Packages (Coming Soon)</h1></div>;
+      case 'search':
+        return <div className="p-8"><h1>Search (Coming Soon)</h1></div>;
+      case 'settings':
+        return <div className="p-8"><h1>Settings (Coming Soon)</h1></div>;
       default:
-        return <TimelinePage />;
+        return <Dashboard />;
     }
   };
 
   return (
-    <div className="App">
-      {/* Simple navigation for demo */}
-      <nav className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="max-w-4xl mx-auto flex gap-4">
-          <button
-            onClick={() => setCurrentPage('timeline')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentPage === 'timeline'
-                ? 'bg-omni-blue text-white'
-                : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-          >
-            Timeline
-          </button>
-          <button
-            onClick={() => setCurrentPage('profile')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentPage === 'profile'
-                ? 'bg-omni-blue text-white'
-                : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-          >
-            Profile
-          </button>
-        </div>
-      </nav>
-      
-      {/* Page content */}
-      {renderPage()}
+    <div className="app-container">
+      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <main className="main-content">
+        {renderContent()}
+      </main>
     </div>
   );
 }

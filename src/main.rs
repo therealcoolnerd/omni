@@ -21,6 +21,7 @@ mod ssh;
 #[cfg(test)]
 mod testing;
 mod updater;
+mod server;
 
 use anyhow::Result;
 use brain::OmniBrain;
@@ -187,6 +188,13 @@ enum Commands {
     Repository {
         #[command(subcommand)]
         action: RepositoryCommands,
+    },
+
+    /// Start the web interface server
+    Web {
+        /// Port to listen on
+        #[arg(long, default_value = "3000")]
+        port: u16,
     },
 }
 
@@ -800,15 +808,12 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                             if repositories.is_empty() {
                                 println!("No repositories configured");
                             } else {
-                                for (i, repo) in repositories.iter().enumerate() {
-                                    println!("{}. {}", i + 1, repo);
+                                for repo in repositories {
+                                    println!("- {}", repo);
                                 }
                             }
                         }
-                        Err(e) => {
-                            error!("❌ Failed to list repositories: {}", e);
-                            return Err(e);
-                        }
+                        Err(e) => error!("❌ Failed to list repositories: {}", e),
                     }
                 }
 
@@ -826,6 +831,10 @@ async fn handle_command(cli: Cli, config: OmniConfig) -> Result<()> {
                     }
                 }
             }
+        }
+
+        Commands::Web { port } => {
+            server::start_server(port).await?;
         }
     }
 
