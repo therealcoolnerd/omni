@@ -1,25 +1,38 @@
+mod advanced_resolver;
+mod audit;
 mod boxes;
 mod brain;
 mod branding;
 mod config;
 mod database;
 mod distro;
+mod docker;
+mod error_handling;
 #[cfg(feature = "gui")]
 mod gui;
+mod hardware;
+mod history;
 mod input_validation;
+mod interactive;
 mod logging;
 mod manifest;
+mod package_discovery;
 mod privilege_manager;
 mod resolver;
 mod runtime;
 mod sandboxing;
 mod search;
+mod secure_brain;
+mod secure_executor;
 mod security;
 mod snapshot;
 #[cfg(feature = "ssh")]
 mod ssh;
 #[cfg(test)]
 mod testing;
+mod transaction;
+mod types;
+mod unified_manager;
 mod updater;
 mod server;
 
