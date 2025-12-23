@@ -19,6 +19,7 @@ omni/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── lib.rs               # Library interface
+│   ├── server.rs            # Web Server API (Axum)
 │   ├── boxes/               # Package manager wrappers
 │   │   ├── apt.rs          # Linux: Debian/Ubuntu
 │   │   ├── dnf.rs          # Linux: Fedora/RHEL
@@ -30,7 +31,7 @@ omni/
 │   ├── database.rs         # SQLite operations
 │   ├── brain.rs            # Core logic
 │   └── gui.rs              # Optional GUI
-└── web-app/                # Optional web interface
+└── web-app/                # Premium React Dashboard
 ```
 
 ### **How It Works**
@@ -47,6 +48,8 @@ omni/
 - ✅ Basic package operations (install, remove, search, list)
 - ✅ Configuration management
 - ✅ SQLite logging
+- ✅ Premium Web Dashboard
+- ✅ REST API Server
 - ✅ Optional GUI interface
 - ✅ Optional SSH remote management
 
