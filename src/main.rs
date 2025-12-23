@@ -50,7 +50,7 @@ use updater::UpdateManager;
 #[derive(Parser)]
 #[command(name = "omni")]
 #[command(about = "Universal Cross-Platform Package Manager - Linux, Windows, macOS")]
-#[command(version = "0.2.0")]
+#[command(version = "1.0.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

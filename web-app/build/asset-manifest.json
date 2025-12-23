@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/therealcoolnerd/omni/static/css/main.ceea7962.css",
-    "main.js": "/therealcoolnerd/omni/static/js/main.35d5db75.js",
+    "main.css": "/therealcoolnerd/omni/static/css/main.08274c5f.css",
+    "main.js": "/therealcoolnerd/omni/static/js/main.799fca09.js",
     "index.html": "/therealcoolnerd/omni/index.html",
-    "main.ceea7962.css.map": "/therealcoolnerd/omni/static/css/main.ceea7962.css.map",
-    "main.35d5db75.js.map": "/therealcoolnerd/omni/static/js/main.35d5db75.js.map"
+    "main.08274c5f.css.map": "/therealcoolnerd/omni/static/css/main.08274c5f.css.map",
+    "main.799fca09.js.map": "/therealcoolnerd/omni/static/js/main.799fca09.js.map"
   },
   "entrypoints": [
-    "static/css/main.ceea7962.css",
-    "static/js/main.35d5db75.js"
+    "static/css/main.08274c5f.css",
+    "static/js/main.799fca09.js"
   ]
 }

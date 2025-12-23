@@ -23,6 +23,12 @@
     ╚═══════════════════════════════════════════════════════════╝
 ```
 
+### **🔥 New in v1.0.0**
+- **✨ Premium Web Dashboard**: Manage packages visually with our new React-based UI.
+- **🚀 Server Mode**: New REST API backend (`src/server.rs`) using Axum.
+- **🛡️ Enhanced Security**: Dependency auditing and hardened verified builds.
+- **📦 Expanded Support**: Better detection for heterogeneous environments.
+
 [⚡ **Quick Start**](#-quick-start) • [📦 **What Works**](#-what-works) • [🛠️ **Install**](#-installation) • [⚙ **Configuration**](CONFIGURATION.md)
 
 </div>
