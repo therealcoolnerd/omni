@@ -162,6 +162,10 @@ src/
     ├── dnf.rs
     ├── pacman.rs
     └── ...
+web-app/              # Premium React Dashboard
+    ├── src/
+    ├── public/
+    └── package.json
 ```
 
 ## 🔍 Pull Request Process
