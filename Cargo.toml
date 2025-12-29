@@ -82,7 +82,7 @@ regex = "1.10"
 url = "2.5"
 libc = "0.2"
 rand = "0.9"
-hostname = "0.3"
+hostname = "0.4"
 
 # SSH support - only when needed
 russh = { version = "0.53", optional = true }
