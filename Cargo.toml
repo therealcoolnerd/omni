@@ -71,7 +71,7 @@ tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
 
 # File handling
 tempfile = "3.0" 
-zip = "4.2"
+zip = "7.0"
 tar = "0.4"
 flate2 = "1.0"
 
