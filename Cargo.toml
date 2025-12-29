@@ -66,7 +66,7 @@ base64 = "0.22"
 # Network and HTTP
 # Network and HTTP
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.8", features = ["macros"] }
 tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
 
 # File handling
