@@ -1,78 +1,131 @@
-# ⚡ **Omni Quick Start Guide**
+<div align="center">
 
-Get Omni running in under 5 minutes.
+```
+ ██████╗ ███╗   ███╗███╗   ██╗██╗
+██╔═══██╗████╗ ████║████╗  ██║██║
+██║   ██║██╔████╔██║██╔██╗ ██║██║
+██║   ██║██║╚██╔╝██║██║╚██╗██║██║
+╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║
+ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝
+```
 
-## 🛠️ **Installation**
+**Quick Start**
 
-### **Build from Source**
+</div>
+
+---
+
+## 1. Build
+
 ```bash
 git clone https://github.com/therealcoolnerd/omni.git
 cd omni
 cargo build --release
 ```
 
-### **Copy to PATH** 
+The binary is at `target/release/omni`.
+
+### Add to PATH
+
+**Linux / macOS:**
+
 ```bash
-# Copy the binary to your PATH
 sudo cp target/release/omni /usr/local/bin/
-
-# Or add to your shell profile
-echo 'export PATH="$PATH:$(pwd)/target/release"' >> ~/.bashrc
 ```
 
-## 🚀 **Basic Usage**
+**Windows (PowerShell — run as Administrator):**
 
-### **Install Packages**
-```bash
-omni install firefox        # Install Firefox
-omni install git nodejs     # Install multiple packages
+```powershell
+Copy-Item target\release\omni.exe C:\Windows\System32\omni.exe
 ```
 
-### **Search Packages**
+---
+
+## 2. Verify
+
 ```bash
-omni search browser         # Find browser packages
-omni search "video editor"  # Search with spaces
+omni --version
+omni --help
 ```
 
-### **Manage Packages**
+---
+
+## 3. Install Your First Package
+
 ```bash
-omni list                   # List installed packages
-omni remove firefox         # Remove a package
-omni update                 # Update all packages
-omni info docker           # Get package information
+omni install git
 ```
 
-## 🎯 **Optional Features**
+Omni detects the current platform, selects the appropriate package manager, and runs the install. No flags, no OS branches.
 
-### **GUI Interface**
+---
+
+## 4. Core Commands
+
 ```bash
-# Build with GUI support
+omni install <package>        # Install
+omni remove  <package>        # Remove
+omni search  <query>          # Search all available managers
+omni info    <package>        # Package details
+omni list                     # Installed packages
+omni update --all             # Update everything
+```
+
+---
+
+## 5. History and Safety
+
+Every operation is logged. You can review and reverse it:
+
+```bash
+omni history show             # See what has been installed/removed
+omni history undo             # Reverse the last operation
+
+omni snapshot create "clean"  # Save current state
+omni snapshot revert "clean"  # Restore to saved state
+```
+
+---
+
+## 6. Optional Features
+
+### Desktop GUI
+
+```bash
 cargo build --release --features gui
-
-# Launch GUI
 omni gui
 ```
 
-### **SSH Remote Management**
-```bash
-# Build with SSH support
-cargo build --release --features ssh
+### SSH Remote Management
 
-# Install on remote server
+```bash
+cargo build --release --features ssh
 omni ssh user@server install nginx
 ```
 
-## ✅ **Verify Installation**
+### Web Dashboard
 
 ```bash
-omni --version              # Should show version
-omni list                   # Should show installed packages
+omni web --port 3000
+# Open http://127.0.0.1:3000
 ```
 
-That's it! You now have universal package management across platforms.
+---
 
-## 📚 **Next Steps**
+## 7. Mock Mode (Safe Testing)
 
-- Read the [main README](README.md) for full documentation
-- Report issues on [GitHub](https://github.com/therealcoolnerd/omni/issues)
-- Contribute to the project
+Test any command without touching the system:
+
+```bash
+omni --mock install firefox
+omni --mock update --all
+```
+
+---
+
+## What's Next
+
+- Full command reference: [docs/user-guide.md](docs/user-guide.md)
+- Build options and platforms: [docs/installation-guide.md](docs/installation-guide.md)
+- Configuration options: [CONFIGURATION.md](CONFIGURATION.md)
+- Full feature overview: [README.md](README.md)

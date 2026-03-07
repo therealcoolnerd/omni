@@ -1,273 +1,323 @@
-# 🌟 **Omni Universal Package Manager** — The Ultimate Cross-Platform Solution
- 
- <div align="center">
- 
- ![Omni Logo](assets/logo.svg)
- 
- **Universal Cross-Platform Package Manager | Linux | Windows | macOS | Web Dashboard**
- 
- *The only package manager you'll ever need. one command to rule them all.*
- 
- [![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
- [![React](https://img.shields.io/badge/React-18.0+-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
- [![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=flat&logo=gnu&logoColor=white)](LICENSE)
- [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-000000?style=flat&logo=linux&logoColor=white)]()
- [![GitHub](https://img.shields.io/badge/GitHub-Open%20Source-000000?style=flat&logo=github&logoColor=white)](https://github.com/therealcoolnerd/omni)
+<div align="center">
 
+![Omni Logo](assets/logo.svg)
 
-```ascii
-    ╔═══════════════════════════════════════════════════════════╗
-    ║  🎯 THE GOAL: One command that works everywhere           ║
-    ║  ⚡ THE APPROACH: Simple, fast, reliable                  ║
-    ║  🔧 THE REALITY: What actually works                      ║
-    ╚═══════════════════════════════════════════════════════════╝
+```
+ ██████╗ ███╗   ███╗███╗   ██╗██╗
+██╔═══██╗████╗ ████║████╗  ██║██║
+██║   ██║██╔████╔██║██╔██╗ ██║██║
+██║   ██║██║╚██╔╝██║██║╚██╗██║██║
+╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║
+ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝
 ```
 
-### **🔥 New in v1.0.0**
-- **✨ Premium Web Dashboard**: Manage packages visually with our new React-based UI.
-- **🚀 Server Mode**: New REST API backend (`src/server.rs`) using Axum.
-- **🛡️ Enhanced Security**: Dependency auditing and hardened verified builds.
-- **📦 Expanded Support**: Better detection for heterogeneous environments.
+**Universal Package Manager**
 
-[⚡ **Quick Start**](#-quick-start) • [📦 **What Works**](#-what-works) • [🛠️ **Install**](#-installation) • [⚙ **Configuration**](CONFIGURATION.md)
+*Linux · macOS · Windows — one command, every platform.*
+
+[![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=flat&logo=gnu&logoColor=white)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-000000?style=flat)]()
+[![Version](https://img.shields.io/badge/Version-1.0.0%20Final-000000?style=flat)](CHANGELOG.md)
 
 </div>
 
 ---
 
-## 🚀 **The Mission**
+## The Problem
 
-**The problem**: Every developer knows the pain. Windows has `winget`. macOS has `brew`. Ubuntu has `apt`. Arch has `pacman`. It's 2025 and we're still memorizing different commands for every platform.
+Every platform ships its own package manager. Every Linux distribution layers its own dialect on top. The result: installation scripts branch on OS, CI pipelines maintain separate configs, and the command you need changes depending on which machine you're sitting at.
 
-**The solution**: `omni install firefox` — one command that works everywhere.
+Omni removes that branch entirely.
 
-**What we built**: A single, focused package manager that wraps the native package managers on each platform. No bloat, no enterprise complexity, just working cross-platform package management.
+```
+╔══════════════════════════════════════════════════════════════╗
+║  Before Omni:                                                ║
+║    sudo apt install git          # Debian / Ubuntu           ║
+║    sudo dnf install git          # Fedora / RHEL             ║
+║    sudo pacman -S git            # Arch Linux                ║
+║    winget install Git.Git        # Windows                   ║
+║    brew install git              # macOS                     ║
+║                                                              ║
+║  With Omni:                                                  ║
+║    omni install git              # All of the above          ║
+╚══════════════════════════════════════════════════════════════╝
+```
 
 ---
 
-## ⚡ **Quick Start**
+## How It Works
 
-### **🛠️ Installation**
+Omni wraps the native package manager on the current platform. When you run `omni install git`, it detects what is available, selects the best option for the current system, validates the operation through a strict security whitelist, and delegates to the real package manager. Every install, update, and removal is recorded in a local SQLite database — giving you history, rollback, and snapshots without any cloud dependency.
+
+---
+
+## Supported Package Managers
+
+```
+┌───────────────┬──────────────────────────────────────────────────────┐
+│ Linux         │ apt · dnf · pacman · snap · flatpak · zypper ·       │
+│               │ emerge · nix · appimage                               │
+├───────────────┼──────────────────────────────────────────────────────┤
+│ macOS         │ homebrew · mas (Mac App Store)                        │
+├───────────────┼──────────────────────────────────────────────────────┤
+│ Windows       │ winget · chocolatey · scoop                           │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
+
+---
+
+## Quick Start
+
+### Build
 
 ```bash
-# Build from source
 git clone https://github.com/therealcoolnerd/omni.git
 cd omni
 cargo build --release
-
-# The binary will be in target/release/omni
+# Binary: target/release/omni
 ```
 
-### **🔥 The Universal Command**
-```bash
-# Instead of this platform chaos:
-sudo apt install firefox          # Linux
-winget install Firefox           # Windows  
-brew install firefox             # macOS
+Optional feature flags:
 
-# Just do this everywhere:
-omni install firefox            # Works on ALL platforms 🔥
+```bash
+cargo build --release --features gui          # Desktop GUI
+cargo build --release --features ssh          # SSH remote management
+cargo build --release --features gui,ssh      # Full build
+```
+
+### Core Commands
+
+```bash
+omni install <package>                # Install a package
+omni remove  <package>                # Remove a package
+omni search  <query>                  # Search all available managers
+omni info    <package>                # Package details
+omni list                             # Installed packages
+omni list --detailed                  # With version and source
+omni update                           # Show available updates
+omni update --all                     # Apply all updates
+omni update --refresh                 # Refresh repos then update
+```
+
+Specify a manager explicitly:
+
+```bash
+omni install firefox --box-type flatpak
+omni remove  vlc     --box-type snap
 ```
 
 ---
 
-## 📦 **What Works**
+## Feature Reference
 
-### **Supported Package Managers**
+### History and Rollback
 
-| Platform | Package Managers |
-|----------|------------------|
-| **Linux** | apt, dnf, pacman, snap, flatpak, zypper, emerge, nix |
-| **macOS** | homebrew, mas (App Store) |
-| **Windows** | winget, chocolatey, scoop |
-
-### **Core Commands**
+Every operation is logged with timestamp, package name, version, and source.
 
 ```bash
-omni install <package>     # Install a package
-omni remove <package>      # Remove a package
-omni search <query>        # Search for packages
-omni list                  # List installed packages
-omni update               # Update packages
-omni info <package>       # Get package information
+omni history show                     # Full history (last 20 entries)
+omni history show --limit 50          # More entries
+omni history undo                     # Reverse the last operation
 ```
 
-### **Hardware Detection & Driver Management**
+### Snapshots
+
+Capture the exact set of installed packages at any point and restore to it.
 
 ```bash
-# Detect server hardware and show configuration
-omni hardware detect
-
-# Auto-detect and install optimal drivers for mixed servers
-omni hardware install
-
-# Install vendor-specific drivers (Dell, HP, Supermicro, etc.)
-omni hardware vendor <vendor-name>
+omni snapshot create "clean-base"
+omni snapshot create "pre-experiment" --description "Before testing new stack"
+omni snapshot list
+omni snapshot revert "clean-base"
 ```
 
-### **Optional Features**
+### Dependency Resolution
+
+Inspect the full resolution plan before committing to an install.
 
 ```bash
-# GUI interface (if compiled with --features gui)
-omni gui
+omni resolve <package>                # Resolution summary
+omni resolve <package> --detailed     # Per-package dependency tree
+omni resolve <package> --box-type apt # Constrain to one manager
+```
 
-# Premium Web Dashboard (New!)
+### Security Verification
+
+Verify downloaded packages before trusting them.
+
+```bash
+omni verify /path/to/pkg.deb --checksum <sha256>
+omni verify /path/to/pkg.rpm --signature /path/to/pkg.rpm.sig
+```
+
+### Hardware Detection and Driver Management
+
+Designed for mixed server environments where hardware varies by rack.
+
+```bash
+omni hardware detect                  # Show detected hardware
+omni hardware install                 # Auto-install optimal drivers
+omni hardware vendor dell             # Dell PowerEdge driver set
+omni hardware vendor hp               # HP/HPE ProLiant driver set
+omni hardware vendor supermicro       # Supermicro driver set
+omni hardware vendor lenovo           # Lenovo ThinkSystem driver set
+```
+
+### Repository Management
+
+```bash
+omni repository add    <url>          # Add a package repository
+omni repository remove <name>         # Remove a repository
+omni repository list                  # Show configured repositories
+omni repository refresh               # Refresh repository metadata
+```
+
+### Manifest Installation
+
+Install a predefined list of packages from a YAML manifest.
+
+```bash
+omni install --from packages.yaml
+```
+
+### Web Dashboard
+
+A local REST API server with a browser-based interface for visual package management.
+
+```bash
 omni web --port 3000
-
-# SSH remote management (if compiled with --features ssh)
-omni ssh <host> install <package>
+# Navigate to http://127.0.0.1:3000
 ```
 
----
+REST endpoints:
 
-## 🖥️ **Mixed Server Scenarios**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/system/info` | OS, architecture, detected managers |
+| GET | `/api/packages/installed` | All tracked installed packages |
+| GET | `/api/packages/search?q=<query>` | Live package search |
+| POST | `/api/packages/install` | Install a package |
+| POST | `/api/packages/remove` | Remove a package |
 
-Omni excels in **heterogeneous server environments** where you need to manage different hardware vendors and configurations:
-
-### **Server Hardware Support**
-
-| Vendor | Drivers & Tools |
-|--------|----------------|
-| **Dell** | dell-smbios, dcdbas, dell-wmi |
-| **HP/HPE** | hpilo, hp-wmi, hp-health |
-| **Supermicro** | ipmi_si, ipmi_devintf, supermicro-bmc |
-| **Lenovo** | thinkpad-acpi, lenovo-wmi |
-| **Cisco UCS** | cisco-ucs, cisco-enic |
-
-### **Common Use Cases**
+### GUI (Optional Feature)
 
 ```bash
-# Mixed datacenter with different vendors
-omni hardware detect                    # Identify all server hardware
-omni hardware install                   # Install optimal drivers automatically
-
-# Specific vendor environments  
-omni hardware vendor dell              # Dell PowerEdge servers
-omni hardware vendor hp                # HP ProLiant servers
-omni hardware vendor supermicro        # Supermicro servers
-
-# Network-attached storage and specialized hardware
-omni install mellanox-drivers          # High-speed networking
-omni install nvidia-driver             # GPU compute workloads
-omni install intel-ethernet            # Intel network adapters
+omni gui
+# Requires: cargo build --features gui
 ```
 
-### **Why This Matters**
+### Configuration
 
-- **Consistent tooling** across different server vendors
-- **Automated driver detection** for optimal performance  
-- **Mixed cloud/on-premise** deployments simplified
-- **Hardware vendor independence** in your automation scripts
-
----
-
-## 🏗️ **Architecture**
-
-```ascii
-┌─────────────────────────────────────────────────┐
-│                 Omni CLI                        │
-├─────────────────────────────────────────────────┤
-│ Cross-Platform Package Manager Detection       │
-├─────────────────────────────────────────────────┤
-│  Linux     │   macOS      │   Windows          │
-│  ────────  │   ─────────  │   ───────────      │
-│  apt       │   homebrew   │   winget           │
-│  dnf       │   mas        │   chocolatey       │
-│  pacman    │              │   scoop            │
-│  snap      │              │                    │
-│  flatpak   │              │                    │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## 🚀 **Development**
-
-### **Build Requirements**
-- Rust 1.70+
-- Cargo
-
-### **Build Commands**
 ```bash
-# Standard build
-cargo build --release
-
-# With GUI support
-cargo build --release --features gui
-
-# With SSH support  
-cargo build --release --features ssh
-
-# Full features
-cargo build --release --features gui,ssh
+omni config show                      # Print current config
+omni config edit                      # Open config in $EDITOR
+omni config reset                     # Restore defaults
 ```
 
-### **Project Structure**
+Config file: `~/.config/omni/config.yaml` — see [CONFIGURATION.md](CONFIGURATION.md).
+
+### Mock Mode
+
+Simulate any operation without touching the system. Safe for CI and scripting.
+
+```bash
+omni --mock install firefox
+omni --mock remove curl
+omni --mock update --all
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  CLI  —  clap-based command parser  (main.rs)                       │
+├─────────────────────────────────────────────────────────────────────┤
+│  OmniBrain  —  orchestration, history, rollback  (brain.rs)         │
+├─────────────┬───────────────┬───────────────┬───────────────────────┤
+│  Boxes      │  Resolver     │  Search       │  Security             │
+│  ─────────  │  ──────────── │  ──────────── │  ─────────────────── │
+│  apt        │  BFS dep      │  Cross-PM     │  GPG verification     │
+│  dnf        │  graph        │  search       │  SHA-256 checksum     │
+│  pacman     │  Conflict     │  Dedup &      │  Command whitelist    │
+│  winget     │  detection    │  ranking      │  Argument sanitizer   │
+│  brew       │  Size calc    │               │  Privilege control    │
+│  + 9 more   │               │               │                       │
+├─────────────┴───────────────┴───────────────┴───────────────────────┤
+│  SQLite database  ·  YAML config  ·  tracing/tracing-appender logs  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Security Model
+
+Omni executes with elevated privileges when needed. The security model reflects that responsibility.
+
+- **Command whitelist** — every binary, every subcommand, and every flag is explicitly approved before execution. Calls that reference unlisted commands are rejected outright.
+- **Argument sanitization** — shell injection characters, path traversal sequences, and command substitution are blocked at the input boundary.
+- **GPG verification** — packages can be checked against upstream signatures before installation.
+- **Checksum validation** — SHA-256 hashes are verified on downloaded files.
+- **Privilege minimization** — elevated access is requested only for operations that require it, never stored.
+
+Report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
+
+---
+
+## Project Structure
+
 ```
 src/
-├── main.rs              # CLI interface
-├── lib.rs               # Library entry point
-├── boxes/               # Package manager implementations
-│   ├── apt.rs          # Debian/Ubuntu
-│   ├── brew.rs         # macOS Homebrew
-│   ├── winget.rs       # Windows
-│   └── ...             # Other package managers
-├── config.rs           # Configuration management
-├── database.rs         # SQLite operations
-├── brain.rs            # Core logic
-└── gui.rs              # Optional GUI (feature-gated)
+├── main.rs                CLI entry point and command dispatch
+├── lib.rs                 Public library surface
+├── brain.rs               Core orchestration
+├── resolver.rs            Dependency resolution (BFS)
+├── search.rs              Cross-platform package search
+├── database.rs            SQLite operations (history, cache, snapshots)
+├── snapshot.rs            Snapshot create/list/revert
+├── security.rs            GPG and checksum verification
+├── secure_executor.rs     Whitelist enforcement and arg sanitization
+├── config.rs              YAML configuration
+├── distro.rs              OS/distro detection
+├── hardware.rs            Hardware detection and driver management
+├── server.rs              Axum REST API
+├── updater.rs             Update checking and application
+├── transaction.rs         Atomic transaction support
+├── advanced_resolver.rs   Extended resolution logic
+└── boxes/                 Per-manager implementations
+    ├── apt.rs  dnf.rs  pacman.rs  snap.rs  flatpak.rs
+    ├── winget.rs  chocolatey.rs  scoop.rs
+    ├── brew.rs  mas.rs
+    ├── zypper.rs  emerge.rs  nix.rs  appimage.rs
+    └── mod.rs
 ```
 
 ---
 
-## 🤝 **Contributing**
+## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test on multiple platforms
-5. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### **Adding Package Manager Support**
+## License
 
-To add a new package manager:
+AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
-1. Create `src/boxes/newmanager.rs`
-2. Implement the package manager interface
-3. Add detection logic in `src/distro.rs`
-4. Test on the target platform
+## Author
 
----
-
-## 📄 **License**
-
-AGPL-3.0-or-later - see [LICENSE](LICENSE) for details.
-
----
-
-## 🔥 **Built By**
-
-**[therealcoolnerd](https://github.com/therealcoolnerd)** — *Making package management work everywhere*
-
-📧 **Contact**: arealcoolcompany@gmail.com  
-💼 **Business**: Available for consulting and custom integrations
+**therealcoolnerd** — [github.com/therealcoolnerd](https://github.com/therealcoolnerd)
 
 ---
 
 <div align="center">
 
-**[⭐ Star this repo](https://github.com/therealcoolnerd/omni)** • **[🐛 Report Issues](https://github.com/therealcoolnerd/omni/issues)** • **[💡 Request Features](https://github.com/therealcoolnerd/omni/discussions)**
+```
+╔══════════════════════════════════════════════════════════════╗
+║              "One CLI to rule them all."  ⚫                 ║
+╚══════════════════════════════════════════════════════════════╝
+```
 
----
-
-## 🔍 **Keywords & Topics**
-
-**Package Manager** | **Cross Platform** | **Universal Package Manager** | **Web Dashboard** | **Dashboard** | **React** | **Rust** | **Linux Package Manager** | **Windows Package Manager** | **macOS Package Manager** | **apt wrapper** | **brew wrapper** | **winget wrapper** | **dnf wrapper** | **pacman wrapper** | **snap wrapper** | **flatpak wrapper** | **Package Management Tool** | **Software Installation** | **Command Line Tool** | **CLI Package Manager** | **Rust Package Manager** | **Open Source Package Manager** | **Multi Platform** | **System Administration** | **DevOps Tools** | **Developer Tools** | **System Package Manager** | **Package Installation** | **Software Management** | **Cross Platform Development** | **Linux Tools** | **Windows Tools** | **macOS Tools** | **System Tools** | **Package Management System**
-
-*Omni Universal Package Manager - The ultimate cross-platform package management solution for Linux, Windows, and macOS. Includes a premium web dashboard for easy management. Install software packages with one command across all operating systems. Open source Rust-based package manager that wraps apt, brew, winget, dnf, pacman, snap, flatpak and more.*
-
-### **"One CLI to rule them all."** ⚫
-
-*No marketing hype. Just working cross-platform package management.*
+[Star this repo](https://github.com/therealcoolnerd/omni) · [Report a bug](https://github.com/therealcoolnerd/omni/issues) · [Read the docs](docs/user-guide.md)
 
 </div>

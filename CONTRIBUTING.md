@@ -1,249 +1,200 @@
-# ⚫ Contributing to Omni — Join The Revolution
+<div align="center">
 
-**Welcome to the movement.** You're not just contributing code—you're helping fix one of computing's most fragmented problems.
-
-**therealcoolnerd** here → and I'm hyped you want to be part of making package management finally make sense across all platforms. This isn't just another open source project—we're building the unified future of software installation. 
-
-```ascii
-┌─────────────────────────────────────────────────────────┐
-│  ⚪ One codebase, three platforms, infinite possibilities │
-└─────────────────────────────────────────────────────────┘
+```
+ ██████╗ ███╗   ███╗███╗   ██╗██╗
+██╔═══██╗████╗ ████║████╗  ██║██║
+██║   ██║██╔████╔██║██╔██╗ ██║██║
+██║   ██║██║╚██╔╝██║██║╚██╗██║██║
+╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║
+ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝
 ```
 
-## ⚡ Quick Start (Zero Friction)
+**Contributing to Omni**
+
+</div>
+
+---
+
+Omni is a completed, stable project. Contributions are welcome for bug fixes, platform additions, and documentation improvements. This guide covers everything you need.
+
+---
+
+## Getting Started
 
 ```bash
-# 1. Fork & clone
+# Fork and clone
 git clone https://github.com/your-username/omni.git
 cd omni
 
-# Keep the official repo handy
+# Keep the official upstream handy
 git remote add upstream https://github.com/therealcoolnerd/omni.git
 
-# 2. Create your feature branch
-git checkout -b feature/game-changing-feature
+# Build and confirm tests pass
+cargo build
+cargo test
 
-# 3. Build & test (make sure it works)
-cargo build && cargo test
-
-# 4. Commit with style
-git commit -m "feat: add feature that changes everything"
-
-# 5. Push & PR
-git push origin feature/game-changing-feature
-# Then open a Pull Request on GitHub
+# Work on a descriptive branch
+git checkout -b fix/describe-your-change
 ```
 
-Maintainers preparing a release should ensure `origin` points to the
-official repository:
+Maintainers pointing origin to the official repo:
 
 ```bash
 git remote set-url origin https://github.com/therealcoolnerd/omni.git
 ```
 
-**That's it.** No complex setup, no bureaucracy—just good code solving real problems.
+---
 
-## 🧠 Development Philosophy (What We Stand For)
+## Development Philosophy
 
-- **⚫ Security First**: Never compromise user security for convenience
-- **⚪ Universal Compatibility**: Linux, Windows, macOS—same code, same experience
-- **⚡ Performance Obsessed**: Sub-200ms operations, minimal memory footprint
-- **🎯 UX That Makes Sense**: Complex operations should feel obvious
-- **🔬 Test Everything**: Untested code doesn't ship, period
-
-*We're building infrastructure-level software that millions will depend on.*
-
-## 🛠️ Development Setup
-
-### Prerequisites
-- Rust 1.70+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
-- SQLite development libraries
-- GPG for signature verification
-- Linux distribution with package managers for testing
-
-### Environment Setup
-```bash
-git clone https://github.com/therealcoolnerd/omni.git
-cd omni
-cargo build
-cargo test
+```
+╔──────────────────────────────────────────────────────────────╗
+║  Security first.   Never trade user safety for convenience.  ║
+║  One binary.       Same behavior on Linux, macOS, Windows.   ║
+║  Minimal surface.  Do one thing and do it correctly.         ║
+║  Trust nothing.    Validate at every input boundary.         ║
+╚──────────────────────────────────────────────────────────────╝
 ```
 
-### Testing Your Changes
+Omni runs with elevated privileges. Every line that touches process execution, argument handling, or file paths is security-critical. Treat it that way.
+
+---
+
+## Project Structure
+
+```
+src/
+├── main.rs              CLI entry point and command dispatch
+├── brain.rs             Core orchestration
+├── resolver.rs          Dependency resolution (BFS)
+├── search.rs            Cross-platform search
+├── database.rs          SQLite history, cache, snapshots
+├── snapshot.rs          Snapshot create/list/revert
+├── security.rs          GPG and checksum verification
+├── secure_executor.rs   Command whitelist and arg sanitization
+├── config.rs            YAML configuration
+├── distro.rs            OS and package manager detection
+├── hardware.rs          Hardware detection and drivers
+├── server.rs            Axum REST API
+├── updater.rs           Update checking and application
+└── boxes/               Per-manager implementations
+    ├── apt.rs  dnf.rs  pacman.rs  snap.rs  flatpak.rs
+    ├── winget.rs  chocolatey.rs  scoop.rs
+    ├── brew.rs  mas.rs
+    ├── zypper.rs  emerge.rs  nix.rs  appimage.rs
+    └── mod.rs
+```
+
+---
+
+## Adding a New Package Manager
+
+1. Create `src/boxes/newmanager.rs` and implement the `PackageManager` trait from `distro.rs`.
+2. Add `pub mod newmanager;` to `src/boxes/mod.rs`.
+3. Add detection logic in `distro.rs` → `get_available_package_managers`.
+4. Add the manager's subcommands and flags to `SecureExecutor::new()` in `secure_executor.rs`. Every flag used by the implementation must be listed explicitly.
+5. Re-export from `src/lib.rs` if the type is part of the public API.
+6. Test on the target platform using `cargo test` and `--mock` mode.
+
+---
+
+## Code Standards
+
+### Formatting and Linting
+
 ```bash
-# Unit tests
+cargo fmt          # Required before every commit
+cargo clippy       # All warnings must be resolved
+```
+
+The project uses strict lint settings in `Cargo.toml`. PRs with clippy warnings are not merged.
+
+### Async Process Execution
+
+All process execution inside `async fn` must use `tokio::process::Command`, not `std::process::Command`. Blocking the executor thread causes starvation and potential deadlocks under concurrent load.
+
+### Adding Commands to SecureExecutor
+
+When a package manager implementation calls `SecureExecutor::execute_package_command`, every subcommand and flag it uses must be in the `allowed_commands` map in `SecureExecutor::new()`. Do not use wildcard entries. Document any new additions in your PR description.
+
+### Commit Message Format
+
+```
+type(scope): short description
+
+feat(boxes): add zypper support for openSUSE
+fix(executor): add missing winget flags to whitelist
+docs(readme): update installation instructions
+test(resolver): add conflict detection test coverage
+```
+
+Types: `feat` · `fix` · `docs` · `test` · `refactor` · `chore`
+
+---
+
+## Testing
+
+```bash
+# Full test suite
 cargo test
 
-# Integration tests with mock mode
+# Safe integration test — nothing touches the real system
 ./target/debug/omni --mock install firefox
-./target/debug/omni --mock search "text editor"
+./target/debug/omni --mock remove curl
+./target/debug/omni --mock update --all
 
-# Performance benchmarks
+# Benchmarks
 cargo bench
 ```
 
-## 📋 Contribution Areas
+See [TESTING.md](TESTING.md) for the complete testing guide.
 
-### 🐛 Bug Fixes
-- Error handling improvements
-- Edge case resolution
-- Performance optimizations
-- Security vulnerability patches
+---
 
-### 📦 New Package Manager Support
-We're always looking to support more package managers:
-- zypper (openSUSE)
-- emerge (Gentoo)
-- xbps (Void Linux)
-- nix (NixOS)
+## Pull Request Checklist
 
-### 🔒 Security Enhancements
-- Additional verification methods
-- Trust policy improvements
-- Audit trail enhancements
-- Privilege escalation prevention
+Before opening a PR:
 
-### 🌐 Internationalization
-- Multi-language support
-- Localized error messages
-- Cultural adaptation for different regions
-
-### 📚 Documentation
-- User guides and tutorials
-- API documentation
-- Architecture explanations
-- Troubleshooting guides
-
-### 🧪 Testing & Quality
-- Test coverage expansion
-- Continuous integration improvements
-- Performance benchmarking
-- Static analysis integration
-
-## 📝 Code Style Guidelines
-
-### Rust Style
-- Use `cargo fmt` before committing
-- Run `cargo clippy` and fix all warnings
-- Follow Rust naming conventions
-- Document public APIs with rustdoc
-
-### Git Commit Messages
-Follow conventional commit format:
-```
-type(scope): description
-
-feat(boxes): add zypper support for openSUSE
-fix(security): resolve GPG verification edge case
-docs(readme): update installation instructions
-test(integration): add mock mode test coverage
-```
-
-### Git Hooks
-
-No Git hooks are required for this project. Sample hook scripts from `.git/hooks`
-are stored in [`docs/git-hook-samples`](docs/git-hook-samples/) if you want to
-set up optional checks like running `cargo fmt` or verifying commit messages
-before commits.
-
-### Code Organization
-```
-src/
-├── main.rs           # CLI interface
-├── brain.rs          # Core installation logic
-├── resolver.rs       # Dependency resolution
-├── security.rs       # Verification systems
-├── database.rs       # SQLite operations
-├── snapshot.rs       # Rollback functionality
-├── search.rs         # Cross-platform search
-├── interactive.rs    # User interaction
-└── boxes/            # Package manager implementations
-    ├── apt.rs
-    ├── dnf.rs
-    ├── pacman.rs
-    └── ...
-web-app/              # Premium React Dashboard
-    ├── src/
-    ├── public/
-    └── package.json
-```
-
-## 🔍 Pull Request Process
-
-### Before Submitting
-- [ ] All tests pass locally
-- [ ] Code follows style guidelines
-- [ ] Changes are documented
-- [ ] Security implications considered
-- [ ] Performance impact assessed
-
-### PR Description Template
-Use our PR template (automatically loaded) and include:
-- Clear description of changes
-- Motivation and context
-- Testing performed
-- Screenshots/demos for UI changes
-- Breaking changes noted
+- [ ] `cargo fmt` applied
+- [ ] `cargo clippy` passes with zero warnings
+- [ ] `cargo test` passes
+- [ ] Tested with `--mock` mode where applicable
+- [ ] New `SecureExecutor` commands documented in the PR
+- [ ] Security implications noted for privilege, process execution, or network changes
+- [ ] Platforms affected are clearly stated
 
 ### Review Process
-1. Automated checks must pass (CI/CD, tests, linting)
-2. Security review for changes affecting privileges or verification
-3. Architecture review for changes affecting core systems
-4. Performance review for changes affecting critical paths
-5. Final approval from maintainers
 
-## 🚨 Security Contributions
+1. CI must pass (build, tests, clippy)
+2. Security review for any changes to `secure_executor.rs`, `security.rs`, or privilege paths
+3. Platform review for OS-specific behavior changes
+4. Final approval from @therealcoolnerd
 
-Security is critical for Omni. If you find security issues:
+---
 
-### For Public Security Improvements:
-- Open a regular issue/PR with security label
-- Include test cases demonstrating the improvement
-- Document security implications clearly
+## Reporting Security Issues
 
-### For Vulnerability Reports:
-- **DO NOT** open public issues for security vulnerabilities  
-- Email security details privately to: **arealcoolcompany@gmail.com**
-- Include proof of concept if possible
-- Allow 90 days for response before public disclosure
+Do **not** open public issues for security vulnerabilities.
 
-## 🌟 Recognition
+- Use GitHub's [private vulnerability reporting](https://github.com/therealcoolnerd/omni/security/advisories/new)
+- Email: **arealcoolcompany@gmail.com**
 
-Contributors who make significant impacts will be:
-- Listed in CONTRIBUTORS.md
-- Mentioned in release notes
-- Invited to maintainer discussions
-- Recognized in project documentation
+See [SECURITY.md](SECURITY.md) for the full policy and disclosure timeline.
 
-## 📞 Getting Help
+---
 
-### Community Channels
-- **GitHub Discussions**: General questions and feature requests
-- **GitHub Issues**: Bug reports and specific problems
-- **Matrix Chat**: Real-time community discussions
-- **Discord**: Voice chat for complex debugging sessions
+## No Git Hooks Required
 
-### Maintainer Contact
-- **Lead Developer**: @therealcoolnerd
-- **Email**: **arealcoolcompany@gmail.com**
-- **Twitter**: [@therealcoolnerd](https://twitter.com/therealcoolnerd)
-
-## 🔥 Thank You!
-
-Every contribution, no matter how small, helps fix package management forever. You're not just writing code—you're part of the movement making software installation finally make sense across all platforms.
-
-**Let's build something that actually works.** ⚡
+No hooks are enforced. Sample scripts are in [`docs/git-hook-samples/`](docs/git-hook-samples/) for optional local use.
 
 ---
 
 <div align="center">
 
-```ascii
-┌─────────────────────────────────────────────────────────────┐
-│  ⚫ Built with Rust, powered by caffeine, fueled by passion │
-└─────────────────────────────────────────────────────────────┘
 ```
-
-**Built for everyone who's tired of platform fragmentation**
+╔──────────────────────────────────────────────────────────────╗
+║          Built with Rust.  Shipping on all platforms.  ⚫    ║
+╚──────────────────────────────────────────────────────────────╝
+```
 
 </div>

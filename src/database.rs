@@ -2,7 +2,8 @@ use crate::config::OmniConfig;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqlitePool, sqlite::SqliteConnectOptions};
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -70,7 +71,14 @@ impl Database {
         let data_dir = OmniConfig::data_dir()?;
         std::fs::create_dir_all(&data_dir)?;
 
-        let database_url = format!("sqlite:{}/omni.db", data_dir.display());
+        let database_path = data_dir.join("omni.db");
+        let database_url = format!("sqlite:{}", database_path.display());
+
+        // Use SqliteConnectOptions so we can set create_if_missing, which
+        // ensures the file is created on first run without requiring it to
+        // already exist on disk.
+        let connect_options = SqliteConnectOptions::from_str(&database_url)?
+            .create_if_missing(true);
 
         // Configure connection pool for optimal performance
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
@@ -79,7 +87,7 @@ impl Database {
             .max_lifetime(Some(std::time::Duration::from_secs(3600))) // 1 hour
             .idle_timeout(Some(std::time::Duration::from_secs(600))) // 10 minutes
             .test_before_acquire(true)
-            .connect(&database_url)
+            .connect_with(connect_options)
             .await?;
 
         let db = Database { pool };

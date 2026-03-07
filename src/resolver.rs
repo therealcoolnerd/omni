@@ -5,7 +5,7 @@ use anyhow::Result;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::process::Command;
+use tokio::process::Command;
 use tracing::{error, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -186,7 +186,8 @@ impl DependencyResolver {
         let output = Command::new("apt")
             .arg("depends")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if !output.status.success() {
             return Ok(vec![]);
@@ -249,7 +250,8 @@ impl DependencyResolver {
             .arg("repoquery")
             .arg("--requires")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if !output.status.success() {
             return Ok(vec![]);
@@ -286,7 +288,8 @@ impl DependencyResolver {
         let output = Command::new("pacman")
             .arg("-Si")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if !output.status.success() {
             return Ok(vec![]);
@@ -344,7 +347,8 @@ impl DependencyResolver {
             .arg("info")
             .arg("--show-runtime")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let runtime = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -433,11 +437,22 @@ impl DependencyResolver {
             .collect();
 
         if !exact_matches.is_empty() {
-            // Priority order: apt > dnf > pacman > flatpak > snap > appimage
-            let priority_order = ["apt", "dnf", "pacman", "flatpak", "snap", "appimage"];
+            // Priority order varies by platform so we always prefer the native
+            // system package manager for the current OS.
+            let priority_order: Vec<&str> = match distro::detect_os() {
+                distro::OperatingSystem::Windows => {
+                    vec!["winget", "choco", "scoop"]
+                }
+                distro::OperatingSystem::MacOS => {
+                    vec!["brew", "mas"]
+                }
+                _ => {
+                    vec!["apt", "dnf", "pacman", "zypper", "flatpak", "snap", "appimage"]
+                }
+            };
 
             for box_type in &priority_order {
-                if let Some(result) = exact_matches.iter().find(|r| &r.box_type == box_type) {
+                if let Some(result) = exact_matches.iter().find(|r| &r.box_type == *box_type) {
                     return Ok(result.box_type.clone());
                 }
             }
@@ -467,7 +482,8 @@ impl DependencyResolver {
         let output = Command::new("apt")
             .arg("policy")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -504,7 +520,8 @@ impl DependencyResolver {
         let output = Command::new("pacman")
             .arg("-Si")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -523,7 +540,8 @@ impl DependencyResolver {
         let output = Command::new("snap")
             .arg("info")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -542,7 +560,8 @@ impl DependencyResolver {
         let output = Command::new("flatpak")
             .arg("info")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -637,7 +656,8 @@ impl DependencyResolver {
         let output = Command::new("pacman")
             .arg("-Si")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);

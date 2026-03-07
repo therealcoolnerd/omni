@@ -6,7 +6,7 @@ use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command;
+use tokio::process::Command;
 use tracing::{info, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -137,7 +137,8 @@ impl SearchEngine {
             .arg("search")
             .arg("--names-only")
             .arg(query)
-            .output()?;
+            .output()
+            .await?;
 
         if !output.status.success() {
             return Ok(vec![]);
@@ -181,7 +182,8 @@ impl SearchEngine {
             .arg("search")
             .arg("--quiet")
             .arg(query)
-            .output()?;
+            .output()
+            .await?;
 
         if !output.status.success() {
             return Ok(vec![]);
@@ -434,7 +436,8 @@ Dependencies: {}",
         let output = Command::new("pacman")
             .arg("-Si")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -447,7 +450,8 @@ Dependencies: {}",
         let output = Command::new("flatpak")
             .arg("info")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())

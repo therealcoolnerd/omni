@@ -1,131 +1,176 @@
-# 🌟 **Omni Project Overview**
-
-A realistic look at what Omni is and what it does.
-
-## 🎯 **Project Mission**
-
-**Problem**: Package management is fragmented across platforms. Developers need to learn different commands for Linux (`apt`), macOS (`brew`), and Windows (`winget`).
-
-**Solution**: Omni provides a unified interface that wraps native package managers.
-
-**Approach**: Simple, focused, working software over marketing hype.
-
-## 🏗️ **Technical Architecture**
-
-### **Core Components**
+<div align="center">
 
 ```
-omni/
-├── src/
-│   ├── main.rs              # CLI entry point
-│   ├── lib.rs               # Library interface
-│   ├── server.rs            # Web Server API (Axum)
-│   ├── boxes/               # Package manager wrappers
-│   │   ├── apt.rs          # Linux: Debian/Ubuntu
-│   │   ├── dnf.rs          # Linux: Fedora/RHEL
-│   │   ├── pacman.rs       # Linux: Arch
-│   │   ├── brew.rs         # macOS: Homebrew
-│   │   ├── winget.rs       # Windows: WinGet
-│   │   └── ...             # Other managers
-│   ├── config.rs           # Configuration
-│   ├── database.rs         # SQLite operations
-│   ├── brain.rs            # Core logic
-│   └── gui.rs              # Optional GUI
-└── web-app/                # Premium React Dashboard
+ ██████╗ ███╗   ███╗███╗   ██╗██╗
+██╔═══██╗████╗ ████║████╗  ██║██║
+██║   ██║██╔████╔██║██╔██╗ ██║██║
+██║   ██║██║╚██╔╝██║██║╚██╗██║██║
+╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║
+ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝
 ```
 
-### **How It Works**
+**Project Overview**
 
-1. **Detection**: Omni detects available package managers on startup
-2. **Translation**: Commands are translated to native package manager syntax
-3. **Execution**: Native package managers handle the actual installation
-4. **Logging**: Operations are logged to SQLite database
+</div>
 
-## 📊 **Current Status**
+---
 
-### **What's Implemented**
-- ✅ Cross-platform package manager detection
-- ✅ Basic package operations (install, remove, search, list)
-- ✅ Configuration management
-- ✅ SQLite logging
-- ✅ Premium Web Dashboard
-- ✅ REST API Server
-- ✅ Optional GUI interface
-- ✅ Optional SSH remote management
+## What Omni Is
 
-### **Package Manager Support**
+Omni is a universal package manager written in Rust. It provides a single, consistent command-line interface across Linux, macOS, and Windows by wrapping the native package managers already present on each platform.
 
-| Platform | Supported Managers |
-|----------|-------------------|
-| **Linux** | apt, dnf, pacman, snap, flatpak, zypper, emerge, nix |
-| **macOS** | homebrew, mas |
-| **Windows** | winget, chocolatey, scoop |
-
-### **Code Quality**
-- **Language**: Rust 2021 edition
-- **Lines of Code**: ~10,000 (reduced from 16,000+ after cleanup)
-- **Dependencies**: Minimal, focused set
-- **Testing**: Unit and integration tests
-- **Security**: Input validation, safe execution
-
-## 🎯 **Design Principles**
-
-### **What We Focus On**
-1. **Simplicity**: One command works everywhere
-2. **Reliability**: Wrap existing, tested package managers
-3. **Transparency**: Clear about what works and what doesn't
-4. **Maintainability**: Clean, readable Rust code
-
-### **What We Avoid**
-- Complex dependency resolution (let native managers handle it)
-- Reinventing package management protocols
-- Over-engineering for hypothetical enterprise needs
-- Marketing claims without implementation
-
-## 🚀 **Development Roadmap**
-
-### **Current Focus**
-- Stabilize core functionality
-- Improve error handling
-- Add more package manager support
-- Better documentation
-
-### **Future Possibilities**
-- Package repository caching
-- Plugin system for package managers
-- Mobile platform support
-- Integration with CI/CD systems
-
-## 🤝 **Contributing**
-
-### **Areas for Contribution**
-- **Package Managers**: Add support for new platforms
-- **Testing**: Cross-platform validation
-- **Documentation**: Examples, tutorials, guides
-- **Bug Fixes**: Platform-specific issues
-
-### **Development Setup**
-```bash
-git clone https://github.com/therealcoolnerd/omni.git
-cd omni
-cargo build
-cargo test
+```
+omni install git      →  apt install git          (Ubuntu/Debian)
+                      →  dnf install git          (Fedora/RHEL)
+                      →  pacman -S git            (Arch)
+                      →  winget install Git.Git   (Windows)
+                      →  brew install git         (macOS)
 ```
 
-## 📄 **License & Ownership**
+Omni detects what is available, picks the best option, validates the operation through a security whitelist, and delegates. Every operation is recorded in a local SQLite database for history, rollback, and snapshots.
+
+---
+
+## Status: v1.0.0 Final
+
+This is a completed, stable release. All known bugs have been fixed. The codebase compiles cleanly on Linux, macOS, and Windows.
+
+---
+
+## Feature Surface
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Core operations    install · remove · search · info · list     │
+│  Update management  check · update-all · refresh repos          │
+│  History            full log · undo last operation              │
+│  Snapshots          create · list · revert                      │
+│  Dependency graph   BFS resolution · conflict detection         │
+│  Security           GPG verify · SHA-256 checksum · whitelist   │
+│  Hardware           detect · auto-drivers · vendor-specific     │
+│  Repository         add · remove · list · refresh               │
+│  Web API            Axum REST server (localhost-only)           │
+│  GUI                Desktop interface (optional feature)        │
+│  SSH                Remote management (optional feature)        │
+│  Mock mode          Safe testing without system changes         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Package Manager Coverage
+
+| Platform | Managers |
+|----------|----------|
+| Linux | apt · dnf · pacman · snap · flatpak · zypper · emerge · nix · appimage |
+| macOS | homebrew · mas |
+| Windows | winget · chocolatey · scoop |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CLI  (main.rs / clap)                                          │
+├─────────────────────────────────────────────────────────────────┤
+│  OmniBrain  — orchestration, history, snapshots                 │
+├─────────────┬───────────────┬───────────────┬───────────────────┤
+│  Boxes      │  Resolver     │  Search       │  Security         │
+│  ─────────  │  ──────────── │  ──────────── │  ─────────────── │
+│  Per-PM     │  BFS dep      │  Multi-PM     │  GPG / SHA-256   │
+│  wrappers   │  graph        │  search +     │  Command          │
+│  (14 total) │  Conflict     │  dedup        │  whitelist        │
+│             │  detection    │               │  Arg sanitizer    │
+├─────────────┴───────────────┴───────────────┴───────────────────┤
+│  SQLite (history, cache, snapshots)                             │
+│  YAML config · tracing logs · Axum REST API                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Security Design
+
+Omni runs with elevated privileges. The security design reflects that:
+
+- **Command whitelist** — every binary, subcommand, and flag is explicitly approved before any process is spawned
+- **Argument sanitization** — shell injection, path traversal, and command substitution are blocked at the input boundary
+- **Localhost-only web server** — the REST API binds on `127.0.0.1`, never exposed to the network
+- **Privilege minimization** — sudo/elevation is requested only when required, never stored
+
+---
+
+## Technical Stack
+
+| Layer | Technology |
+|-------|------------|
+| Language | Rust 2021 edition |
+| Async runtime | Tokio (multi-thread) |
+| CLI | clap 4.x |
+| Database | SQLite via sqlx 0.8 |
+| Web server | Axum 0.7 |
+| Logging | tracing + tracing-appender |
+| Config | serde + serde_yaml |
+| GUI (optional) | eframe / egui 0.31 |
+| SSH (optional) | russh 0.53 |
+
+---
+
+## Code Organization
+
+```
+src/
+├── main.rs                CLI entry point
+├── lib.rs                 Public library API
+├── brain.rs               Core orchestration
+├── resolver.rs            Dependency resolution
+├── advanced_resolver.rs   Extended resolution logic
+├── search.rs              Cross-platform search
+├── database.rs            SQLite operations
+├── snapshot.rs            Snapshot management
+├── security.rs            GPG and checksum verification
+├── secure_executor.rs     Command whitelist + sanitization
+├── config.rs              YAML configuration
+├── distro.rs              OS/distro detection
+├── hardware.rs            Hardware detection and drivers
+├── server.rs              Axum REST API
+├── updater.rs             Update management
+├── transaction.rs         Atomic operations
+├── unified_manager.rs     Unified manager abstraction
+├── audit.rs               Security audit trail
+├── privilege_manager.rs   Privilege escalation control
+├── sandboxing.rs          Process sandboxing
+├── input_validation.rs    Input validation utilities
+├── logging.rs             Logging configuration
+├── manifest.rs            Manifest file parsing
+├── package_discovery.rs   Package discovery service
+├── interactive.rs         Interactive prompts
+├── history.rs             History management
+├── docker.rs              Container support
+├── ssh.rs                 SSH remote management (feature)
+├── gui.rs                 Desktop GUI (feature)
+└── boxes/                 Per-manager implementations (14)
+```
+
+---
+
+## Design Principles
+
+- **Wrap, don't replace.** The native package managers are already tested and maintained. Omni translates commands; the PM does the work.
+- **One path, every platform.** A script that installs with Omni should work unchanged on any supported OS.
+- **Security is not optional.** Elevated privilege demands strict input handling. Every execution path goes through the whitelist.
+- **Local-first.** History, snapshots, and cache live in a local SQLite database. No cloud dependency, no account required.
+- **Observable.** Every operation is logged. Nothing happens silently.
+
+---
+
+## License and Author
 
 - **License**: AGPL-3.0-or-later
 - **Author**: [therealcoolnerd](https://github.com/therealcoolnerd)
 - **Contact**: arealcoolcompany@gmail.com
 
-## 🎉 **Project Philosophy**
+---
 
-**"Build what works, document what exists, improve based on real usage."**
-
-This project prioritizes:
-- Working software over comprehensive documentation
-- Real implementation over architectural diagrams  
-- User needs over feature checklists
-- Honest communication over marketing speak
-
-Omni is a tool built by developers, for developers, to solve a real problem we all face every day.
+[README](README.md) · [User Guide](docs/user-guide.md) · [Installation](docs/installation-guide.md) · [Contributing](CONTRIBUTING.md)

@@ -170,11 +170,15 @@ pub fn get_os_display_name() -> String {
             format!("{} Linux", distro_name)
         }
         OperatingSystem::Windows => {
-            // Try to get Windows version
-            if let Ok(output) = std::process::Command::new("ver").output() {
+            // `ver` is a cmd.exe shell builtin — it must be invoked through cmd.
+            if let Ok(output) = std::process::Command::new("cmd")
+                .args(["/C", "ver"])
+                .output()
+            {
                 let version = String::from_utf8_lossy(&output.stdout);
-                if !version.is_empty() {
-                    return version.trim().to_string();
+                let trimmed = version.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
                 }
             }
             "Windows".to_string()
@@ -209,20 +213,26 @@ mod tests {
 
     #[test]
     fn test_os_detection() {
+        // Verify detect_os returns a known variant without panicking.
         let os = detect_os();
-        // Just ensure it doesn't panic and returns a valid OS
-        match os {
+        let recognised = matches!(
+            os,
             OperatingSystem::Linux(_)
-            | OperatingSystem::Windows
-            | OperatingSystem::MacOS
-            | OperatingSystem::Unknown => assert!(true),
-        }
+                | OperatingSystem::Windows
+                | OperatingSystem::MacOS
+                | OperatingSystem::Unknown
+        );
+        assert!(recognised, "detect_os returned an unexpected variant");
     }
 
     #[test]
     fn test_package_manager_detection() {
+        // Verify get_available_package_managers returns without panicking and
+        // that the result is a valid (possibly empty) list.
         let managers = get_available_package_managers();
-        // Should return at least empty vector without panicking
-        assert!(managers.len() >= 0);
+        // Each entry must be a non-empty string.
+        for m in &managers {
+            assert!(!m.is_empty(), "package manager name should not be empty");
+        }
     }
 }

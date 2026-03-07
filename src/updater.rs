@@ -9,7 +9,7 @@ use crate::distro::{self, PackageManager};
 use anyhow::Result;
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::process::Command;
+use tokio::process::Command;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -72,7 +72,8 @@ impl UpdateManager {
             .arg("list")
             .arg("--upgradable")
             .arg(&package.package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -100,7 +101,8 @@ impl UpdateManager {
         let output = Command::new("dnf")
             .arg("check-update")
             .arg(&package.package_name)
-            .output()?;
+            .output()
+            .await?;
 
         // dnf check-update returns 100 if updates are available
         if output.status.code() == Some(100) {
@@ -131,7 +133,8 @@ impl UpdateManager {
         let output = Command::new("pacman")
             .arg("-Qu")
             .arg(&package.package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -190,7 +193,8 @@ impl UpdateManager {
                     .as_deref()
                     .unwrap_or(&package.package_name),
             )
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             // For Flatpak, we just indicate an update is available
@@ -270,7 +274,8 @@ impl UpdateManager {
             .arg("--only-upgrade")
             .arg("-y")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(())
@@ -285,7 +290,8 @@ impl UpdateManager {
             .arg("update")
             .arg("-y")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(())
@@ -300,7 +306,8 @@ impl UpdateManager {
             .arg("-S")
             .arg("--noconfirm")
             .arg(package_name)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(())
@@ -329,7 +336,8 @@ impl UpdateManager {
             .arg("update")
             .arg("-y")
             .arg(package_ref)
-            .output()?;
+            .output()
+            .await?;
 
         if output.status.success() {
             Ok(())

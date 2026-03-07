@@ -1,10 +1,8 @@
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
-use std::os::unix::process::CommandExt;
-use std::process::Stdio;
 use std::time::Duration;
 use tokio::process::Command;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 #[derive(Clone)]
 pub struct SecureExecutor {
@@ -42,24 +40,95 @@ pub struct ExecutionResult {
 impl SecureExecutor {
     pub fn new() -> Result<Self> {
         let mut allowed_commands = HashMap::new();
-        
-        // Package managers
-        allowed_commands.insert("apt".to_string(), vec!["install".to_string(), "remove".to_string(), "update".to_string(), "upgrade".to_string(), "search".to_string(), "show".to_string()]);
-        allowed_commands.insert("dnf".to_string(), vec!["install".to_string(), "remove".to_string(), "update".to_string(), "check-update".to_string(), "search".to_string(), "info".to_string(), "makecache".to_string()]);
-        allowed_commands.insert("pacman".to_string(), vec!["-S".to_string(), "-R".to_string(), "-Sy".to_string(), "-Syu".to_string(), "-Ss".to_string(), "-Si".to_string()]);
-        allowed_commands.insert("snap".to_string(), vec!["install".to_string(), "remove".to_string(), "refresh".to_string(), "find".to_string(), "info".to_string(), "list".to_string()]);
-        allowed_commands.insert("flatpak".to_string(), vec!["install".to_string(), "uninstall".to_string(), "update".to_string(), "search".to_string(), "info".to_string(), "list".to_string()]);
-        
+
+        // Linux package managers
+        allowed_commands.insert("apt".to_string(), vec![
+            "install".to_string(), "remove".to_string(), "update".to_string(),
+            "upgrade".to_string(), "search".to_string(), "show".to_string(),
+            "depends".to_string(), "list".to_string(), "policy".to_string(),
+            "-y".to_string(), "--names-only".to_string(), "--upgradable".to_string(),
+        ]);
+        allowed_commands.insert("dnf".to_string(), vec![
+            "install".to_string(), "remove".to_string(), "update".to_string(),
+            "check-update".to_string(), "search".to_string(), "info".to_string(),
+            "makecache".to_string(), "repoquery".to_string(),
+            "-y".to_string(), "--quiet".to_string(), "--requires".to_string(),
+        ]);
+        allowed_commands.insert("pacman".to_string(), vec![
+            "-S".to_string(), "-R".to_string(), "-Sy".to_string(), "-Syu".to_string(),
+            "-Ss".to_string(), "-Si".to_string(), "--noconfirm".to_string(),
+        ]);
+        allowed_commands.insert("snap".to_string(), vec![
+            "install".to_string(), "remove".to_string(), "refresh".to_string(),
+            "find".to_string(), "info".to_string(), "list".to_string(),
+        ]);
+        allowed_commands.insert("flatpak".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "update".to_string(),
+            "search".to_string(), "info".to_string(), "list".to_string(),
+            "-y".to_string(), "--show-runtime".to_string(),
+        ]);
+        allowed_commands.insert("zypper".to_string(), vec![
+            "install".to_string(), "remove".to_string(), "update".to_string(),
+            "search".to_string(), "info".to_string(), "refresh".to_string(),
+            "-n".to_string(), "--non-interactive".to_string(),
+        ]);
+
+        // dpkg tools (used for querying on Debian/Ubuntu)
+        allowed_commands.insert("dpkg-query".to_string(), vec![
+            "-W".to_string(), "-l".to_string(), "-s".to_string(),
+            "--showformat".to_string(),
+        ]);
+        allowed_commands.insert("dpkg".to_string(), vec![
+            "-i".to_string(), "-r".to_string(), "-P".to_string(), "-l".to_string(),
+        ]);
+
+        // Windows package managers
+        allowed_commands.insert("winget".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "upgrade".to_string(),
+            "search".to_string(), "show".to_string(), "list".to_string(),
+            "source".to_string(),
+            "--id".to_string(), "--silent".to_string(), "--accept-source-agreements".to_string(),
+            "--accept-package-agreements".to_string(), "--exact".to_string(),
+        ]);
+        allowed_commands.insert("choco".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "upgrade".to_string(),
+            "search".to_string(), "info".to_string(), "list".to_string(),
+            "-y".to_string(), "--yes".to_string(),
+        ]);
+        allowed_commands.insert("scoop".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "update".to_string(),
+            "search".to_string(), "info".to_string(), "list".to_string(),
+            "status".to_string(),
+        ]);
+
+        // macOS package managers
+        allowed_commands.insert("brew".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "upgrade".to_string(),
+            "search".to_string(), "info".to_string(), "list".to_string(),
+            "update".to_string(), "outdated".to_string(),
+        ]);
+        allowed_commands.insert("mas".to_string(), vec![
+            "install".to_string(), "uninstall".to_string(), "upgrade".to_string(),
+            "search".to_string(), "info".to_string(), "list".to_string(),
+            "outdated".to_string(),
+        ]);
+
         // System utilities
-        allowed_commands.insert("wget".to_string(), vec!["-O".to_string(), "-q".to_string(), "--timeout".to_string()]);
-        allowed_commands.insert("curl".to_string(), vec!["-o".to_string(), "-s".to_string(), "--max-time".to_string(), "-L".to_string()]);
-        allowed_commands.insert("gpg".to_string(), vec!["--import".to_string(), "--verify".to_string(), "--keyserver".to_string()]);
-        
+        allowed_commands.insert("wget".to_string(), vec![
+            "-O".to_string(), "-q".to_string(), "--timeout".to_string(),
+        ]);
+        allowed_commands.insert("curl".to_string(), vec![
+            "-o".to_string(), "-s".to_string(), "--max-time".to_string(), "-L".to_string(),
+        ]);
+        allowed_commands.insert("gpg".to_string(), vec![
+            "--import".to_string(), "--verify".to_string(), "--keyserver".to_string(),
+        ]);
+
         // Hardware detection
         allowed_commands.insert("lspci".to_string(), vec!["-nn".to_string(), "-v".to_string()]);
         allowed_commands.insert("lsusb".to_string(), vec!["-v".to_string()]);
         allowed_commands.insert("dmidecode".to_string(), vec!["-s".to_string(), "-t".to_string()]);
-        
+
         Ok(Self { allowed_commands })
     }
 
@@ -114,21 +183,43 @@ impl SecureExecutor {
     }
     
     fn validate_command(&self, command: &str, args: &[&str]) -> Result<()> {
-        // Check if command is in allowed list
-        if let Some(allowed_args) = self.allowed_commands.get(command) {
-            // Check if all arguments are allowed
-            for arg in args {
-                if arg.starts_with('-') {
-                    // Check if flag is allowed
-                    if !allowed_args.contains(&arg.to_string()) {
-                        return Err(anyhow!("Argument '{}' not allowed for command '{}'", arg, command));
-                    }
+        let allowed_args = self
+            .allowed_commands
+            .get(command)
+            .ok_or_else(|| anyhow!("Command '{}' not in allowed list", command))?;
+
+        // Validate the first argument (subcommand or primary flag). Every call
+        // must have a leading operation so we know what it intends to do.
+        let first_arg = args
+            .first()
+            .ok_or_else(|| anyhow!("No arguments provided for command '{}'", command))?;
+
+        if !allowed_args.contains(&first_arg.to_string()) {
+            return Err(anyhow!(
+                "Operation '{}' not allowed for command '{}'",
+                first_arg,
+                command
+            ));
+        }
+
+        // Validate any additional flags (args starting with '-') in the rest of
+        // the argument list. Package names and other positional values are handled
+        // by sanitize_arguments instead.
+        for arg in args.iter().skip(1) {
+            if arg.starts_with('-') && !allowed_args.contains(&arg.to_string()) {
+                // Allow flags that contain '=' (e.g. --showformat=${Version})
+                // by checking only the flag name portion.
+                let flag_name = arg.splitn(2, '=').next().unwrap_or(arg);
+                if !allowed_args.contains(&flag_name.to_string()) {
+                    return Err(anyhow!(
+                        "Flag '{}' not allowed for command '{}'",
+                        arg,
+                        command
+                    ));
                 }
             }
-        } else {
-            return Err(anyhow!("Command '{}' not in allowed list", command));
         }
-        
+
         Ok(())
     }
     
